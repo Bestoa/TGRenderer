@@ -9,5 +9,7 @@ executable('tiny-raster',
            'simple-window.cpp',
            dependencies:[
              dependency('SDL2'),
+             dependency('openmp'),
              ],
+           cpp_args: '-fopenmp',
            install : true)

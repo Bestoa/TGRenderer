@@ -285,6 +285,7 @@ void trTriangle(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {
     size_t i = 0;
+#pragma omp parallel for
     for (i = 0; i < vertices.size(); i += 3)
     {
         trTriangle(vertices[i], vertices[i+1], vertices[i+2], uvs[i], uvs[i+1], uvs[i+2], normals[i], normals[i+1], normals[i+2]);
