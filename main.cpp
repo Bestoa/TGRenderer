@@ -20,10 +20,10 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc < 3)
     {
-        printf("Usage: %s objfile texturefile\n", argv[0]);
-        return false;
+        printf("Usage: %s objfile texturefile...\n", argv[0]);
+        return 0;
     }
     TRBuffer buffer;
     trCreateRenderTarget(buffer, WIDTH, HEIGHT);
@@ -35,9 +35,22 @@ int main(int argc, char *argv[])
 
     load_obj(argv[1], vertices, uvs, normals);
 
-    TRTexture texture;
-    load_ppm_texture(argv[2], texture);
-    trBindTexture(texture);
+    TRTexture diffuse;
+    load_ppm_texture(argv[2], diffuse);
+    trBindTexture(&diffuse, TEXTURE_DIFFUSE);
+
+    TRTexture specular;
+    if (argc > 3)
+    {
+        load_ppm_texture(argv[3], specular);
+        trBindTexture(&specular, TEXTURE_SPECULAR);
+    }
+    TRTexture glow;
+    if (argc > 4)
+    {
+        load_ppm_texture(argv[4], glow);
+        trBindTexture(&glow, TEXTURE_GLOW);
+    }
 
     trSetViewMat(glm::lookAt(
                 glm::vec3(0,1,2), // Camera is at (0,1,2), in World Space

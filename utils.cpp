@@ -23,6 +23,7 @@ bool load_ppm_texture(
 {
     FILE * file = fopen(path, "rb");
     char line[__LINE_LEN__];
+    uint8_t *data_line;
     if (file == NULL)
     {
         printf("Impossible to open the texture file ! Are you in the right path ?\n");
@@ -46,16 +47,26 @@ bool load_ppm_texture(
     if (!fgets(line, __LINE_LEN__, file) || strncmp("255", line, 3))
         goto read_error;
 
-    tex.diffuse = new uint8_t[tex.stride * tex.h];
-    if (!tex.diffuse)
+    tex.data = new float[tex.stride * tex.h];
+    if (!tex.data)
         goto read_error;
 
-    if (fread(tex.diffuse, 1, tex.stride * tex.h, file) != size_t(tex.stride * tex.h))
-        goto read_error;
+    data_line = new uint8_t[tex.stride];
+    if (!data_line)
+        goto free_texture;
+    for (int i = 0; i < tex.h; i++)
+    {
+        if (fread(data_line, 1, tex.stride, file) != size_t(tex.stride))
+            goto free_texture;
+        for (int j = 0; j < tex.stride; j++)
+            tex.data[tex.stride * i + j] = (float)data_line[j] / 255.0f;
+    }
 
     fclose(file);
 
     return true;
+free_texture:
+    delete tex.data;
 read_error:
     fclose(file);
     printf("Read ppm file failed\n");

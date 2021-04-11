@@ -9,10 +9,24 @@
 
 struct TRTexture
 {
-    uint8_t *diffuse;
+    float *data;
     int stride;
     int w;
     int h;
+};
+
+struct TRMaterial
+{
+    TRTexture *diffuse;
+    TRTexture *specular;
+    TRTexture *glow;
+};
+
+enum texture_type
+{
+    TEXTURE_DIFFUSE,
+    TEXTURE_SPECULAR,
+    TEXTURE_GLOW,
 };
 
 #define BPP (3)
@@ -28,11 +42,10 @@ struct TRBuffer
 };
 
 void trSetAmbientStrength(float v);
-void trSetSpecularStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
 void trMakeCurrent(TRBuffer &buffer);
-void trBindTexture(TRTexture &texture);
+void trBindTexture(TRTexture *texture, int type);
 void trClear();
 void trUpdateNormalMat();
 void trSetModelMat(glm::mat4 mat);
