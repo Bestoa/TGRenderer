@@ -20,6 +20,7 @@ struct TRMaterial
     TRTexture *diffuse;
     TRTexture *specular;
     TRTexture *glow;
+    TRTexture *normal;
 };
 
 enum texture_type
@@ -27,6 +28,7 @@ enum texture_type
     TEXTURE_DIFFUSE,
     TEXTURE_SPECULAR,
     TEXTURE_GLOW,
+    TEXTURE_NORMAL,
 };
 
 #define BPP (3)
@@ -47,7 +49,6 @@ void trSetLightPosition3f(float x, float y, float z);
 void trMakeCurrent(TRBuffer &buffer);
 void trBindTexture(TRTexture *texture, int type);
 void trClear();
-void trUpdateNormalMat();
 void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);

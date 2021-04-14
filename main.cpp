@@ -51,6 +51,12 @@ int main(int argc, char *argv[])
         load_ppm_texture(argv[4], glow);
         trBindTexture(&glow, TEXTURE_GLOW);
     }
+    TRTexture normal;
+    if (argc > 5)
+    {
+        load_ppm_texture(argv[5], normal);
+        trBindTexture(&normal, TEXTURE_NORMAL);
+    }
 
     trSetViewMat(glm::lookAt(
                 glm::vec3(0,1,2), // Camera is at (0,1,2), in World Space
@@ -64,14 +70,13 @@ int main(int argc, char *argv[])
 #if __ON_SCREEN__
     window *w = window_create(WIDTH, HEIGHT);
     int frame = 0;
-    while (!window_should_exit()) {
+    while (!window_should_exit() && frame < 1000) {
 #endif
         trClear();
 #if __ON_SCREEN__
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
 #endif
-        trUpdateNormalMat();
         trTriangles(vertices, uvs, normals);
 #if __ON_SCREEN__
         window_update(w, buffer.data, buffer.h * buffer.stride);
