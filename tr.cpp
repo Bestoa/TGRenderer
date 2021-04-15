@@ -150,8 +150,13 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
     {
         // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
         glm::vec3 e = glm::normalize(-fragment_postion);
+#if __BLINN_PHONG__
         glm::vec3 r = glm::reflect(-l, n);
         float spec = glm::pow(glm::max(dot(e, r), 0.0f), gShininess);
+#else
+        glm::vec3 h = glm::normalize(l + e);
+        float spec = glm::pow(glm::max(dot(n, h), 0.0f), gShininess);
+#endif
         result += spec * gLightColor * __texture_color__(u, v, gCurrentMaterial.specular);
     }
 

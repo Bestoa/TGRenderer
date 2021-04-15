@@ -43,6 +43,10 @@ struct TRBuffer
     uint8_t bg_color[BPP];
 };
 
+#ifndef __BLINN_PHONG__
+#define __BLINN_PHONG__ 1
+#endif
+
 void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
