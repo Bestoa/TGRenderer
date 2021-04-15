@@ -7,7 +7,6 @@
 
 #include "tr.h"
 
-
 // global value
 TRBuffer *gCurrentBuffer = NULL;
 TRMaterial gCurrentMaterial = { NULL, NULL, NULL, NULL };
@@ -22,6 +21,9 @@ float gAmbientStrength = 0.1;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
+
+glm::vec2 empty_uvs[3];
+glm::vec3 empty_normals[3];
 
 // internal function
 static inline void __clear_color__(TRBuffer &buffer)
@@ -117,7 +119,7 @@ static void vertex_shader(
 }
 
 // fragment shader
-static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion, glm::vec2 fragment_uv, glm::vec3 normal, glm::mat3 TBN, uint8_t color[3]/* out */)
+static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion, glm::vec2 fragment_uv, glm::vec3 N, glm::vec3 T, uint8_t color[3]/* out */)
 {
     float u = glm::clamp(fragment_uv.x, 0.0f, 1.0f);
     float v = glm::clamp(fragment_uv.y, 0.0f, 1.0f);
@@ -130,12 +132,16 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
     glm::vec3 n;
     if (gCurrentMaterial.normal != NULL)
     {
+        // Gram-Schmidt orthogonalize
+        T = glm::normalize(T - dot(T, N) * N);
+        glm::vec3 B = glm::cross(N, T);
+        glm::mat3 TBN = glm::mat3(T, B, N);
         n = __texture_color__(u, v, gCurrentMaterial.normal) * 2.0f - 1.0f;
         n = TBN * n;
     }
     else
     {
-        n = normal;
+        n = N;
     }
     n = glm::normalize(n);
     // from fragment to light
@@ -171,15 +177,8 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
 }
 
 // tr api
-#define __USE_DEMO_COLOR__ 0
-void triangle_pipeline(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
-        glm::vec2 uv1, glm::vec2 uv2, glm::vec2 uv3,
-        glm::vec3 normal1, glm::vec3 normal2, glm::vec3 normal3)
+void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 c[3] = NULL)
 {
-
-    glm::vec4 v[3] = { glm::vec4(v1, 1.0f), glm::vec4(v2, 1.0f), glm::vec4(v3, 1.0f) };
-    glm::vec2 uv[3] = { uv1, uv2, uv3 };
-    glm::vec3 n[3] = { normal1, normal2, normal3 };
 
     glm::vec4 camera_v[3];
     glm::vec4 clip_v[3];
@@ -188,9 +187,9 @@ void triangle_pipeline(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
 
     glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
 
-    glm::vec3 t;
-    __compute__tangent__(v, uv, t);
-    t = glm::normalize(gNormalMat * t);
+    glm::vec3 T;
+    __compute__tangent__(v, uv, T);
+    T = glm::normalize(gNormalMat * T);
 
     for (int i = 0; i < 3; i++)
     {
@@ -233,14 +232,16 @@ void triangle_pipeline(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
                 // z in ndc of opengl should between -1.0f to 1.0f
                 if (depth > 1.0f || depth < -1.0f) continue;
                 gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
-#if __USE_DEMO_COLOR__
-                float r = w0;
-                float g = w1;
-                float b = w2;
-                base[j * BPP + 0] = r * 255;
-                base[j * BPP + 1] = g * 255;
-                base[j * BPP + 2] = b * 255;
-#else
+
+                if (c != NULL)
+                {
+                    // Disable lighting shader
+                    base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                    base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                    base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                    continue;
+                }
+
                 glm::vec2 UV(
                         __interpolation__(uv, 0, w0, w1, w2),
                         __interpolation__(uv, 1, w0, w1, w2)
@@ -255,12 +256,7 @@ void triangle_pipeline(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
                         __interpolation__(n, 1, w0, w1, w2),
                         __interpolation__(n, 2, w0, w1, w2)
                         ));
-                // Gram-Schmidt orthogonalize
-                glm::vec3 T = glm::normalize(t - dot(t, N) * N);
-                glm::vec3 B = glm::cross(N, T);
-                glm::mat3 TBN = glm::mat3(T, B, N);
-                fragment_shader(light_postion, P, UV, N, TBN, &base[j * BPP]);
-#endif
+                fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
             }
 
         }
@@ -268,14 +264,37 @@ void triangle_pipeline(glm::vec3 v1, glm::vec3 v2, glm::vec3 v3,
 
 }
 
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
+void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals, bool demo_color)
 {
     size_t i = 0;
     __compute_normal_mat__();
 #pragma omp parallel for
     for (i = 0; i < vertices.size(); i += 3)
     {
-        triangle_pipeline(vertices[i], vertices[i+1], vertices[i+2], uvs[i], uvs[i+1], uvs[i+2], normals[i], normals[i+1], normals[i+2]);
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
+        glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
+        if (demo_color)
+        {
+            glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
+            triangle_pipeline(v, uv, n, c);
+        }
+        else
+        {
+            triangle_pipeline(v, uv, n);
+        }
+    }
+}
+
+void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
+{
+    size_t i = 0;
+#pragma omp parallel for
+    for (i = 0; i < vertices.size(); i += 3)
+    {
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        glm::vec3 c[3] = { colors[i], colors[i+1], colors[i+2] };
+        triangle_pipeline(v, empty_uvs, empty_normals, c);
     }
 }
 
