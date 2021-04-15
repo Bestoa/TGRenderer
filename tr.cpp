@@ -14,7 +14,8 @@ TRMaterial gCurrentMaterial = { NULL, NULL, NULL, NULL };
 
 glm::mat4 gModelMat = glm::mat4(1.0f);
 glm::mat4 gViewMat = glm::mat4(1.0f);
-glm::mat4 gProjMat = glm::mat4(1.0f);
+// defult proj mat should swap z-order
+glm::mat4 gProjMat = glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f});
 glm::mat3 gNormalMat = glm::mat3(1.0f);
 
 float gAmbientStrength = 0.1;
