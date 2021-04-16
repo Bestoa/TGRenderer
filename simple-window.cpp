@@ -1,4 +1,21 @@
+#include <stdio.h>
 #include "window.h"
+
+void *__disp_func__(void *data)
+{
+    struct window *w = (struct window *)data;
+    printf("Start display thread.\n");
+    pthread_mutex_lock(&w->mutex);
+    while (w->running)
+    {
+        pthread_cond_wait(&w->cond, &w->mutex);
+        if (!SDL_RenderCopy(w->renderer, w->texture, NULL, NULL))
+            SDL_RenderPresent(w->renderer);
+    }
+    pthread_mutex_unlock(&w->mutex);
+    printf("Stop display thread.\n");
+    return NULL;
+}
 
 struct window * window_create(int width, int height)
 {
@@ -29,6 +46,11 @@ struct window * window_create(int width, int height)
     if (window->texture == NULL)
         goto free_renderer;
 
+    pthread_mutex_init(&window->mutex, 0);
+    window->cond = PTHREAD_COND_INITIALIZER;
+    window->running = 1;
+    pthread_create(&window->display_thread, NULL, __disp_func__, window);
+
     return window;
 
 free_renderer:
@@ -42,20 +64,21 @@ free_window:
     return NULL;
 }
 
-int window_update(struct window *window, void *addr, size_t size)
+int window_lock(struct window *w, void **addr)
 {
-    void *pixels;
-    int pitch;
-    if (SDL_LockTexture(window->texture, NULL, &pixels, &pitch))
-        return 1;
+    int pitch, ret;
+    pthread_mutex_lock(&w->mutex);
+    ret = SDL_LockTexture(w->texture, NULL, addr, &pitch);
+    pthread_mutex_unlock(&w->mutex);
+    return ret;
+}
 
-    memcpy(pixels, addr, size);
-    SDL_UnlockTexture(window->texture);
-    if (SDL_RenderCopy(window->renderer, window->texture, NULL, NULL))
-        return 1;
-
-    SDL_RenderPresent(window->renderer);
-    return 0;
+void window_unlock(struct window *w)
+{
+    pthread_mutex_lock(&w->mutex);
+    SDL_UnlockTexture(w->texture);
+    pthread_cond_signal(&w->cond);
+    pthread_mutex_unlock(&w->mutex);
 }
 
 int window_should_exit()
@@ -71,6 +94,13 @@ int window_should_exit()
 
 void window_destory(struct window *window)
 {
+    pthread_mutex_lock(&window->mutex);
+    window->running = 0;
+    pthread_cond_signal(&window->cond);
+    pthread_mutex_unlock(&window->mutex);
+    pthread_join(window->display_thread, 0);
+    printf("Display thread exit.\n");
+    pthread_mutex_destroy(&window->mutex);
     SDL_DestroyTexture(window->texture);
     SDL_DestroyRenderer(window->renderer);
     SDL_DestroyWindow(window->window);

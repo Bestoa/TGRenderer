@@ -27,7 +27,11 @@ int main(int argc, char *argv[])
     }
     TRBuffer buffer;
     ZERO(buffer);
+#if __ON_SCREEN__
+    trCreateRenderTarget(buffer, WIDTH, HEIGHT, true);
+#else
     trCreateRenderTarget(buffer, WIDTH, HEIGHT);
+#endif
     trMakeCurrent(buffer);
 
     std::vector<glm::vec3> vertices;
@@ -75,16 +79,19 @@ int main(int argc, char *argv[])
 #if __ON_SCREEN__
     window *w = window_create(WIDTH, HEIGHT);
     int frame = 0;
+    void *addr;
     while (!window_should_exit() && frame < 1000) {
 #endif
-        trClear();
 #if __ON_SCREEN__
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
+        window_lock(w, &addr);
+        trSetExtBufferToRenderTarget(buffer, addr);
 #endif
+        trClear();
         trTriangles(vertices, uvs, normals);
 #if __ON_SCREEN__
-        window_update(w, buffer.data, buffer.h * buffer.stride);
+        window_unlock(w);
     }
     window_destory(w);
     printf("frames = %d\n", frame);

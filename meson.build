@@ -2,16 +2,23 @@ project('tiny-raster', 'cpp', 'c',
   version : '0.1',
   default_options : ['warning_level=3', 'cpp_std=c++14'])
 
-executable('tiny-raster',
+libtr = shared_library('tr',
            'tr.cpp',
-           'main.cpp',
            'utils.cpp',
-           'simple-window.cpp',
            'external/tga/targa.c',
            dependencies:[
-             dependency('SDL2'),
              dependency('openmp'),
              ],
-           c_args: '-xc++',
            cpp_args: '-fopenmp',
+           c_args: '-xc++',
+           install : true)
+
+executable('model-renderer',
+           'main.cpp',
+           'simple-window.cpp',
+           dependencies:[
+             dependency('SDL2'),
+             ],
+           link_args: '-pthread',
+           link_with: libtr,
            install : true)

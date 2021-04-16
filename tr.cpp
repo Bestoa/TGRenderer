@@ -365,15 +365,21 @@ void trSetProjMat(glm::mat4 mat)
     gProjMat = mat;
 }
 
-bool trCreateRenderTarget(TRBuffer &buffer, int w, int h)
+bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer)
 {
-    buffer.data = new uint8_t[w * h * BPP];
-    if (!buffer.data)
-        return false;
+    buffer.data = nullptr;
+    buffer.ext_buffer = has_ext_buffer;
+    if (!has_ext_buffer)
+    {
+        buffer.data = new uint8_t[w * h * BPP];
+        if (!buffer.data)
+            return false;
+    }
     buffer.depth = new float[w * h];
     if (!buffer.depth)
     {
-        delete buffer.data;
+        if (buffer.data)
+            delete buffer.data;
         return false;
     }
     buffer.w = w;
@@ -382,14 +388,21 @@ bool trCreateRenderTarget(TRBuffer &buffer, int w, int h)
     buffer.bg_color[0] = 0;
     buffer.bg_color[1] = 0;
     buffer.bg_color[2] = 0;
-    __clear_color__(buffer);
+    if (!has_ext_buffer)
+        __clear_color__(buffer);
     __clear_depth__(buffer);
     return true;
 }
 
+void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr)
+{
+    buffer.data = (uint8_t *)addr;
+}
+
 void trDestoryRenderTarget(TRBuffer &buffer)
 {
-    if (buffer.data)
+    // ext buffer was not managered by us.
+    if (!buffer.ext_buffer && buffer.data)
         delete buffer.data;
 
     if (buffer.depth)

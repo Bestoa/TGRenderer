@@ -41,6 +41,8 @@ struct TRBuffer
     int h;
     int stride;
     uint8_t bg_color[BPP];
+    // data was not allocated by us.
+    bool ext_buffer;
 };
 
 #ifndef __BLINN_PHONG__
@@ -56,7 +58,8 @@ void trClear();
 void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);
-bool trCreateRenderTarget(TRBuffer &buffer, int w, int h);
+bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer = false);
+void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr);
 void trDestoryRenderTarget(TRBuffer &buffer);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals, bool demo_color = false);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
