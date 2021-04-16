@@ -135,6 +135,12 @@ free_tga:
     return false;
 }
 
+void destory_texture(TRTexture &tex)
+{
+    if (tex.data)
+        delete(tex.data);
+}
+
 bool load_obj(
         const char * path, 
         std::vector<glm::vec3> & out_vertices, 

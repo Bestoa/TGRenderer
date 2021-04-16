@@ -369,10 +369,13 @@ bool trCreateRenderTarget(TRBuffer &buffer, int w, int h)
 {
     buffer.data = new uint8_t[w * h * BPP];
     if (!buffer.data)
-        abort();
+        return false;
     buffer.depth = new float[w * h];
     if (!buffer.depth)
-        abort();
+    {
+        delete buffer.data;
+        return false;
+    }
     buffer.w = w;
     buffer.h = h;
     buffer.stride = w * BPP;
@@ -382,5 +385,14 @@ bool trCreateRenderTarget(TRBuffer &buffer, int w, int h)
     __clear_color__(buffer);
     __clear_depth__(buffer);
     return true;
+}
+
+void trDestoryRenderTarget(TRBuffer &buffer)
+{
+    if (buffer.data)
+        delete buffer.data;
+
+    if (buffer.depth)
+        delete buffer.depth;
 }
 

@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
         return 0;
     }
     TRBuffer buffer;
+    ZERO(buffer);
     trCreateRenderTarget(buffer, WIDTH, HEIGHT);
     trMakeCurrent(buffer);
 
@@ -36,22 +37,26 @@ int main(int argc, char *argv[])
     load_obj(argv[1], vertices, uvs, normals);
 
     TRTexture diffuse;
+    ZERO(diffuse);
     load_ppm_texture(argv[2], diffuse);
     trBindTexture(&diffuse, TEXTURE_DIFFUSE);
 
     TRTexture specular;
+    ZERO(specular);
     if (argc > 3)
     {
         load_ppm_texture(argv[3], specular);
         trBindTexture(&specular, TEXTURE_SPECULAR);
     }
     TRTexture glow;
+    ZERO(glow);
     if (argc > 4)
     {
         load_ppm_texture(argv[4], glow);
         trBindTexture(&glow, TEXTURE_GLOW);
     }
     TRTexture normal;
+    ZERO(normal);
     if (argc > 5)
     {
         load_ppm_texture(argv[5], normal);
@@ -89,5 +94,10 @@ int main(int argc, char *argv[])
 #if !__ON_SCREEN__
     save_ppm("out.ppm", buffer.data, buffer.w, buffer.h);
 #endif
+    trDestoryRenderTarget(buffer);
+    destory_texture(diffuse);
+    destory_texture(specular);
+    destory_texture(glow);
+    destory_texture(normal);
     return 0;
 }

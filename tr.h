@@ -57,6 +57,7 @@ void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);
 bool trCreateRenderTarget(TRBuffer &buffer, int w, int h);
+void trDestoryRenderTarget(TRBuffer &buffer);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals, bool demo_color = false);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
 #endif
