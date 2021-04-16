@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 #include "tr.h"
+#include "external/tga/targa.h"
 
 void save_ppm(const char *name, uint8_t *buffer, int width, int height)
 {
@@ -15,6 +16,7 @@ void save_ppm(const char *name, uint8_t *buffer, int width, int height)
     fwrite(buffer, 1, width * height * 3, fp);
     fclose(fp);
 }
+
 #define __LINE_LEN__ (128)
 bool load_ppm_texture(
         const char * path,
@@ -40,8 +42,9 @@ bool load_ppm_texture(
     // skip comment
     if (line[0] == '#' && !fgets(line, __LINE_LEN__, file))
         goto read_error;
-    sscanf(line, "%d%d\n", &tex.w, &tex.h);
-    printf("Texutre: %dx%d\n", tex.w, tex.h);
+
+    sscanf(line, "%d%d", &tex.w, &tex.h);
+    printf("Loading PPM texture %s, size %dx%d.\n", path, tex.w, tex.h);
     tex.stride = tex.w * 3;
 
     if (!fgets(line, __LINE_LEN__, file) || strncmp("255", line, 3))
@@ -61,18 +64,76 @@ bool load_ppm_texture(
         for (int j = 0; j < tex.stride; j++)
             tex.data[tex.stride * i + j] = (float)data_line[j] / 255.0f;
     }
-
+    delete data_line;
     fclose(file);
-
+    printf("Done.\n");
     return true;
+
 free_texture:
     delete tex.data;
 read_error:
     fclose(file);
-    printf("Read ppm file failed\n");
+    printf("Read PPM file failed\n");
     return false;
 }
 #undef __LINE_LEN__
+
+bool load_tga_texture(
+        const char * path,
+        TRTexture &tex
+        )
+{
+    tga_image img;
+    tga_result ret;
+    ret = tga_read(&img, path);
+    if (ret != TGA_NOERR)
+    {
+        printf("Read TGA file failed\n");
+        return false;
+    }
+    tex.w = img.width;
+    tex.h = img.height;
+    tex.stride = tex.w * 3;
+    tex.data = new float[tex.stride * tex.h];
+    if (!tex.data)
+        goto free_tga;
+    printf("Loading TGA texture %s, size %dx%d/%d.\n", path, tex.w, tex.h, img.pixel_depth);
+
+    // default flip vert
+    tga_flip_vert(&img);
+    if (ret != TGA_NOERR)
+        goto free_texture;
+
+    if (img.pixel_depth != 24)
+    {
+        printf("convert depth to 24\n");
+        ret = tga_convert_depth(&img, 24);
+        if (ret != TGA_NOERR)
+            goto free_texture;
+    }
+
+    ret = tga_swap_red_blue(&img);
+    if (ret != TGA_NOERR)
+        goto free_texture;
+
+    for (int i = 0; i < tex.h; i++)
+    {
+        for (int j = 0; j < tex.stride; j++)
+        {
+            tex.data[i * tex.stride + j] = img.image_data[i * tex.stride + j] / 255.0f;
+        }
+    }
+    printf("Done.\n");
+    tga_free_buffers(&img);
+    return true;
+
+free_texture:
+    delete tex.data;
+free_tga:
+    tga_free_buffers(&img);
+    printf("Read TGA file failed\n");
+    return false;
+}
 
 bool load_obj(
         const char * path, 

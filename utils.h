@@ -6,6 +6,10 @@ bool load_ppm_texture(
         const char *path,
         TRTexture &tex
         );
+bool load_tga_texture(
+        const char *path,
+        TRTexture &tex
+        );
 bool load_obj(
         const char * path, 
         std::vector<glm::vec3> & out_vertices, 
