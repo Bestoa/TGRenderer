@@ -63,4 +63,5 @@ void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr);
 void trDestoryRenderTarget(TRBuffer &buffer);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals, bool demo_color = false);
 void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
+void trTrianglesWireframe(std::vector<glm::vec3> &vertices);
 #endif

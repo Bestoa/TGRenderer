@@ -2,6 +2,7 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -176,7 +177,71 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
     color[2] = glm::clamp(int(result[2] * 255), 0, 255);
 }
 
+void __plot__(int x, int y)
+{
+    uint8_t *base = &gCurrentBuffer->data[y * gCurrentBuffer->stride + x * BPP];
+    base[0] = base[1] = base[2] = 255;
+}
+
+void __draw_line__(float x0, float y0, float x1, float y1)
+{
+    // Bresenham's line algorithm
+    bool steep = abs(y1 - y0) > abs(x1 - x0);
+    if (steep)
+    {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+    }
+
+    if (x0 > x1)
+    {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+    int deltax = int(x1 - x0);
+    int deltay = int(abs(y1 - y0));
+    float error = 0;
+    float deltaerr = (float)deltay / (float)deltax;
+    int ystep;
+    int y = y0;
+    if (y0 < y1)
+        ystep = 1;
+    else
+        ystep = -1;
+    for (int x = int(x0 + 0.5); x < x1; x++)
+    {
+        if (steep)
+            __plot__(y, x);
+        else
+            __plot__(x, y);
+        error += deltaerr;
+        if (error >= 0.5)
+        {
+            y += ystep;
+            error -= 1.0;
+        }
+    }
+}
+
 // tr api
+void triangle_pipeline_wireframe(glm::vec4 v[3])
+{
+    glm::vec4 camera_v[3];
+    glm::vec3 n[3];
+    glm::vec4 clip_v[3];
+    glm::vec4 ndc_v[3];
+    glm::vec2 screen_v[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+        vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
+        ndc_v[i] = clip_v[i] / clip_v[i].w;
+        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+    }
+    __draw_line__(screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
+    __draw_line__(screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
+    __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
+}
 void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 c[3] = NULL)
 {
 
@@ -295,6 +360,17 @@ void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &color
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec3 c[3] = { colors[i], colors[i+1], colors[i+2] };
         triangle_pipeline(v, empty_uvs, empty_normals, c);
+    }
+}
+
+void trTrianglesWireframe(std::vector<glm::vec3> &vertices)
+{
+    size_t i = 0;
+#pragma omp parallel for
+    for (i = 0; i < vertices.size(); i += 3)
+    {
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        triangle_pipeline_wireframe(v);
     }
 }
 
