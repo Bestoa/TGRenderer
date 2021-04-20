@@ -18,10 +18,7 @@ void save_ppm(const char *name, uint8_t *buffer, int width, int height)
 }
 
 #define __LINE_LEN__ (128)
-bool load_ppm_texture(
-        const char * path,
-        TRTexture &tex
-        )
+bool __load_ppm_texture__(const char * path, TRTexture &tex)
 {
     FILE * file = fopen(path, "rb");
     char line[__LINE_LEN__];
@@ -76,12 +73,8 @@ read_error:
     printf("Read PPM file failed\n");
     return false;
 }
-#undef __LINE_LEN__
 
-bool load_tga_texture(
-        const char * path,
-        TRTexture &tex
-        )
+static bool __load_tga_texture__(const char * path, TRTexture &tex)
 {
     tga_image img;
     tga_result ret;
@@ -134,6 +127,20 @@ free_tga:
     printf("Read TGA file failed\n");
     return false;
 }
+#undef __LINE_LEN__
+
+bool load_texture(const char *name, TRTexture &tex)
+{
+    char *subffix = strrchr((char *)name, '.');
+    if (!subffix)
+        return false;
+    if (!strncmp(subffix, ".tga", 4))
+        return __load_tga_texture__(name, tex);
+    if (!strncmp(subffix, ".ppm", 4))
+        return __load_ppm_texture__(name, tex);
+    return false;
+}
+
 
 void destory_texture(TRTexture &tex)
 {

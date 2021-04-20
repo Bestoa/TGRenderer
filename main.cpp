@@ -42,28 +42,28 @@ int main(int argc, char *argv[])
 
     TRTexture diffuse;
     ZERO(diffuse);
-    load_ppm_texture(argv[2], diffuse);
+    load_texture(argv[2], diffuse);
     trBindTexture(&diffuse, TEXTURE_DIFFUSE);
 
     TRTexture specular;
     ZERO(specular);
     if (argc > 3)
     {
-        load_ppm_texture(argv[3], specular);
+        load_texture(argv[3], specular);
         trBindTexture(&specular, TEXTURE_SPECULAR);
     }
     TRTexture glow;
     ZERO(glow);
     if (argc > 4)
     {
-        load_ppm_texture(argv[4], glow);
+        load_texture(argv[4], glow);
         trBindTexture(&glow, TEXTURE_GLOW);
     }
     TRTexture normal;
     ZERO(normal);
     if (argc > 5)
     {
-        load_ppm_texture(argv[5], normal);
+        load_texture(argv[5], normal);
         trBindTexture(&normal, TEXTURE_NORMAL);
     }
 
