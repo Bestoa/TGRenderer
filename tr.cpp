@@ -264,6 +264,10 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
     }
 
     float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
+#if __CULL_FACE__
+    if (area <= 0)
+        return;
+#endif
 
     glm::vec2 left_up, right_down;
     left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
@@ -283,47 +287,48 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
             int flag = 0;
             if (w0 >= 0 && w1 >= 0 && w2 >= 0)
                 flag = 1;
+#if !__CULL_FACE__
             if (w0 <= 0 && w1 <= 0 && w2 <= 0)
                 flag = -1;
-            if (flag)
+#endif
+            if (!flag)
+                continue;
+
+            __safe_div__(w0, area, flag);
+            __safe_div__(w1, area, flag);
+            __safe_div__(w2, area, flag);
+            // use ndc z to calculate depth
+            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
+            // projection matrix will inverse z-order.
+            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
+            // z in ndc of opengl should between -1.0f to 1.0f
+            if (depth > 1.0f || depth < -1.0f) continue;
+            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
+
+            if (c != NULL)
             {
-                __safe_div__(w0, area, flag);
-                __safe_div__(w1, area, flag);
-                __safe_div__(w2, area, flag);
-                // use ndc z to calculate depth
-                float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
-                // projection matrix will inverse z-order.
-                if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
-                // z in ndc of opengl should between -1.0f to 1.0f
-                if (depth > 1.0f || depth < -1.0f) continue;
-                gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
+                // Disable lighting shader
+                base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+                continue;
+            }
 
-                if (c != NULL)
-                {
-                    // Disable lighting shader
-                    base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                    base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                    base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                    continue;
-                }
-
-                glm::vec2 UV(
-                        __interpolation__(uv, 0, w0, w1, w2),
-                        __interpolation__(uv, 1, w0, w1, w2)
-                        );
-                glm::vec3 P(
-                        __interpolation__(camera_v, 0, w0, w1, w2),
-                        __interpolation__(camera_v, 1, w0, w1, w2),
-                        __interpolation__(camera_v, 2, w0, w1, w2)
-                        );
-                glm::vec3 N = glm::normalize(glm::vec3(
+            glm::vec2 UV(
+                    __interpolation__(uv, 0, w0, w1, w2),
+                    __interpolation__(uv, 1, w0, w1, w2)
+                    );
+            glm::vec3 P(
+                    __interpolation__(camera_v, 0, w0, w1, w2),
+                    __interpolation__(camera_v, 1, w0, w1, w2),
+                    __interpolation__(camera_v, 2, w0, w1, w2)
+                    );
+            glm::vec3 N = glm::normalize(glm::vec3(
                         __interpolation__(n, 0, w0, w1, w2),
                         __interpolation__(n, 1, w0, w1, w2),
                         __interpolation__(n, 2, w0, w1, w2)
                         ));
-                fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
-            }
-
+            fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
         }
     }
 

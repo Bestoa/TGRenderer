@@ -49,6 +49,10 @@ struct TRBuffer
 #define __BLINN_PHONG__ 1
 #endif
 
+#ifndef __CULL_FACE__
+#define __CULL_FACE__ 1
+#endif
+
 void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
