@@ -6,6 +6,7 @@
 void save_ppm(const char *name, uint8_t *buffer, int width, int height);
 bool load_texture(const char *path, TRTexture &tex);
 void destory_texture(TRTexture &tex);
+bool is_valid_texture(TRTexture &tex);
 bool load_obj(
         const char * path,
         std::vector<glm::vec3> & out_vertices,

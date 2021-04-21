@@ -1,0 +1,6 @@
+{
+    "obj" : "res/obj/boggie/head.obj",
+    "diffuse" : "res/obj/boggie/head_diffuse.tga",
+    "specular" : "res/obj/boggie/head_spec.tga", 
+    "normal" : "res/obj/boggie/head_nm_tangent.tga"
+}

@@ -148,6 +148,14 @@ void destory_texture(TRTexture &tex)
         delete(tex.data);
 }
 
+bool is_valid_texture(TRTexture &tex)
+{
+    if (tex.data == nullptr || tex.w == 0 || tex.h == 0)
+        return false;
+    else
+        return true;
+}
+
 bool load_obj(
         const char * path, 
         std::vector<glm::vec3> & out_vertices, 

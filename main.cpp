@@ -2,12 +2,14 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "tr.h"
 #include "utils.h"
 #include "window.h"
+#include "objs.h"
 
 #define __ON_SCREEN__ 1
 #if __ON_SCREEN__
@@ -20,9 +22,9 @@
 
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
+    if (argc < 2)
     {
-        printf("Usage: %s objfile texturefile...\n", argv[0]);
+        printf("Usage: %s obj_config...\n", argv[0]);
         return 0;
     }
     TRBuffer buffer;
@@ -34,37 +36,12 @@ int main(int argc, char *argv[])
 #endif
     trMakeCurrent(buffer);
 
-    std::vector<glm::vec3> vertices;
-    std::vector<glm::vec2> uvs;
-    std::vector<glm::vec3> normals;
-
-    load_obj(argv[1], vertices, uvs, normals);
-
-    TRTexture diffuse;
-    ZERO(diffuse);
-    load_texture(argv[2], diffuse);
-    trBindTexture(&diffuse, TEXTURE_DIFFUSE);
-
-    TRTexture specular;
-    ZERO(specular);
-    if (argc > 3)
+    std::vector<std::shared_ptr <TRObj>> objs;
+    for (int i = 1; i < argc; i++)
     {
-        load_texture(argv[3], specular);
-        trBindTexture(&specular, TEXTURE_SPECULAR);
-    }
-    TRTexture glow;
-    ZERO(glow);
-    if (argc > 4)
-    {
-        load_texture(argv[4], glow);
-        trBindTexture(&glow, TEXTURE_GLOW);
-    }
-    TRTexture normal;
-    ZERO(normal);
-    if (argc > 5)
-    {
-        load_texture(argv[5], normal);
-        trBindTexture(&normal, TEXTURE_NORMAL);
+        std::shared_ptr<TRObj> obj(new TRObj());
+        if (obj->load_from_config_file(argv[i]))
+            objs.push_back(obj);
     }
 
     trSetViewMat(glm::lookAt(
@@ -89,7 +66,8 @@ int main(int argc, char *argv[])
         trSetExtBufferToRenderTarget(buffer, addr);
 #endif
         trClear();
-        trTriangles(vertices, uvs, normals);
+        for (auto obj : objs)
+            obj->draw();
 #if __ON_SCREEN__
         window_unlock(w);
     }
@@ -102,9 +80,5 @@ int main(int argc, char *argv[])
     save_ppm("out.ppm", buffer.data, buffer.w, buffer.h);
 #endif
     trDestoryRenderTarget(buffer);
-    destory_texture(diffuse);
-    destory_texture(specular);
-    destory_texture(glow);
-    destory_texture(normal);
     return 0;
 }
