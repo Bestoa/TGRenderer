@@ -54,24 +54,26 @@ int main(int argc, char *argv[])
     trSetProjMat(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f));
 
 #if __ON_SCREEN__
-    window *w = window_create(WIDTH, HEIGHT);
+    TRWindow *w = new TRWindow(WIDTH, HEIGHT);
+    if (w->fail())
+        return 1;
     int frame = 0;
     void *addr;
-    while (!window_should_exit() && frame < 1000) {
+    while (!w->should_exit() && frame < 1000) {
 #endif
 #if __ON_SCREEN__
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
-        window_lock(w, &addr);
+        w->lock(&addr);
         trSetExtBufferToRenderTarget(buffer, addr);
 #endif
         trClear();
         for (auto obj : objs)
             obj->draw();
 #if __ON_SCREEN__
-        window_unlock(w);
+        w->unlock();
     }
-    window_destory(w);
+    delete w;
     printf("frames = %d\n", frame);
 #endif
 

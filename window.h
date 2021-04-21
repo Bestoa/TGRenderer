@@ -3,23 +3,32 @@
 
 #include <SDL.h>
 #include <SDL_image.h>
-#include <pthread.h>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 
-struct window {
-    int width;
-    int height;
-    SDL_Window *window;
-    SDL_Renderer *renderer;
-    struct SDL_Texture *texture;
-    pthread_mutex_t mutex;
-    pthread_cond_t cond;
-    pthread_t display_thread;
-    int running;
+class TRWindow {
+    public:
+        TRWindow(int w, int h);
+        ~TRWindow();
+
+        bool fail();
+        bool lock(void **addr);
+        void unlock();
+        bool should_exit();
+
+    private:
+        int mWidth;
+        int mHeight;
+        SDL_Window *mWindow;
+        SDL_Renderer *mRenderer;
+        SDL_Texture *mTexture;
+        std::mutex mMutex;
+        std::condition_variable mCV;
+        std::thread mDisplayThread;
+        bool mRunning;
+
+        static void __disp_func__(TRWindow *);
 };
 
-struct window *window_create(int width, int height);
-int window_lock(struct window *window, void **addr);
-void window_unlock(struct window *window);
-int window_should_exit();
-void window_destory(struct window *window);
 #endif

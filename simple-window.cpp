@@ -1,109 +1,117 @@
-#include <stdio.h>
+#include <iostream>
+#include <thread>
+#include <mutex>
+#include <condition_variable>
 #include "window.h"
 
-void *__disp_func__(void *data)
+using namespace std;
+
+void TRWindow::__disp_func__(TRWindow *w)
 {
-    struct window *w = (struct window *)data;
-    printf("Start display thread.\n");
-    pthread_mutex_lock(&w->mutex);
-    while (w->running)
+    cout << "[TRWindow]: Start display thread." << endl;
+    unique_lock<mutex> lcx(w->mMutex);
+    while (true)
     {
-        pthread_cond_wait(&w->cond, &w->mutex);
-        if (!SDL_RenderCopy(w->renderer, w->texture, NULL, NULL))
-            SDL_RenderPresent(w->renderer);
+        w->mCV.wait(lcx);
+        if (!w->mRunning)
+            break;
+        if (!SDL_RenderCopy(w->mRenderer, w->mTexture, nullptr, nullptr))
+            SDL_RenderPresent(w->mRenderer);
     }
-    pthread_mutex_unlock(&w->mutex);
-    printf("Stop display thread.\n");
-    return NULL;
+    cout << "[TRWindow]: Stop display thread." << endl;
 }
 
-struct window * window_create(int width, int height)
+TRWindow::TRWindow(int w, int h)
 {
-    struct window *window = NULL;
+    mWidth = w;
+    mHeight = h;
 
-    window = (struct window *)malloc(sizeof(struct window));
-    if (window == NULL)
-        return NULL;
-
-    window->width = width;
-    window->height = height;
+    mWindow = nullptr;
+    mRenderer = nullptr;
+    mTexture = nullptr;
 
     if (SDL_Init(SDL_INIT_VIDEO))
-        goto free_window;
+        goto error;
 
-    window->window = SDL_CreateWindow("Tiny Raster",
-            SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
-            width, height, SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
-    if (window->window == NULL)
-        goto deinit_sdl;
+    mWindow = SDL_CreateWindow("Tiny Raster", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
+    if (mWindow == nullptr)
+        goto error;
 
-    window->renderer = SDL_CreateRenderer(window->window, -1, SDL_RENDERER_SOFTWARE);
-    if (window->renderer == NULL)
-        goto free_sdl_window;
+    mRenderer = SDL_CreateRenderer(mWindow, -1, SDL_RENDERER_SOFTWARE);
+    if (mRenderer == nullptr)
+        goto error;
 
-    window->texture = SDL_CreateTexture(window->renderer, SDL_PIXELFORMAT_RGB24,
-            SDL_TEXTUREACCESS_STREAMING, window->width, window->height);
-    if (window->texture == NULL)
-        goto free_renderer;
+    mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    if (mTexture == nullptr)
+        goto error;
 
-    pthread_mutex_init(&window->mutex, 0);
-    window->cond = PTHREAD_COND_INITIALIZER;
-    window->running = 1;
-    pthread_create(&window->display_thread, NULL, __disp_func__, window);
+    mDisplayThread = thread(__disp_func__, this);
+    if (!mDisplayThread.joinable())
+        goto error;
 
-    return window;
+    mRunning = true;
 
-free_renderer:
-    SDL_DestroyRenderer(window->renderer);
-free_sdl_window:
-    SDL_DestroyWindow(window->window);
-deinit_sdl:
+    return;
+
+error:
+    if (mTexture)
+        SDL_DestroyTexture(mTexture);
+    if (mRenderer)
+        SDL_DestroyRenderer(mRenderer);
+    if (mWindow)
+        SDL_DestroyWindow(mWindow);
+
     SDL_Quit();
-free_window:
-    free(window);
-    return NULL;
+    mWidth = 0;
+    mHeight = 0;
+    mRunning = false;
 }
 
-int window_lock(struct window *w, void **addr)
+bool TRWindow::fail()
 {
-    int pitch, ret;
-    pthread_mutex_lock(&w->mutex);
-    ret = SDL_LockTexture(w->texture, NULL, addr, &pitch);
-    pthread_mutex_unlock(&w->mutex);
-    return ret;
+    return !mRunning;
 }
 
-void window_unlock(struct window *w)
+bool TRWindow::lock(void **addr)
 {
-    pthread_mutex_lock(&w->mutex);
-    SDL_UnlockTexture(w->texture);
-    pthread_cond_signal(&w->cond);
-    pthread_mutex_unlock(&w->mutex);
+    int pitch;
+    unique_lock<mutex> lck(mMutex);
+    return !SDL_LockTexture(mTexture, nullptr, addr, &pitch);
 }
 
-int window_should_exit()
+void TRWindow::unlock()
+{
+    unique_lock<mutex> lck(mMutex);
+    SDL_UnlockTexture(mTexture);
+    mCV.notify_all();
+}
+
+bool TRWindow::should_exit()
 {
     SDL_Event event;
     while (SDL_PollEvent(&event) != 0)
     {
         if (event.type == SDL_QUIT)
-            return 1;
+            return true;
     }
-    return 0;
+    return false;
 }
 
-void window_destory(struct window *window)
+TRWindow::~TRWindow()
 {
-    pthread_mutex_lock(&window->mutex);
-    window->running = 0;
-    pthread_cond_signal(&window->cond);
-    pthread_mutex_unlock(&window->mutex);
-    pthread_join(window->display_thread, 0);
-    printf("Display thread exit.\n");
-    pthread_mutex_destroy(&window->mutex);
-    SDL_DestroyTexture(window->texture);
-    SDL_DestroyRenderer(window->renderer);
-    SDL_DestroyWindow(window->window);
-    SDL_Quit();
-    free(window);
+    if (mDisplayThread.joinable())
+    {
+        unique_lock<mutex> lck(mMutex);
+        mRunning = false;
+        // must unlock it manullay before join
+        lck.unlock();
+        mCV.notify_all();
+        mDisplayThread.join();
+        cout << "[TRWindow]: Display thread exit." << endl;
+
+        SDL_DestroyTexture(mTexture);
+        SDL_DestroyRenderer(mRenderer);
+        SDL_DestroyWindow(mWindow);
+        SDL_Quit();
+    }
 }
