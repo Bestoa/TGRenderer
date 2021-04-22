@@ -334,7 +334,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
 
 }
 
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals, bool demo_color)
+void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {
     size_t i = 0;
     __compute_normal_mat__();
@@ -344,15 +344,7 @@ void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, 
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
         glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
-        if (demo_color)
-        {
-            glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
-            triangle_pipeline(v, uv, n, c);
-        }
-        else
-        {
-            triangle_pipeline(v, uv, n);
-        }
+        triangle_pipeline(v, uv, n);
     }
 }
 
@@ -376,6 +368,18 @@ void trTrianglesWireframe(std::vector<glm::vec3> &vertices)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         triangle_pipeline_wireframe(v);
+    }
+}
+
+void trTrianglesDemoColor(std::vector<glm::vec3> &vertices)
+{
+    size_t i = 0;
+#pragma omp parallel for
+    for (i = 0; i < vertices.size(); i += 3)
+    {
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
+        triangle_pipeline(v, empty_uvs, empty_normals, c);
     }
 }
 

@@ -58,23 +58,17 @@ bool TRObj::load_from_config_file(const char *config_file_name)
     if (j["diffuse"].is_null() || !j["diffuse"].is_string() || !load_texture(j["diffuse"].get<string>().c_str(), mTextureDiffuse))
     {
         cout << "Load diffuse texture error!" << endl;
-        // If load texture failed, the memory of texture is freed, but the struct is not clean.
-        ZERO(mTextureDiffuse);
         return false;
     }
 
     if (!j["specular"].is_null() && j["specular"].is_string())
-        if (!load_texture(j["specular"].get<string>().c_str(), mTextureSpecular))
-            ZERO(mTextureSpecular);
+        load_texture(j["specular"].get<string>().c_str(), mTextureSpecular);
 
     if (!j["glow"].is_null() && j["glow"].is_string())
-        if (!load_texture(j["glow"].get<string>().c_str(), mTextureGlow))
-            ZERO(mTextureGlow);
+        load_texture(j["glow"].get<string>().c_str(), mTextureGlow);
 
     if (!j["normal"].is_null() && j["normal"].is_string())
-        if (!load_texture(j["normal"].get<string>().c_str(), mTextureNormal))
-            ZERO(mTextureNormal);
-
+        load_texture(j["normal"].get<string>().c_str(), mTextureNormal);
 
     return true;
 }

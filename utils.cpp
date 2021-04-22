@@ -6,6 +6,7 @@
 
 #include "tr.h"
 #include "external/tga/targa.h"
+#include "utils.h"
 
 void save_ppm(const char *name, uint8_t *buffer, int width, int height)
 {
@@ -71,6 +72,7 @@ free_texture:
 read_error:
     fclose(file);
     printf("Read PPM file failed\n");
+    ZERO(tex);
     return false;
 }
 
@@ -125,6 +127,7 @@ free_texture:
 free_tga:
     tga_free_buffers(&img);
     printf("Read TGA file failed\n");
+    ZERO(tex);
     return false;
 }
 #undef __LINE_LEN__
@@ -146,6 +149,7 @@ void destory_texture(TRTexture &tex)
 {
     if (tex.data)
         delete(tex.data);
+    ZERO(tex);
 }
 
 bool is_valid_texture(TRTexture &tex)
