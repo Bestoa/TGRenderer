@@ -2,13 +2,17 @@ project('tiny-raster', 'cpp', 'c',
   version : '0.1',
   default_options : ['warning_level=3', 'cpp_std=c++14'])
 
+dep_glm = dependency('glm')
+dep_json = dependency('nlohmann_json')
+dep_sdl2 = dependency('SDL2')
+
 libtrcore = shared_library('trcore',
            'tr.cpp',
            'utils.cpp',
            'external/tga/targa.c',
            dependencies:[
              dependency('openmp'),
-             dependency('glm'),
+             dep_glm,
              ],
            cpp_args: '-fopenmp',
            c_args: '-xc++',
@@ -18,7 +22,7 @@ libtrobj = shared_library('trobj',
            'objs.cpp',
            link_with: libtrcore,
            dependencies:[
-             dependency('nlohmann_json'),
+             dep_json,
              ],
            install : true)
 
@@ -26,9 +30,11 @@ executable('model-renderer',
            'main.cpp',
            'simple-window.cpp',
            dependencies:[
-             dependency('SDL2'),
-             dependency('glm'),
+             dep_glm,
+             dep_sdl2,
              ],
            link_args: '-pthread',
-           link_with: [ libtrcore, libtrobj ],
+           link_with: [ libtrcore, libtrobj ] ,
            install : true)
+
+subdir('demo/sphere')
