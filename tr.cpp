@@ -45,7 +45,7 @@ static inline void __clear_depth__(TRBuffer &buffer)
 {
     for (int i = 0; i < buffer.w * buffer.h; i++)
     {
-        buffer.depth[i] = 1e6;
+        buffer.depth[i] = 1;
     }
 }
 
@@ -301,8 +301,8 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
             float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
             // projection matrix will inverse z-order.
             if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
-            // z in ndc of opengl should between -1.0f to 1.0f
-            if (depth > 1.0f || depth < -1.0f) continue;
+            // z in ndc of opengl should between 0.0f to 1.0f
+            if (depth > 1.0f || depth < 0.0f) continue;
             gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
 
             if (c != NULL)
