@@ -33,7 +33,7 @@ TRWindow::TRWindow(int w, int h)
     if (SDL_Init(SDL_INIT_VIDEO))
         goto error;
 
-    mWindow = SDL_CreateWindow("Tiny Raster", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
+    mWindow = SDL_CreateWindow("ToyRenderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
     if (mWindow == nullptr)
         goto error;
 

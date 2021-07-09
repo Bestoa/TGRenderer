@@ -4,8 +4,10 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb/stb_image.h>
+
 #include "tr.h"
-#include "external/tga/targa.h"
 #include "utils.h"
 
 void save_ppm(const char *name, uint8_t *buffer, int width, int height)
@@ -18,129 +20,42 @@ void save_ppm(const char *name, uint8_t *buffer, int width, int height)
     fclose(fp);
 }
 
-#define __LINE_LEN__ (128)
-bool __load_ppm_texture__(const char * path, TRTexture &tex)
-{
-    FILE * file = fopen(path, "rb");
-    char line[__LINE_LEN__];
-    uint8_t *data_line;
-    if (file == NULL)
-    {
-        printf("Impossible to open the texture file ! Are you in the right path ?\n");
-        return false;
-    }
-    // read header
-    if (!fgets(line, __LINE_LEN__, file) || strncmp("P6", line, 2))
-        goto read_error;
-
-    // read w h
-    if (!fgets(line, __LINE_LEN__, file))
-        goto read_error;
-
-    // skip comment
-    if (line[0] == '#' && !fgets(line, __LINE_LEN__, file))
-        goto read_error;
-
-    sscanf(line, "%d%d", &tex.w, &tex.h);
-    printf("Loading PPM texture %s, size %dx%d.\n", path, tex.w, tex.h);
-    tex.stride = tex.w * 3;
-
-    if (!fgets(line, __LINE_LEN__, file) || strncmp("255", line, 3))
-        goto read_error;
-
-    tex.data = new float[tex.stride * tex.h];
-    if (!tex.data)
-        goto read_error;
-
-    data_line = new uint8_t[tex.stride];
-    if (!data_line)
-        goto free_texture;
-    for (int i = 0; i < tex.h; i++)
-    {
-        if (fread(data_line, 1, tex.stride, file) != size_t(tex.stride))
-            goto free_texture;
-        for (int j = 0; j < tex.stride; j++)
-            tex.data[tex.stride * i + j] = (float)data_line[j] / 255.0f;
-    }
-    delete data_line;
-    fclose(file);
-    printf("Done.\n");
-    return true;
-
-free_texture:
-    delete tex.data;
-read_error:
-    fclose(file);
-    printf("Read PPM file failed\n");
-    ZERO(tex);
-    return false;
-}
-
-static bool __load_tga_texture__(const char * path, TRTexture &tex)
-{
-    tga_image img;
-    tga_result ret;
-    ret = tga_read(&img, path);
-    if (ret != TGA_NOERR)
-    {
-        printf("Read TGA file failed\n");
-        return false;
-    }
-    tex.w = img.width;
-    tex.h = img.height;
-    tex.stride = tex.w * 3;
-    tex.data = new float[tex.stride * tex.h];
-    if (!tex.data)
-        goto free_tga;
-    printf("Loading TGA texture %s, size %dx%d/%d.\n", path, tex.w, tex.h, img.pixel_depth);
-
-    // default flip vert
-    tga_flip_vert(&img);
-    if (ret != TGA_NOERR)
-        goto free_texture;
-
-    if (img.pixel_depth != 24)
-    {
-        printf("convert depth to 24\n");
-        ret = tga_convert_depth(&img, 24);
-        if (ret != TGA_NOERR)
-            goto free_texture;
-    }
-
-    ret = tga_swap_red_blue(&img);
-    if (ret != TGA_NOERR)
-        goto free_texture;
-
-    for (int i = 0; i < tex.h; i++)
-    {
-        for (int j = 0; j < tex.stride; j++)
-        {
-            tex.data[i * tex.stride + j] = img.image_data[i * tex.stride + j] / 255.0f;
-        }
-    }
-    printf("Done.\n");
-    tga_free_buffers(&img);
-    return true;
-
-free_texture:
-    delete tex.data;
-free_tga:
-    tga_free_buffers(&img);
-    printf("Read TGA file failed\n");
-    ZERO(tex);
-    return false;
-}
-#undef __LINE_LEN__
-
 bool load_texture(const char *name, TRTexture &tex)
 {
-    char *subffix = strrchr((char *)name, '.');
-    if (!subffix)
+    int width, height, nrChannels;
+    unsigned char *data = stbi_load(name, &width, &height, &nrChannels, 0);
+    if (!data)
+    {
+        printf("Load texture %s failed.\n", name);
         return false;
-    if (!strncmp(subffix, ".tga", 4))
-        return __load_tga_texture__(name, tex);
-    if (!strncmp(subffix, ".ppm", 4))
-        return __load_ppm_texture__(name, tex);
+    }
+    if (nrChannels != 3 && nrChannels != 4)
+    {
+        printf("Only support RGB/RGBA texture.\n");
+        return false;
+    }
+    tex.w = width;
+    tex.h = height;
+    tex.stride = tex.w * 3;
+    tex.data = new uint8_t[tex.stride * tex.h];
+    if (!tex.data)
+        goto free_image;
+    printf("Loading texture %s, size %dx%d.\n", name, tex.w, tex.h);
+
+    for (int i = 0; i < tex.h; i++)
+    {
+        for (int j = 0; j < tex.w; j++)
+        {
+            tex.data[i * tex.stride + j * nrChannels + 0] = *(data + i * (nrChannels * width) + j * nrChannels + 0);
+            tex.data[i * tex.stride + j * nrChannels + 1] = *(data + i * (nrChannels * width) + j * nrChannels + 1);
+            tex.data[i * tex.stride + j * nrChannels + 2] = *(data + i * (nrChannels * width) + j * nrChannels + 2);
+        }
+    }
+
+    return true;
+
+free_image:
+    stbi_image_free(data);
     return false;
 }
 
@@ -161,8 +76,8 @@ bool is_valid_texture(TRTexture &tex)
 }
 
 bool load_obj(
-        const char * path, 
-        std::vector<glm::vec3> & out_vertices, 
+        const char * path,
+        std::vector<glm::vec3> & out_vertices,
         std::vector<glm::vec2> & out_uvs,
         std::vector<glm::vec3> & out_normals
         )
@@ -170,7 +85,7 @@ bool load_obj(
     printf("Loading OBJ file %s...\n", path);
 
     std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
-    std::vector<glm::vec3> temp_vertices; 
+    std::vector<glm::vec3> temp_vertices;
     std::vector<glm::vec2> temp_uvs;
     std::vector<glm::vec3> temp_normals;
     int faces = 0;

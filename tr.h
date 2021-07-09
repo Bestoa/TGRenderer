@@ -9,7 +9,7 @@
 
 struct TRTexture
 {
-    float *data;
+    uint8_t *data;
     int stride;
     int w;
     int h;

@@ -5,6 +5,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 #include "tr.h"
 #include "utils.h"
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
         return 1;
     int frame = 0;
     void *addr;
+    auto start = std::chrono::system_clock::now();
     while (!w->should_exit() && frame < 1000) {
 #endif
 #if __ON_SCREEN__
@@ -73,8 +75,11 @@ int main(int argc, char *argv[])
 #if __ON_SCREEN__
         w->unlock();
     }
+    auto end = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
     delete w;
-    printf("frames = %d\n", frame);
+    double fps = double(frame) / (double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den);
+    printf("fps = %lf\n", fps);
 #endif
 
     printf("Rendering done.\n");

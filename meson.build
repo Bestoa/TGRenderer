@@ -1,4 +1,4 @@
-project('tiny-raster', 'cpp', 'c',
+project('ToyRenderer', 'cpp',
   version : '0.1',
   default_options : ['warning_level=3', 'cpp_std=c++14'])
 
@@ -9,7 +9,6 @@ dep_sdl2 = dependency('SDL2')
 libtrcore = shared_library('trcore',
            'tr.cpp',
            'utils.cpp',
-           'external/tga/targa.c',
            dependencies:[
              dependency('openmp'),
              dep_glm,
@@ -26,7 +25,7 @@ libtrobj = shared_library('trobj',
              ],
            install : true)
 
-executable('model-renderer',
+executable('toy-model-renderer',
            'main.cpp',
            'simple-window.cpp',
            dependencies:[

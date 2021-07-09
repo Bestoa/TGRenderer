@@ -76,7 +76,7 @@ static inline glm::vec3 __texture_color__(float u, float v, TRTexture *texture)
     // inverse y here
     int y = int(texture->h - 1 - v * (texture->h - 1) + 0.5);
     // Only support RGB texture
-    float *color = texture->data + y * texture->stride + x * 3;
+    uint8_t *color = texture->data + y * texture->stride + x * 3;
     return glm::vec3(color[0], color[1], color[2]);
 }
 
@@ -137,7 +137,7 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
         T = glm::normalize(T - dot(T, N) * N);
         glm::vec3 B = glm::cross(N, T);
         glm::mat3 TBN = glm::mat3(T, B, N);
-        n = __texture_color__(u, v, gCurrentMaterial.normal) * 2.0f - 1.0f;
+        n = __texture_color__(u, v, gCurrentMaterial.normal) * 0.007843137f - 1.0f;
         n = TBN * n;
     }
     else
@@ -172,9 +172,9 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
         result += __texture_color__(u, v, gCurrentMaterial.glow);
     }
 
-    color[0] = glm::clamp(int(result[0] * 255), 0, 255);
-    color[1] = glm::clamp(int(result[1] * 255), 0, 255);
-    color[2] = glm::clamp(int(result[2] * 255), 0, 255);
+    color[0] = glm::clamp(int(result[0]), 0, 255);
+    color[1] = glm::clamp(int(result[1]), 0, 255);
+    color[2] = glm::clamp(int(result[2]), 0, 255);
 }
 
 void __plot__(int x, int y)
