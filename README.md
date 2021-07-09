@@ -1,1 +1,1 @@
-# tiny-rasterizer
+# ToyRenderer
