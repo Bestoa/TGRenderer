@@ -97,7 +97,7 @@ bool TRObj::draw()
     else
         trBindTexture(NULL, TEXTURE_NORMAL);
 
-    trTriangles(mVs, mUVs, mNs);
+    trTrianglesWithTexture(mVs, mUVs, mNs);
 
     return true;
 }

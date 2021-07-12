@@ -224,7 +224,8 @@ void __draw_line__(float x0, float y0, float x1, float y1)
 }
 
 // tr api
-void triangle_pipeline_wireframe(glm::vec4 v[3])
+// Wireframe pipeline
+void triangle_pipeline(glm::vec4 v[3])
 {
     glm::vec4 camera_v[3];
     glm::vec3 n[3];
@@ -242,7 +243,8 @@ void triangle_pipeline_wireframe(glm::vec4 v[3])
     __draw_line__(screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
-void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 c[3] = NULL)
+// Lighting pipeline
+void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3])
 {
 
     glm::vec4 camera_v[3];
@@ -305,15 +307,6 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
             if (depth > 1.0f || depth < 0.0f) continue;
             gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
 
-            if (c != NULL)
-            {
-                // Disable lighting shader
-                base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-                continue;
-            }
-
             glm::vec2 UV(
                     __interpolation__(uv, 0, w0, w1, w2),
                     __interpolation__(uv, 1, w0, w1, w2)
@@ -334,7 +327,71 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
 
 }
 
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
+// Color pipeline
+void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
+{
+
+    glm::vec4 clip_v[3];
+    glm::vec4 ndc_v[3];
+    glm::vec2 screen_v[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+        clip_v[i] = gProjMat * gViewMat * gModelMat * v[i];
+        ndc_v[i] = clip_v[i] / clip_v[i].w;
+        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+    }
+
+    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
+#if __CULL_FACE__
+    if (area <= 0)
+        return;
+#endif
+
+    glm::vec2 left_up, right_down;
+    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+
+    for (int i = left_up.y; i < right_down.y; i++)
+    {
+        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride];
+        for (int j = left_up.x; j < right_down.x; j++)
+        {
+            glm::vec2 v(j, i);
+            float w0 = __edge__(screen_v[1], screen_v[2], v);
+            float w1 = __edge__(screen_v[2], screen_v[0], v);
+            float w2 = __edge__(screen_v[0], screen_v[1], v);
+            int flag = 0;
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+                flag = 1;
+#if !__CULL_FACE__
+            if (w0 <= 0 && w1 <= 0 && w2 <= 0)
+                flag = -1;
+#endif
+            if (!flag)
+                continue;
+
+            __safe_div__(w0, area, flag);
+            __safe_div__(w1, area, flag);
+            __safe_div__(w2, area, flag);
+            // use ndc z to calculate depth
+            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
+            // projection matrix will inverse z-order.
+            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
+            // z in ndc of opengl should between 0.0f to 1.0f
+            if (depth > 1.0f || depth < 0.0f) continue;
+            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
+
+            base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+            base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+            base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+        }
+    }
+}
+
+void trTrianglesWithTexture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {
     size_t i = 0;
     __compute_normal_mat__();
@@ -348,7 +405,7 @@ void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, 
     }
 }
 
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
+void trTrianglesWithColor(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
 {
     size_t i = 0;
 #pragma omp parallel for
@@ -356,22 +413,11 @@ void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &color
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec3 c[3] = { colors[i], colors[i+1], colors[i+2] };
-        triangle_pipeline(v, empty_uvs, empty_normals, c);
+        triangle_pipeline(v, c);
     }
 }
 
-void trTrianglesWireframe(std::vector<glm::vec3> &vertices)
-{
-    size_t i = 0;
-#pragma omp parallel for
-    for (i = 0; i < vertices.size(); i += 3)
-    {
-        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
-        triangle_pipeline_wireframe(v);
-    }
-}
-
-void trTrianglesDemoColor(std::vector<glm::vec3> &vertices)
+void trTrianglesWithDemoColor(std::vector<glm::vec3> &vertices)
 {
     size_t i = 0;
 #pragma omp parallel for
@@ -379,7 +425,18 @@ void trTrianglesDemoColor(std::vector<glm::vec3> &vertices)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
-        triangle_pipeline(v, empty_uvs, empty_normals, c);
+        triangle_pipeline(v, c);
+    }
+}
+
+void trTrianglesWithWireframe(std::vector<glm::vec3> &vertices)
+{
+    size_t i = 0;
+#pragma omp parallel for
+    for (i = 0; i < vertices.size(); i += 3)
+    {
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        triangle_pipeline(v);
     }
 }
 

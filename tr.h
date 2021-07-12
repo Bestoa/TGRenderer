@@ -65,8 +65,8 @@ void trSetProjMat(glm::mat4 mat);
 bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer = false);
 void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr);
 void trDestoryRenderTarget(TRBuffer &buffer);
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals);
-void trTriangles(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
-void trTrianglesWireframe(std::vector<glm::vec3> &vertices);
-void trTrianglesDemoColor(std::vector<glm::vec3> &vertices);
+void trTrianglesWithTexture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals);
+void trTrianglesWithColor(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
+void trTrianglesWithDemoColor(std::vector<glm::vec3> &vertices);
+void trTrianglesWithWireframe(std::vector<glm::vec3> &vertices);
 #endif

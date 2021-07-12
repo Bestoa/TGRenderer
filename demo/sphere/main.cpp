@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
         trSetExtBufferToRenderTarget(buffer, addr);
 
         trClear();
-        trTriangles(vs, uvs, ns);
+        trTrianglesWithTexture(vs, uvs, ns);
         w->unlock();
     }
     delete w;
