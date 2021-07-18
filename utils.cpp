@@ -5,7 +5,7 @@
 #include <glm/glm.hpp>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include "stb_image.h"
 
 #include "tr.h"
 #include "utils.h"
