@@ -21,6 +21,7 @@ libtrobj = shared_library('trobj',
            'objs.cpp',
            link_with: libtrcore,
            dependencies:[
+             dep_glm,
              dep_json,
              ],
            install : true)
