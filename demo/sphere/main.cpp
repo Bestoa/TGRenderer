@@ -135,10 +135,8 @@ int main(int argc, char *argv[])
     trCreateRenderTarget(buffer, WIDTH, HEIGHT, true);
     trMakeCurrent(buffer);
 
-    std::vector<glm::vec3> vs;
-    std::vector<glm::vec2> uvs;
-    std::vector<glm::vec3> ns;
-    create_sphere(vs, uvs, ns, 30, 30);
+    TRData data;
+    create_sphere(data.vertices, data.uvs, data.normals, 30, 30);
 
     trSetViewMat(glm::lookAt(
                 glm::vec3(2,1,2),
@@ -176,7 +174,7 @@ int main(int argc, char *argv[])
         trSetExtBufferToRenderTarget(buffer, addr);
 
         trClear();
-        trTrianglesWithTexture(vs, uvs, ns);
+        trTriangles(data, DRAW_WITH_TEXTURE);
         w->unlock();
     }
     delete w;

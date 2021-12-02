@@ -29,7 +29,10 @@ TRObj::~TRObj()
 
 bool TRObj::is_valid()
 {
-    if (mVs.size() != mUVs.size() || mVs.size() != mNs.size() || mVs.size() % 3 != 0 || is_valid_texture(mTextureDiffuse) == false)
+    if (mData.vertices.size() != mData.uvs.size()
+            || mData.vertices.size() != mData.normals.size()
+            || mData.vertices.size() % 3 != 0
+            || is_valid_texture(mTextureDiffuse) == false)
         return false;
     else
         return true;
@@ -49,7 +52,7 @@ bool TRObj::load_from_config_file(const char *config_file_name)
         return false;
     }
 
-    if (j["obj"].is_null() || !j["obj"].is_string() || !load_obj(j["obj"].get<string>().c_str(), mVs, mUVs, mNs))
+    if (j["obj"].is_null() || !j["obj"].is_string() || !load_obj(j["obj"].get<string>().c_str(), mData.vertices, mData.uvs, mData.normals))
     {
         cout << "Load obj file error!" << endl;
         return false;
@@ -76,28 +79,23 @@ bool TRObj::load_from_config_file(const char *config_file_name)
 bool TRObj::draw()
 {
     if (is_valid() == false)
-    {
         return false;
-    }
 
     trBindTexture(&mTextureDiffuse, TEXTURE_DIFFUSE);
+    trBindTexture(NULL, TEXTURE_SPECULAR);
+    trBindTexture(NULL, TEXTURE_GLOW);
+    trBindTexture(NULL, TEXTURE_NORMAL);
 
     if (is_valid_texture(mTextureSpecular))
         trBindTexture(&mTextureSpecular, TEXTURE_SPECULAR);
-    else
-        trBindTexture(NULL, TEXTURE_SPECULAR);
 
     if (is_valid_texture(mTextureGlow))
         trBindTexture(&mTextureGlow, TEXTURE_GLOW);
-    else
-        trBindTexture(NULL, TEXTURE_GLOW);
 
     if (is_valid_texture(mTextureNormal))
         trBindTexture(&mTextureNormal, TEXTURE_NORMAL);
-    else
-        trBindTexture(NULL, TEXTURE_NORMAL);
 
-    trTrianglesWithTexture(mVs, mUVs, mNs);
+    trTriangles(mData, DRAW_WITH_TEXTURE);
 
     return true;
 }

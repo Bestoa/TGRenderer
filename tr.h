@@ -23,12 +23,28 @@ struct TRMaterial
     TRTexture *normal;
 };
 
-enum texture_type
+enum TRTextureType
 {
     TEXTURE_DIFFUSE,
     TEXTURE_SPECULAR,
     TEXTURE_GLOW,
     TEXTURE_NORMAL,
+};
+
+struct TRData
+{
+    std::vector<glm::vec3> vertices;
+    std::vector<glm::vec2> uvs;
+    std::vector<glm::vec3> normals;
+    std::vector<glm::vec3> colors;
+};
+
+enum TRDrawMode
+{
+    DRAW_WITH_TEXTURE,
+    DRAW_WITH_COLOR,
+    DRAW_WITH_DEMO_COLOR,
+    DRAW_WIREFRAME,
 };
 
 #define BPP (3)
@@ -57,7 +73,7 @@ void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
 void trMakeCurrent(TRBuffer &buffer);
-void trBindTexture(TRTexture *texture, int type);
+void trBindTexture(TRTexture *texture, TRTextureType type);
 void trClear();
 void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
@@ -65,8 +81,5 @@ void trSetProjMat(glm::mat4 mat);
 bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer = false);
 void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr);
 void trDestoryRenderTarget(TRBuffer &buffer);
-void trTrianglesWithTexture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals);
-void trTrianglesWithColor(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors);
-void trTrianglesWithDemoColor(std::vector<glm::vec3> &vertices);
-void trTrianglesWithWireframe(std::vector<glm::vec3> &vertices);
+void trTriangles(TRData &data, TRDrawMode mode);
 #endif

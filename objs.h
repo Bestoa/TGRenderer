@@ -12,9 +12,7 @@ class TRObj
         bool draw();
 
     private:
-        std::vector<glm::vec3> mVs;
-        std::vector<glm::vec2> mUVs;
-        std::vector<glm::vec3> mNs;
+        TRData mData;
 
         TRTexture mTextureDiffuse;
         TRTexture mTextureSpecular;

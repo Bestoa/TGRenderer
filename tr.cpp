@@ -244,15 +244,13 @@ void triangle_pipeline(glm::vec4 v[3])
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
 // Lighting pipeline
-void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3])
+void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 light_postion /* light postion in camera space */)
 {
 
     glm::vec4 camera_v[3];
     glm::vec4 clip_v[3];
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
-
-    glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
 
     glm::vec3 T;
     __compute__tangent__(v, uv, T);
@@ -391,21 +389,23 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
     }
 }
 
-void trTrianglesWithTexture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
+void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {
     size_t i = 0;
     __compute_normal_mat__();
+    glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
+
 #pragma omp parallel for
     for (i = 0; i < vertices.size(); i += 3)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
         glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
-        triangle_pipeline(v, uv, n);
+        triangle_pipeline(v, uv, n, light_postion);
     }
 }
 
-void trTrianglesWithColor(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
+void tr_triangles_with_color(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
 {
     size_t i = 0;
 #pragma omp parallel for
@@ -417,7 +417,7 @@ void trTrianglesWithColor(std::vector<glm::vec3> &vertices, std::vector<glm::vec
     }
 }
 
-void trTrianglesWithDemoColor(std::vector<glm::vec3> &vertices)
+void tr_triangles_with_demo_color(std::vector<glm::vec3> &vertices)
 {
     size_t i = 0;
 #pragma omp parallel for
@@ -429,7 +429,7 @@ void trTrianglesWithDemoColor(std::vector<glm::vec3> &vertices)
     }
 }
 
-void trTrianglesWithWireframe(std::vector<glm::vec3> &vertices)
+void tr_triangles_wireframe(std::vector<glm::vec3> &vertices)
 {
     size_t i = 0;
 #pragma omp parallel for
@@ -437,6 +437,25 @@ void trTrianglesWithWireframe(std::vector<glm::vec3> &vertices)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         triangle_pipeline(v);
+    }
+}
+
+void trTriangles(TRData &data, TRDrawMode mode)
+{
+    switch (mode)
+    {
+        case DRAW_WITH_TEXTURE:
+            tr_triangles_with_texture(data.vertices, data.uvs, data.normals);
+            break;
+        case DRAW_WITH_COLOR:
+            tr_triangles_with_color(data.vertices, data.colors);
+            break;
+        case DRAW_WITH_DEMO_COLOR:
+            tr_triangles_with_demo_color(data.vertices);
+            break;
+        case DRAW_WIREFRAME:
+            tr_triangles_wireframe(data.vertices);
+            break;
     }
 }
 
@@ -465,7 +484,7 @@ void trMakeCurrent(TRBuffer &buffer)
     gCurrentBuffer = &buffer;
 }
 
-void trBindTexture(TRTexture *texture, int type)
+void trBindTexture(TRTexture *texture, TRTextureType type)
 {
     switch (type)
     {
