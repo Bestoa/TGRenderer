@@ -18,13 +18,11 @@ glm::mat4 gViewMat = glm::mat4(1.0f);
 glm::mat4 gProjMat = glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f});
 glm::mat3 gNormalMat = glm::mat3(1.0f);
 
+bool gEnableLighting = false;
 float gAmbientStrength = 0.1;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
-
-glm::vec2 empty_uvs[3];
-glm::vec3 empty_normals[3];
 
 // internal function
 static inline void __clear_color__(TRBuffer &buffer)
@@ -104,8 +102,8 @@ static inline void __compute_normal_mat__()
     gNormalMat = glm::mat3(glm::transpose(glm::inverse(gViewMat * gModelMat)));
 }
 
-// vertex shader
-static void vertex_shader(
+// lighting vertex shader
+static void lighting_vertex_shader(
         glm::vec3 v,
         glm::vec3 &n/* out, for lighting */,
         glm::vec4 &camera_v/* out, for lighting */,
@@ -119,8 +117,16 @@ static void vertex_shader(
     n = gNormalMat * n;
 }
 
-// fragment shader
-static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion, glm::vec2 fragment_uv, glm::vec3 N, glm::vec3 T, uint8_t color[3]/* out */)
+// vertex shader
+static void vertex_shader(
+        glm::vec3 v,
+        glm::vec4 &clip_v/* out, for raster */)
+{
+    clip_v = gProjMat * gViewMat * gModelMat * glm::vec4(v, 1.0f);
+}
+
+// lighting fragment shader
+static void lighting_fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion, glm::vec2 fragment_uv, glm::vec3 N, glm::vec3 T, uint8_t color[3]/* out */)
 {
     float u = glm::clamp(fragment_uv.x, 0.0f, 1.0f);
     float v = glm::clamp(fragment_uv.y, 0.0f, 1.0f);
@@ -177,6 +183,19 @@ static void fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion,
     color[2] = glm::clamp(int(result[2]), 0, 255);
 }
 
+// fragment shader
+static void fragment_shader(glm::vec2 fragment_uv, uint8_t color[3]/* out */)
+{
+    float u = glm::clamp(fragment_uv.x, 0.0f, 1.0f);
+    float v = glm::clamp(fragment_uv.y, 0.0f, 1.0f);
+
+    glm::vec3 object_color = __texture_color__(u, v, gCurrentMaterial.diffuse);
+
+    color[0] = glm::clamp(int(object_color[0]), 0, 255);
+    color[1] = glm::clamp(int(object_color[1]), 0, 255);
+    color[2] = glm::clamp(int(object_color[2]), 0, 255);
+}
+
 void __plot__(int x, int y)
 {
     uint8_t *base = &gCurrentBuffer->data[y * gCurrentBuffer->stride + x * BPP];
@@ -227,15 +246,13 @@ void __draw_line__(float x0, float y0, float x1, float y1)
 // Wireframe pipeline
 void triangle_pipeline(glm::vec4 v[3])
 {
-    glm::vec4 camera_v[3];
-    glm::vec3 n[3];
     glm::vec4 clip_v[3];
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
 
     for (int i = 0; i < 3; i++)
     {
-        vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
+        vertex_shader(v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
     }
@@ -243,7 +260,8 @@ void triangle_pipeline(glm::vec4 v[3])
     __draw_line__(screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
-// Lighting pipeline
+
+// Texture with lighting pipeline
 void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 light_postion /* light postion in camera space */)
 {
 
@@ -258,7 +276,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
 
     for (int i = 0; i < 3; i++)
     {
-        vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
+        lighting_vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
     }
@@ -319,10 +337,75 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
                         __interpolation__(n, 1, w0, w1, w2),
                         __interpolation__(n, 2, w0, w1, w2)
                         ));
-            fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
+            lighting_fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
         }
     }
+}
 
+// Texture without lighting pipeline
+void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
+{
+
+    glm::vec4 clip_v[3];
+    glm::vec4 ndc_v[3];
+    glm::vec2 screen_v[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+        vertex_shader(v[i], clip_v[i]);
+        ndc_v[i] = clip_v[i] / clip_v[i].w;
+        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+    }
+
+    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
+#if __CULL_FACE__
+    if (area <= 0)
+        return;
+#endif
+
+    glm::vec2 left_up, right_down;
+    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+
+    for (int i = left_up.y; i < right_down.y; i++)
+    {
+        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride];
+        for (int j = left_up.x; j < right_down.x; j++)
+        {
+            glm::vec2 v(j, i);
+            float w0 = __edge__(screen_v[1], screen_v[2], v);
+            float w1 = __edge__(screen_v[2], screen_v[0], v);
+            float w2 = __edge__(screen_v[0], screen_v[1], v);
+            int flag = 0;
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+                flag = 1;
+#if !__CULL_FACE__
+            if (w0 <= 0 && w1 <= 0 && w2 <= 0)
+                flag = -1;
+#endif
+            if (!flag)
+                continue;
+
+            __safe_div__(w0, area, flag);
+            __safe_div__(w1, area, flag);
+            __safe_div__(w2, area, flag);
+            // use ndc z to calculate depth
+            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
+            // projection matrix will inverse z-order.
+            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
+            // z in ndc of opengl should between 0.0f to 1.0f
+            if (depth > 1.0f || depth < 0.0f) continue;
+            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
+
+            glm::vec2 UV(
+                    __interpolation__(uv, 0, w0, w1, w2),
+                    __interpolation__(uv, 1, w0, w1, w2)
+                    );
+            fragment_shader(UV, &base[j * BPP]);
+        }
+    }
 }
 
 // Color pipeline
@@ -335,7 +418,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
 
     for (int i = 0; i < 3; i++)
     {
-        clip_v[i] = gProjMat * gViewMat * gModelMat * v[i];
+        vertex_shader(v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
     }
@@ -401,7 +484,10 @@ void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
         glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
-        triangle_pipeline(v, uv, n, light_postion);
+        if (gEnableLighting)
+            triangle_pipeline(v, uv, n, light_postion);
+        else
+            triangle_pipeline(v, uv);
     }
 }
 
@@ -457,6 +543,11 @@ void trTriangles(TRData &data, TRDrawMode mode)
             tr_triangles_wireframe(data.vertices);
             break;
     }
+}
+
+void trEnableLighting(bool enable)
+{
+    gEnableLighting = enable;
 }
 
 void trSetAmbientStrength(float v)

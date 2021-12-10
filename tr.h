@@ -69,6 +69,7 @@ struct TRBuffer
 #define __CULL_FACE__ 1
 #endif
 
+void trEnableLighting(bool enable);
 void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);

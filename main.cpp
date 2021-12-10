@@ -37,6 +37,8 @@ int main(int argc, char *argv[])
 #endif
     trMakeCurrent(buffer);
 
+    trEnableLighting(true);
+
     std::vector<std::shared_ptr <TRObj>> objs;
     for (int i = 1; i < argc; i++)
     {
