@@ -1,13 +1,12 @@
 #include <iostream>
 #include <fstream>
-#include <nlohmann/json.hpp>
+#include <string>
 
 #include "tr.h"
 #include "utils.h"
 #include "objs.h"
 
 using namespace std;
-using json = nlohmann::json;
 
 TRObj::TRObj()
 {
@@ -41,38 +40,53 @@ bool TRObj::is_valid()
 
 bool TRObj::load_from_config_file(const char *config_file_name)
 {
-    ifstream i(config_file_name);
-    json j;
-    i >> j;
-    i.close();
+    ifstream in(config_file_name);
+    string line;
 
-    if (j.is_null())
+    if (in.bad())
     {
-        cout << "Parse config file error!" << endl;
+        cout << "Open config file faile!" << endl;
         return false;
     }
 
-    if (j["obj"].is_null() || !j["obj"].is_string() || !load_obj(j["obj"].get<string>().c_str(), mData.vertices, mData.uvs, mData.normals))
+    cout << "Loading obj..." << endl;
+    getline(in, line);
+    if (!line.length() || !load_obj(line.c_str(), mData.vertices, mData.uvs, mData.normals))
     {
         cout << "Load obj file error!" << endl;
         return false;
     }
 
-    if (j["diffuse"].is_null() || !j["diffuse"].is_string() || !load_texture(j["diffuse"].get<string>().c_str(), mTextureDiffuse))
+    cout << "Loading diffuse texture..." << endl;
+    getline(in, line);
+    if (!line.length() || !load_texture(line.c_str(), mTextureDiffuse))
     {
         cout << "Load diffuse texture error!" << endl;
         return false;
     }
 
-    if (!j["specular"].is_null() && j["specular"].is_string())
-        load_texture(j["specular"].get<string>().c_str(), mTextureSpecular);
+    getline(in, line);
+    if (line.length() && line != "null")
+    {
+        cout << "Load specular texture..." << endl;
+        load_texture(line.c_str(), mTextureSpecular);
+    }
 
-    if (!j["glow"].is_null() && j["glow"].is_string())
-        load_texture(j["glow"].get<string>().c_str(), mTextureGlow);
+    getline(in, line);
+    if (line.length() && line != "null")
+    {
+        cout << "Load glow texture..." << endl;
+        load_texture(line.c_str(), mTextureGlow);
+    }
 
-    if (!j["normal"].is_null() && j["normal"].is_string())
-        load_texture(j["normal"].get<string>().c_str(), mTextureNormal);
+    getline(in, line);
+    if (line.length() && line != "null")
+    {
+        cout << "Load normal texutre..." << endl;
+        load_texture(line.c_str(), mTextureNormal);
+    }
 
+    in.close();
     return true;
 }
 

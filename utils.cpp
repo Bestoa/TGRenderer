@@ -52,6 +52,7 @@ bool load_texture(const char *name, TRTexture &tex)
         }
     }
 
+    stbi_image_free(data);
     return true;
 
 free_image:

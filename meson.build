@@ -3,7 +3,6 @@ project('ToyRenderer', 'cpp',
   default_options : ['warning_level=3', 'cpp_std=c++14'])
 
 dep_glm = dependency('glm')
-dep_json = dependency('nlohmann_json')
 dep_sdl2 = dependency('SDL2')
 
 libtrcore = shared_library('trcore',
@@ -22,7 +21,6 @@ libtrobj = shared_library('trobj',
            link_with: libtrcore,
            dependencies:[
              dep_glm,
-             dep_json,
              ],
            install : true)
 
