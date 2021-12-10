@@ -27,10 +27,10 @@ glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
 // internal function
 static inline void __clear_color__(TRBuffer &buffer)
 {
-    for (int i = 0; i < buffer.h; i++)
+    for (uint32_t i = 0; i < buffer.h; i++)
     {
         uint8_t *base = &buffer.data[i * buffer.stride];
-        for (int j = 0; j < buffer.w; j++)
+        for (uint32_t j = 0; j < buffer.w; j++)
         {
             base[j * BPP + 0] = buffer.bg_color[0];
             base[j * BPP + 1] = buffer.bg_color[1];
@@ -41,7 +41,7 @@ static inline void __clear_color__(TRBuffer &buffer)
 
 static inline void __clear_depth__(TRBuffer &buffer)
 {
-    for (int i = 0; i < buffer.w * buffer.h; i++)
+    for (uint32_t i = 0; i < buffer.w * buffer.h; i++)
     {
         buffer.depth[i] = 1;
     }
@@ -52,11 +52,11 @@ static inline float __edge__(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
     return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
 }
 
-static inline void __convert_xy_to_buffer_size__(glm::vec2 &v, glm::vec4 &v1, int w, int h)
+static inline void __tr_viewport__(glm::vec2 &screen_v, glm::vec4 &ndc_v, int vx, int vy, int w, int h)
 {
-    v.x = (w - 1) * (v1.x / 2 + 0.5);
+    screen_v.x = vx + (w - 1) * (ndc_v.x / 2 + 0.5);
     // inverse y here
-    v.y = (h - 1) - (h - 1) * (v1.y / 2 + 0.5);
+    screen_v.y = vy + (h - 1) - (h - 1) * (ndc_v.y / 2 + 0.5);
 }
 
 static inline void __safe_div__(float &w1, float w2, int flag)
@@ -254,7 +254,7 @@ void triangle_pipeline(glm::vec4 v[3])
     {
         vertex_shader(v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
     __draw_line__(screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
     __draw_line__(screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
@@ -278,7 +278,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
     {
         lighting_vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
     float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
@@ -354,7 +354,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
     {
         vertex_shader(v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
     float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
@@ -420,7 +420,7 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
     {
         vertex_shader(v[i], clip_v[i]);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __convert_xy_to_buffer_size__(screen_v[i], ndc_v[i], gCurrentBuffer->w, gCurrentBuffer->h);
+        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
     float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
@@ -570,6 +570,14 @@ void trSetLightPosition3f(float x, float y, float z)
     gLightPosition = glm::vec3(x, y, z);
 }
 
+void trViewport(int x, int y, int w, int h)
+{
+    gCurrentBuffer->vx = x;
+    gCurrentBuffer->vy = y;
+    gCurrentBuffer->vw = w;
+    gCurrentBuffer->vh = h;
+}
+
 void trMakeCurrent(TRBuffer &buffer)
 {
     gCurrentBuffer = &buffer;
@@ -636,6 +644,10 @@ bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer)
     }
     buffer.w = w;
     buffer.h = h;
+    buffer.vx = 0;
+    buffer.vy = 0;
+    buffer.vw = w;
+    buffer.vh = h;
     buffer.stride = w * BPP;
     buffer.bg_color[0] = 0;
     buffer.bg_color[1] = 0;

@@ -53,9 +53,16 @@ struct TRBuffer
 {
     uint8_t *data;
     float *depth;
-    int w;
-    int h;
-    int stride;
+
+    uint32_t w;
+    uint32_t h;
+
+    uint32_t vx;
+    uint32_t vy;
+    uint32_t vw;
+    uint32_t vh;
+
+    uint32_t stride;
     uint8_t bg_color[BPP];
     // data was not allocated by us.
     bool ext_buffer;
@@ -73,6 +80,7 @@ void trEnableLighting(bool enable);
 void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
+void trViewport(int x, int y, int w, int h);
 void trMakeCurrent(TRBuffer &buffer);
 void trBindTexture(TRTexture *texture, TRTextureType type);
 void trClear();
