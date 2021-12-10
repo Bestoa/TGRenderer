@@ -1,6 +1,6 @@
 root = meson.source_root()
 executable('sphere',
-           'main.cpp',
+           'sphere.cpp',
            root + '/simple-window.cpp',
            dependencies:[
              dep_glm,

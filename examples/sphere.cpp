@@ -146,6 +146,7 @@ int main(int argc, char *argv[])
 
     trSetProjMat(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f));
 
+    trEnableLighting(true);
     trSetLightPosition3f(100.0f, 0.0f, 0.0f);
 
     TRTexture tex;

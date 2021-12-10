@@ -26,7 +26,7 @@ libtrobj = shared_library('trobj',
              ],
            install : true)
 
-executable('toy-model-renderer',
+executable('ToyRrenderer',
            'main.cpp',
            'simple-window.cpp',
            dependencies:[
@@ -37,4 +37,4 @@ executable('toy-model-renderer',
            link_with: [ libtrcore, libtrobj ] ,
            install : true)
 
-subdir('demo/sphere')
+subdir('examples')
