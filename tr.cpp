@@ -62,17 +62,6 @@ static inline void __tr_viewport__(glm::vec2 &screen_v, glm::vec4 &ndc_v, int vx
     screen_v.y = vy + (h - 1) - (h - 1) * (ndc_v.y / 2 + 0.5);
 }
 
-#if !__CULL_FACE__
-static inline void __safe_div__(float &w1, float w2, int flag)
-{
-    if (glm::abs(w2) < 1e-6)
-    {
-        w2 = 1e-6 * flag;
-    }
-    w1 /= w2;
-}
-#endif
-
 static inline glm::vec3 __texture_color__(float u, float v, TRTexture *texture)
 {
     int x = int(u * (texture->w - 1) + 0.5);
@@ -265,6 +254,40 @@ void triangle_pipeline(glm::vec4 v[3])
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
 
+#define __TR_RASTERIZATION_START__ \
+    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]); \
+    if (area <= 0) return; \
+    glm::vec2 left_up, right_down; \
+    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5; \
+    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5; \
+    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5; \
+    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5; \
+    for (int i = left_up.y; i < right_down.y; i++) { \
+        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride]; \
+        for (int j = left_up.x; j < right_down.x; j++) { \
+            glm::vec2 v(j, i); \
+            float w0 = __edge__(screen_v[1], screen_v[2], v); \
+            float w1 = __edge__(screen_v[2], screen_v[0], v); \
+            float w2 = __edge__(screen_v[0], screen_v[1], v); \
+            int flag = 0; \
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) flag = 1; \
+            if (!flag) continue; \
+            w0 /= (area + 1e-6); \
+            w1 /= (area + 1e-6); \
+            w2 /= (area + 1e-6); \
+            /* use ndc z to calculate depth */ \
+            float depth = __interpolation__(ndc_v, 2, w0, w1, w2); \
+            /* projection matrix will inverse z-order. */ \
+            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue; \
+            /* z in ndc of opengl should between 0.0f to 1.0f */ \
+            if (depth > 1.0f || depth < 0.0f) continue; \
+            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth; \
+            uint8_t *addr= &base[j * BPP];
+
+#define __TR_RASTERIZATION_END__ \
+        } \
+    }
+
 // Texture with lighting pipeline
 void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 light_postion /* light postion in camera space */)
 {
@@ -285,71 +308,25 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
         __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
-    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
-#if __CULL_FACE__
-    if (area <= 0)
-        return;
-#endif
-
-    glm::vec2 left_up, right_down;
-    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-
-    for (int i = left_up.y; i < right_down.y; i++)
+    __TR_RASTERIZATION_START__
     {
-        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride];
-        for (int j = left_up.x; j < right_down.x; j++)
-        {
-            glm::vec2 v(j, i);
-            float w0 = __edge__(screen_v[1], screen_v[2], v);
-            float w1 = __edge__(screen_v[2], screen_v[0], v);
-            float w2 = __edge__(screen_v[0], screen_v[1], v);
-            int flag = 0;
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
-                flag = 1;
-#if !__CULL_FACE__
-            if (w0 <= 0 && w1 <= 0 && w2 <= 0)
-                flag = -1;
-#endif
-            if (!flag)
-                continue;
-
-#if __CULL_FACE__
-            w0 /= (area + 1e-6);
-            w1 /= (area + 1e-6);
-            w2 /= (area + 1e-6);
-#else
-            __safe_div__(w0, area, flag);
-            __safe_div__(w1, area, flag);
-            __safe_div__(w2, area, flag);
-#endif
-            // use ndc z to calculate depth
-            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
-            // projection matrix will inverse z-order.
-            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
-            // z in ndc of opengl should between 0.0f to 1.0f
-            if (depth > 1.0f || depth < 0.0f) continue;
-            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
-
-            glm::vec2 UV(
-                    __interpolation__(uv, 0, w0, w1, w2),
-                    __interpolation__(uv, 1, w0, w1, w2)
-                    );
-            glm::vec3 P(
-                    __interpolation__(camera_v, 0, w0, w1, w2),
-                    __interpolation__(camera_v, 1, w0, w1, w2),
-                    __interpolation__(camera_v, 2, w0, w1, w2)
-                    );
-            glm::vec3 N = glm::normalize(glm::vec3(
-                        __interpolation__(n, 0, w0, w1, w2),
-                        __interpolation__(n, 1, w0, w1, w2),
-                        __interpolation__(n, 2, w0, w1, w2)
-                        ));
-            lighting_fragment_shader(light_postion, P, UV, N, T, &base[j * BPP]);
-        }
+        glm::vec2 UV(
+                __interpolation__(uv, 0, w0, w1, w2),
+                __interpolation__(uv, 1, w0, w1, w2)
+                );
+        glm::vec3 P(
+                __interpolation__(camera_v, 0, w0, w1, w2),
+                __interpolation__(camera_v, 1, w0, w1, w2),
+                __interpolation__(camera_v, 2, w0, w1, w2)
+                );
+        glm::vec3 N = glm::normalize(glm::vec3(
+                    __interpolation__(n, 0, w0, w1, w2),
+                    __interpolation__(n, 1, w0, w1, w2),
+                    __interpolation__(n, 2, w0, w1, w2)
+                    ));
+        lighting_fragment_shader(light_postion, P, UV, N, T, addr);
     }
+    __TR_RASTERIZATION_END__
 }
 
 // Texture without lighting pipeline
@@ -367,61 +344,15 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
         __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
-    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
-#if __CULL_FACE__
-    if (area <= 0)
-        return;
-#endif
-
-    glm::vec2 left_up, right_down;
-    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-
-    for (int i = left_up.y; i < right_down.y; i++)
+    __TR_RASTERIZATION_START__
     {
-        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride];
-        for (int j = left_up.x; j < right_down.x; j++)
-        {
-            glm::vec2 v(j, i);
-            float w0 = __edge__(screen_v[1], screen_v[2], v);
-            float w1 = __edge__(screen_v[2], screen_v[0], v);
-            float w2 = __edge__(screen_v[0], screen_v[1], v);
-            int flag = 0;
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
-                flag = 1;
-#if !__CULL_FACE__
-            if (w0 <= 0 && w1 <= 0 && w2 <= 0)
-                flag = -1;
-#endif
-            if (!flag)
-                continue;
-
-#if __CULL_FACE__
-            w0 /= (area + 1e-6);
-            w1 /= (area + 1e-6);
-            w2 /= (area + 1e-6);
-#else
-            __safe_div__(w0, area, flag);
-            __safe_div__(w1, area, flag);
-            __safe_div__(w2, area, flag);
-#endif
-            // use ndc z to calculate depth
-            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
-            // projection matrix will inverse z-order.
-            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
-            // z in ndc of opengl should between 0.0f to 1.0f
-            if (depth > 1.0f || depth < 0.0f) continue;
-            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
-
-            glm::vec2 UV(
-                    __interpolation__(uv, 0, w0, w1, w2),
-                    __interpolation__(uv, 1, w0, w1, w2)
-                    );
-            fragment_shader(UV, &base[j * BPP]);
-        }
+        glm::vec2 UV(
+                __interpolation__(uv, 0, w0, w1, w2),
+                __interpolation__(uv, 1, w0, w1, w2)
+                );
+        fragment_shader(UV, addr);
     }
+    __TR_RASTERIZATION_END__
 }
 
 // Color pipeline
@@ -439,59 +370,13 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
         __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
 
-    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
-#if __CULL_FACE__
-    if (area <= 0)
-        return;
-#endif
-
-    glm::vec2 left_up, right_down;
-    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-
-    for (int i = left_up.y; i < right_down.y; i++)
+    __TR_RASTERIZATION_START__
     {
-        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride];
-        for (int j = left_up.x; j < right_down.x; j++)
-        {
-            glm::vec2 v(j, i);
-            float w0 = __edge__(screen_v[1], screen_v[2], v);
-            float w1 = __edge__(screen_v[2], screen_v[0], v);
-            float w2 = __edge__(screen_v[0], screen_v[1], v);
-            int flag = 0;
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
-                flag = 1;
-#if !__CULL_FACE__
-            if (w0 <= 0 && w1 <= 0 && w2 <= 0)
-                flag = -1;
-#endif
-            if (!flag)
-                continue;
-
-#if __CULL_FACE__
-            w0 /= (area + 1e-6);
-            w1 /= (area + 1e-6);
-            w2 /= (area + 1e-6);
-#else
-            __safe_div__(w0, area, flag);
-            __safe_div__(w1, area, flag);
-            __safe_div__(w2, area, flag);
-#endif
-            // use ndc z to calculate depth
-            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
-            // projection matrix will inverse z-order.
-            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue;
-            // z in ndc of opengl should between 0.0f to 1.0f
-            if (depth > 1.0f || depth < 0.0f) continue;
-            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth;
-
-            base[j * BPP + 0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-            base[j * BPP + 1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-            base[j * BPP + 2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-        }
+        addr[0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+        addr[1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+        addr[2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
     }
+    __TR_RASTERIZATION_END__
 }
 
 void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
