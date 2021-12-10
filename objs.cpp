@@ -28,9 +28,9 @@ TRObj::~TRObj()
 
 bool TRObj::is_valid()
 {
-    if (mData.vertices.size() != mData.uvs.size()
-            || mData.vertices.size() != mData.normals.size()
-            || mData.vertices.size() % 3 != 0
+    if (mMeshData.vertices.size() != mMeshData.uvs.size()
+            || mMeshData.vertices.size() != mMeshData.normals.size()
+            || mMeshData.vertices.size() % 3 != 0
             || is_valid_texture(mTextureDiffuse) == false)
         return false;
     else
@@ -51,7 +51,7 @@ bool TRObj::load_from_config_file(const char *config_file_name)
 
     cout << "Loading obj..." << endl;
     getline(in, line);
-    if (!line.length() || !load_obj(line.c_str(), mData.vertices, mData.uvs, mData.normals))
+    if (!line.length() || !load_obj(line.c_str(), mMeshData.vertices, mMeshData.uvs, mMeshData.normals))
     {
         cout << "Load obj file error!" << endl;
         return false;
@@ -109,7 +109,7 @@ bool TRObj::draw()
     if (is_valid_texture(mTextureNormal))
         trBindTexture(&mTextureNormal, TEXTURE_NORMAL);
 
-    trTriangles(mData, DRAW_WITH_TEXTURE);
+    trTriangles(mMeshData, DRAW_WITH_TEXTURE);
 
     return true;
 }

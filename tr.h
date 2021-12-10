@@ -31,7 +31,7 @@ enum TRTextureType
     TEXTURE_NORMAL,
 };
 
-struct TRData
+struct TRMeshData
 {
     std::vector<glm::vec3> vertices;
     std::vector<glm::vec2> uvs;
@@ -90,5 +90,5 @@ void trSetProjMat(glm::mat4 mat);
 bool trCreateRenderTarget(TRBuffer &buffer, int w, int h, bool has_ext_buffer = false);
 void trSetExtBufferToRenderTarget(TRBuffer &buffer, void *addr);
 void trDestoryRenderTarget(TRBuffer &buffer);
-void trTriangles(TRData &data, TRDrawMode mode);
+void trTriangles(TRMeshData &data, TRDrawMode mode);
 #endif

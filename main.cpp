@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
     int frame = 0;
     void *addr;
     auto start = std::chrono::system_clock::now();
-    while (!w->should_exit() && frame < 1000) {
+    while (!w->should_exit() && frame < 200) {
 #endif
 #if __ON_SCREEN__
         frame++;

@@ -18,6 +18,9 @@ glm::mat4 gViewMat = glm::mat4(1.0f);
 glm::mat4 gProjMat = glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f});
 glm::mat3 gNormalMat = glm::mat3(1.0f);
 
+glm::mat4 __gMVMat__ = glm::mat4(1.0f);
+glm::mat4 __gMVPMat__ = glm::mat4(1.0f);
+
 bool gEnableLighting = false;
 float gAmbientStrength = 0.1;
 int gShininess = 32;
@@ -59,6 +62,7 @@ static inline void __tr_viewport__(glm::vec2 &screen_v, glm::vec4 &ndc_v, int vx
     screen_v.y = vy + (h - 1) - (h - 1) * (ndc_v.y / 2 + 0.5);
 }
 
+#if !__CULL_FACE__
 static inline void __safe_div__(float &w1, float w2, int flag)
 {
     if (glm::abs(w2) < 1e-6)
@@ -67,6 +71,7 @@ static inline void __safe_div__(float &w1, float w2, int flag)
     }
     w1 /= w2;
 }
+#endif
 
 static inline glm::vec3 __texture_color__(float u, float v, TRTexture *texture)
 {
@@ -97,9 +102,11 @@ static inline void __compute__tangent__(glm::vec4 v[3], glm::vec2 uv[3], glm::ve
     t = (deltaPos1 * deltaUV2.y   - deltaPos2 * deltaUV1.y) * r;
 }
 
-static inline void __compute_normal_mat__()
+static inline void __compute_premultiply_mat__()
 {
-    gNormalMat = glm::mat3(glm::transpose(glm::inverse(gViewMat * gModelMat)));
+    __gMVMat__ =  gViewMat * gModelMat;
+    __gMVPMat__ = gProjMat * __gMVMat__;
+    gNormalMat = glm::mat3(glm::transpose(glm::inverse(__gMVMat__)));
 }
 
 // lighting vertex shader
@@ -109,10 +116,7 @@ static void lighting_vertex_shader(
         glm::vec4 &camera_v/* out, for lighting */,
         glm::vec4 &clip_v/* out, for raster */)
 {
-    glm::vec4 world_v;
-
-    world_v = gModelMat * glm::vec4(v, 1.0f);
-    camera_v = gViewMat * world_v;
+    camera_v = __gMVMat__ * glm::vec4(v, 1.0f);
     clip_v = gProjMat * camera_v;
     n = gNormalMat * n;
 }
@@ -122,7 +126,7 @@ static void vertex_shader(
         glm::vec3 v,
         glm::vec4 &clip_v/* out, for raster */)
 {
-    clip_v = gProjMat * gViewMat * gModelMat * glm::vec4(v, 1.0f);
+    clip_v = __gMVPMat__ * glm::vec4(v, 1.0f);
 }
 
 // lighting fragment shader
@@ -312,9 +316,15 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
             if (!flag)
                 continue;
 
+#if __CULL_FACE__
+            w0 /= (area + 1e-6);
+            w1 /= (area + 1e-6);
+            w2 /= (area + 1e-6);
+#else
             __safe_div__(w0, area, flag);
             __safe_div__(w1, area, flag);
             __safe_div__(w2, area, flag);
+#endif
             // use ndc z to calculate depth
             float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
             // projection matrix will inverse z-order.
@@ -388,9 +398,15 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
             if (!flag)
                 continue;
 
+#if __CULL_FACE__
+            w0 /= (area + 1e-6);
+            w1 /= (area + 1e-6);
+            w2 /= (area + 1e-6);
+#else
             __safe_div__(w0, area, flag);
             __safe_div__(w1, area, flag);
             __safe_div__(w2, area, flag);
+#endif
             // use ndc z to calculate depth
             float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
             // projection matrix will inverse z-order.
@@ -454,9 +470,15 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
             if (!flag)
                 continue;
 
+#if __CULL_FACE__
+            w0 /= (area + 1e-6);
+            w1 /= (area + 1e-6);
+            w2 /= (area + 1e-6);
+#else
             __safe_div__(w0, area, flag);
             __safe_div__(w1, area, flag);
             __safe_div__(w2, area, flag);
+#endif
             // use ndc z to calculate depth
             float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
             // projection matrix will inverse z-order.
@@ -475,7 +497,6 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
 void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
 {
     size_t i = 0;
-    __compute_normal_mat__();
     glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
 
 #pragma omp parallel for
@@ -526,8 +547,9 @@ void tr_triangles_wireframe(std::vector<glm::vec3> &vertices)
     }
 }
 
-void trTriangles(TRData &data, TRDrawMode mode)
+void trTriangles(TRMeshData &data, TRDrawMode mode)
 {
+    __compute_premultiply_mat__();
     switch (mode)
     {
         case DRAW_WITH_TEXTURE:

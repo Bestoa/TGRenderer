@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     trCreateRenderTarget(buffer, WIDTH, HEIGHT, true);
     trMakeCurrent(buffer);
 
-    TRData data;
+    TRMeshData data;
     create_sphere(data.vertices, data.uvs, data.normals, 30, 30);
 
     trSetViewMat(glm::lookAt(

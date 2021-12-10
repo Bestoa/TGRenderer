@@ -12,7 +12,7 @@ class TRObj
         bool draw();
 
     private:
-        TRData mData;
+        TRMeshData mMeshData;
 
         TRTexture mTextureDiffuse;
         TRTexture mTextureSpecular;
