@@ -4,15 +4,14 @@ project('ToyRenderer', 'cpp',
 
 dep_glm = dependency('glm')
 dep_sdl2 = dependency('SDL2')
+dep_sdl2_image = dependency('SDL2_image')
 
 libtrcore = shared_library('trcore',
            'tr.cpp',
            'utils.cpp',
            dependencies:[
-             dependency('openmp'),
              dep_glm,
              ],
-           cpp_args: '-fopenmp',
            c_args: '-xc++',
            install : true)
 
@@ -30,6 +29,7 @@ executable('ToyRrenderer',
            dependencies:[
              dep_glm,
              dep_sdl2,
+             dep_sdl2_image,
              ],
            link_args: '-pthread',
            link_with: [ libtrcore, libtrobj ] ,
