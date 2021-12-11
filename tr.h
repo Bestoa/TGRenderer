@@ -49,6 +49,14 @@ enum TRDrawMode
 
 #define BPP (3)
 
+struct TRFragData
+{
+    int x, y;
+    float w[3];
+    float depth;
+    uint8_t *addr;
+};
+
 struct TRBuffer
 {
     uint8_t *data;
@@ -72,6 +80,7 @@ struct TRBuffer
 #define __BLINN_PHONG__ 1
 #endif
 
+void trSetRenderThreadNum(size_t num);
 void trEnableLighting(bool enable);
 void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);

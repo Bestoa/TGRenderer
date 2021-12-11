@@ -2,6 +2,8 @@
 #include <cstring>
 #include <string>
 #include <vector>
+#include <thread>
+#include <mutex>
 #include <algorithm>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -26,6 +28,9 @@ float gAmbientStrength = 0.1;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
+
+size_t gThreadNum = 4;
+std::mutex gDepthMutex;
 
 // internal function
 static inline void __clear_color__(TRBuffer &buffer)
@@ -254,39 +259,66 @@ void triangle_pipeline(glm::vec4 v[3])
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
 
-#define __TR_RASTERIZATION_START__ \
-    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]); \
-    if (area <= 0) return; \
-    glm::vec2 left_up, right_down; \
-    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5; \
-    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5; \
-    right_down.x = glm::min(float(gCurrentBuffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5; \
-    right_down.y = glm::min(float(gCurrentBuffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5; \
-    for (int i = left_up.y; i < right_down.y; i++) { \
-        uint8_t *base = &gCurrentBuffer->data[i * gCurrentBuffer->stride]; \
-        for (int j = left_up.x; j < right_down.x; j++) { \
-            glm::vec2 v(j, i); \
-            float w0 = __edge__(screen_v[1], screen_v[2], v); \
-            float w1 = __edge__(screen_v[2], screen_v[0], v); \
-            float w2 = __edge__(screen_v[0], screen_v[1], v); \
-            int flag = 0; \
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) flag = 1; \
-            if (!flag) continue; \
-            w0 /= (area + 1e-6); \
-            w1 /= (area + 1e-6); \
-            w2 /= (area + 1e-6); \
-            /* use ndc z to calculate depth */ \
-            float depth = __interpolation__(ndc_v, 2, w0, w1, w2); \
-            /* projection matrix will inverse z-order. */ \
-            if (gCurrentBuffer->depth[i * gCurrentBuffer->w + j] < depth) continue; \
-            /* z in ndc of opengl should between 0.0f to 1.0f */ \
-            if (depth > 1.0f || depth < 0.0f) continue; \
-            gCurrentBuffer->depth[i * gCurrentBuffer->w + j] = depth; \
-            uint8_t *addr= &base[j * BPP];
+static inline bool __depth_test__(TRBuffer *buffer, int depth_offset, float depth)
+{
+    /* projection matrix will inverse z-order. */
+    if (buffer->depth[depth_offset] < depth)
+        return false;
+    else
+        buffer->depth[depth_offset] = depth;
+    return true;
+}
 
-#define __TR_RASTERIZATION_END__ \
-        } \
+void __tr_rasterization__(glm::vec4 clip_v[3], TRBuffer *buffer, std::vector<TRFragData> &frags)
+{
+    glm::vec4 ndc_v[3];
+    glm::vec2 screen_v[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+        ndc_v[i] = clip_v[i] / clip_v[i].w;
+        __tr_viewport__(screen_v[i], ndc_v[i], buffer->vx, buffer->vy, buffer->vw, buffer->vh);
     }
+    float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
+    if (area <= 0) return;
+    glm::vec2 left_up, right_down;
+    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+    right_down.x = glm::min(float(buffer->w - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    right_down.y = glm::min(float(buffer->h - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+    for (int i = left_up.y; i < right_down.y; i++) {
+        int offset_base = i * buffer->w;
+        for (int j = left_up.x; j < right_down.x; j++) {
+            glm::vec2 v(j, i);
+            float w0 = __edge__(screen_v[1], screen_v[2], v);
+            float w1 = __edge__(screen_v[2], screen_v[0], v);
+            float w2 = __edge__(screen_v[0], screen_v[1], v);
+            int flag = 0;
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+                flag = 1;
+            if (!flag)
+                continue;
+            w0 /= (area + 1e-6);
+            w1 /= (area + 1e-6);
+            w2 /= (area + 1e-6);
+
+            /* use ndc z to calculate depth */
+            float depth = __interpolation__(ndc_v, 2, w0, w1, w2);
+            /* z in ndc of opengl should between 0.0f to 1.0f */
+            if (depth > 1.0f || depth < 0.0f)
+                continue;
+
+            int offset = offset_base + j;
+            /* easy-z */
+            /* Do not use mutex here to speed up */
+            if (!__depth_test__(buffer, offset, depth))
+                continue;
+
+            TRFragData fdat = { j, i, w0, w1, w2, depth, &buffer->data[offset * BPP] };
+            frags.push_back(fdat);
+        }
+    }
+}
 
 // Texture with lighting pipeline
 void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 light_postion /* light postion in camera space */)
@@ -294,22 +326,27 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
 
     glm::vec4 camera_v[3];
     glm::vec4 clip_v[3];
-    glm::vec4 ndc_v[3];
-    glm::vec2 screen_v[3];
 
     glm::vec3 T;
     __compute__tangent__(v, uv, T);
     T = glm::normalize(gNormalMat * T);
 
     for (int i = 0; i < 3; i++)
-    {
         lighting_vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
-        ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
-    }
 
-    __TR_RASTERIZATION_START__
+    std::vector<TRFragData> frags;
+    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
+
+    for (auto &frag : frags)
     {
+        float w0 = frag.w[0];
+        float w1 = frag.w[1];
+        float w2 = frag.w[2];
+        int x = frag.x;
+        int y = frag.y;
+
+        int offset = y * gCurrentBuffer->w + x;
+
         glm::vec2 UV(
                 __interpolation__(uv, 0, w0, w1, w2),
                 __interpolation__(uv, 1, w0, w1, w2)
@@ -324,9 +361,21 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
                     __interpolation__(n, 1, w0, w1, w2),
                     __interpolation__(n, 2, w0, w1, w2)
                     ));
-        lighting_fragment_shader(light_postion, P, UV, N, T, addr);
+
+        uint8_t c[3];
+        lighting_fragment_shader(light_postion, P, UV, N, T, c);
+
+        /* depth test */
+        {
+            std::lock_guard<std::mutex> lck(gDepthMutex);
+            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
+                continue;
+
+            frag.addr[0] = c[0];
+            frag.addr[1] = c[1];
+            frag.addr[2] = c[2];
+        }
     }
-    __TR_RASTERIZATION_END__
 }
 
 // Texture without lighting pipeline
@@ -334,25 +383,41 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
 {
 
     glm::vec4 clip_v[3];
-    glm::vec4 ndc_v[3];
-    glm::vec2 screen_v[3];
 
     for (int i = 0; i < 3; i++)
-    {
         vertex_shader(v[i], clip_v[i]);
-        ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
-    }
 
-    __TR_RASTERIZATION_START__
+    std::vector<TRFragData> frags;
+    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
+
+    for (auto &frag : frags)
     {
+        float w0 = frag.w[0];
+        float w1 = frag.w[1];
+        float w2 = frag.w[2];
+        int x = frag.x;
+        int y = frag.y;
+
+        int offset = y * gCurrentBuffer->w + x;
+
         glm::vec2 UV(
                 __interpolation__(uv, 0, w0, w1, w2),
                 __interpolation__(uv, 1, w0, w1, w2)
                 );
-        fragment_shader(UV, addr);
+
+        uint8_t c[3];
+        fragment_shader(UV, c);
+        /* depth test */
+        {
+            std::lock_guard<std::mutex> lck(gDepthMutex);
+            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
+                continue;
+
+            frag.addr[0] = c[0];
+            frag.addr[1] = c[1];
+            frag.addr[2] = c[2];
+        }
     }
-    __TR_RASTERIZATION_END__
 }
 
 // Color pipeline
@@ -360,32 +425,47 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
 {
 
     glm::vec4 clip_v[3];
-    glm::vec4 ndc_v[3];
-    glm::vec2 screen_v[3];
 
     for (int i = 0; i < 3; i++)
-    {
         vertex_shader(v[i], clip_v[i]);
-        ndc_v[i] = clip_v[i] / clip_v[i].w;
-        __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
-    }
 
-    __TR_RASTERIZATION_START__
+    std::vector<TRFragData> frags;
+    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
+
+    for (auto &frag : frags)
     {
-        addr[0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-        addr[1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-        addr[2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+        float w0 = frag.w[0];
+        float w1 = frag.w[1];
+        float w2 = frag.w[2];
+        int x = frag.x;
+        int y = frag.y;
+
+        int offset = y * gCurrentBuffer->w + x;
+
+        /* depth test */
+        {
+            std::lock_guard<std::mutex> lck(gDepthMutex);
+            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
+                continue;
+
+            frag.addr[0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+            frag.addr[1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+            frag.addr[2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+        }
     }
-    __TR_RASTERIZATION_END__
 }
 
-void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm::vec2> &uvs, std::vector<glm::vec3> &normals)
-{
-    size_t i = 0;
-    glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
+typedef void (*RenderFunc)(TRMeshData &, size_t, size_t);
 
-#pragma omp parallel for
-    for (i = 0; i < vertices.size(); i += 3)
+void tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
+{
+    size_t i = 0, j = 0;
+    glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
+    std::vector<glm::vec3> &vertices = data.vertices;
+    std::vector<glm::vec2> &uvs = data.uvs;
+    std::vector<glm::vec3> &normals = data.normals;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
@@ -397,11 +477,13 @@ void tr_triangles_with_texture(std::vector<glm::vec3> &vertices, std::vector<glm
     }
 }
 
-void tr_triangles_with_color(std::vector<glm::vec3> &vertices, std::vector<glm::vec3> &colors)
+void tr_triangles_with_color_index(TRMeshData &data, size_t index, size_t num)
 {
-    size_t i = 0;
-#pragma omp parallel for
-    for (i = 0; i < vertices.size(); i += 3)
+    size_t i = 0, j = 0;
+    std::vector<glm::vec3> &vertices = data.vertices;
+    std::vector<glm::vec3> &colors = data.colors;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec3 c[3] = { colors[i], colors[i+1], colors[i+2] };
@@ -409,11 +491,12 @@ void tr_triangles_with_color(std::vector<glm::vec3> &vertices, std::vector<glm::
     }
 }
 
-void tr_triangles_with_demo_color(std::vector<glm::vec3> &vertices)
+void tr_triangles_with_demo_color_index(TRMeshData &data, size_t index, size_t num)
 {
-    size_t i = 0;
-#pragma omp parallel for
-    for (i = 0; i < vertices.size(); i += 3)
+    size_t i = 0, j = 0;
+    std::vector<glm::vec3> &vertices = data.vertices;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
@@ -421,35 +504,64 @@ void tr_triangles_with_demo_color(std::vector<glm::vec3> &vertices)
     }
 }
 
-void tr_triangles_wireframe(std::vector<glm::vec3> &vertices)
+void tr_triangles_wireframe_index(TRMeshData &data, size_t index, size_t num)
 {
-    size_t i = 0;
-#pragma omp parallel for
-    for (i = 0; i < vertices.size(); i += 3)
+    size_t i = 0, j = 0;
+    std::vector<glm::vec3> &vertices = data.vertices;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
         glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
         triangle_pipeline(v);
     }
 }
 
+void tr_triangles_mt(TRMeshData &data, RenderFunc render)
+{
+    if (gThreadNum > 1)
+    {
+        std::vector<std::thread> thread_pool;
+        size_t index_step = data.vertices.size() / 3 / gThreadNum + 1;
+
+        for (size_t i = 0; i < gThreadNum; i++)
+            thread_pool.push_back(std::thread(render, std::ref(data), i * index_step, index_step));
+
+        for (auto &th : thread_pool)
+            if (th.joinable())
+                th.join();
+    } else {
+        render(data, 0, data.vertices.size() / 3);
+    }
+}
+
+
 void trTriangles(TRMeshData &data, TRDrawMode mode)
 {
     __compute_premultiply_mat__();
+    RenderFunc render = nullptr;
+
     switch (mode)
     {
         case DRAW_WITH_TEXTURE:
-            tr_triangles_with_texture(data.vertices, data.uvs, data.normals);
+            render = tr_triangles_with_texture_index;
             break;
         case DRAW_WITH_COLOR:
-            tr_triangles_with_color(data.vertices, data.colors);
+            render = tr_triangles_with_color_index;
             break;
         case DRAW_WITH_DEMO_COLOR:
-            tr_triangles_with_demo_color(data.vertices);
+            render = tr_triangles_with_demo_color_index;
             break;
         case DRAW_WIREFRAME:
-            tr_triangles_wireframe(data.vertices);
+            render = tr_triangles_wireframe_index;
             break;
     }
+    if (render)
+        tr_triangles_mt(data, render);
+}
+
+void trSetRenderThreadNum(size_t num)
+{
+    gThreadNum = num;
 }
 
 void trEnableLighting(bool enable)
