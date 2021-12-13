@@ -82,7 +82,7 @@ template <class T> float __interpolation__(T v[3], int i, float w0, float w1, fl
     return v[0][i] * w0 + v[1][i] * w1 + v[2][i] * w2;
 }
 
-static inline void __compute__tangent__(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 &t)
+static inline void __compute__tangent__(glm::vec3 v[3], glm::vec2 uv[3], glm::vec3 &t)
 {
     // Edges of the triangle : postion delta
     glm::vec3 deltaPos1 = v[1]-v[0];
@@ -94,6 +94,20 @@ static inline void __compute__tangent__(glm::vec4 v[3], glm::vec2 uv[3], glm::ve
 
     float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
     t = (deltaPos1 * deltaUV2.y   - deltaPos2 * deltaUV1.y) * r;
+}
+
+void compute_tangent(TRMeshData &data)
+{
+    std::vector<glm::vec3> &vertices = data.vertices;
+    std::vector<glm::vec2> &uvs = data.uvs;
+    for (size_t i = 0; i < vertices.size(); i += 3)
+    {
+        glm::vec3 v[3] = { vertices[i], vertices[i+1], vertices[i+2] };
+        glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
+        glm::vec3 t;
+        __compute__tangent__(v, uv, t);
+        data.tangents.push_back(t);
+    }
 }
 
 static inline void __compute_premultiply_mat__()
@@ -321,15 +335,13 @@ void __tr_rasterization__(glm::vec4 clip_v[3], TRBuffer *buffer, std::vector<TRF
 }
 
 // Texture with lighting pipeline
-void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 light_postion /* light postion in camera space */)
+void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 t, glm::vec3 light_postion /* light postion in camera space */)
 {
 
     glm::vec4 camera_v[3];
     glm::vec4 clip_v[3];
 
-    glm::vec3 T;
-    __compute__tangent__(v, uv, T);
-    T = glm::normalize(gNormalMat * T);
+    glm::vec3 T = glm::normalize(gNormalMat * t);
 
     for (int i = 0; i < 3; i++)
         lighting_vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
@@ -464,6 +476,7 @@ void tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
     std::vector<glm::vec3> &vertices = data.vertices;
     std::vector<glm::vec2> &uvs = data.uvs;
     std::vector<glm::vec3> &normals = data.normals;
+    std::vector<glm::vec3> &tangents = data.tangents;
 
     for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
@@ -471,7 +484,7 @@ void tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
         glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
         if (gEnableLighting)
-            triangle_pipeline(v, uv, n, light_postion);
+            triangle_pipeline(v, uv, n, tangents[i / 3], light_postion);
         else
             triangle_pipeline(v, uv);
     }
@@ -543,6 +556,8 @@ void trTriangles(TRMeshData &data, TRDrawMode mode)
     switch (mode)
     {
         case DRAW_WITH_TEXTURE:
+            if (data.tangents.size() == 0)
+                compute_tangent(data);
             render = tr_triangles_with_texture_index;
             break;
         case DRAW_WITH_COLOR:
