@@ -10,3 +10,12 @@ executable('sphere',
            link_args : '-pthread',
            link_with: libtrcore,
            install : true)
+
+executable('01_triangles',
+           '01_triangles.cpp',
+           dependencies:[
+             dep_glm,
+             ],
+           cpp_args : [ '-I' + root, '-trigraphs' ],
+           link_with: libtrcore,
+           install : true)
