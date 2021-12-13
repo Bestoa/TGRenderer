@@ -13,6 +13,7 @@ libtrcore = shared_library('trcore',
              dep_glm,
              ],
            c_args: '-xc++',
+           link_args: '-pthread',
            install : true)
 
 libtrobj = shared_library('trobj',
