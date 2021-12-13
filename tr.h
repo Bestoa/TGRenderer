@@ -89,6 +89,7 @@ void trViewport(int x, int y, int w, int h);
 void trMakeCurrent(TRBuffer &buffer);
 void trBindTexture(TRTexture *texture, TRTextureType type);
 void trClear();
+void trClearColor3f(float r, float g, float b);
 void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);

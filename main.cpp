@@ -14,8 +14,8 @@
 
 #define __ON_SCREEN__ 1
 #if __ON_SCREEN__
-#define WIDTH (1280)
-#define HEIGHT (720)
+#define WIDTH (800)
+#define HEIGHT (600)
 #else
 #define WIDTH (4000)
 #define HEIGHT (4000)
@@ -38,6 +38,7 @@ int main(int argc, char *argv[])
     trMakeCurrent(buffer);
 
     trEnableLighting(true);
+    trClearColor3f(0.5, 0, 0);
 
     std::vector<std::shared_ptr <TRObj>> objs;
     for (int i = 1; i < argc; i++)
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
     }
 
     trSetViewMat(glm::lookAt(
-                glm::vec3(0,1,2), // Camera is at (0,1,2), in World Space
+                glm::vec3(0,0.75,1.5), // Camera is at (0,0.75,1.5), in World Space
                 glm::vec3(0,0,0), // and looks at the origin
                 glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
                 ));

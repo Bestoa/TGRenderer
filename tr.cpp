@@ -629,6 +629,13 @@ void trClear()
     __clear_depth__(*gCurrentBuffer);
 }
 
+void trClearColor3f(float r, float g, float b)
+{
+    gCurrentBuffer->bg_color[0] = glm::clamp(int(r * 255 + 0.5), 0, 255);
+    gCurrentBuffer->bg_color[1] = glm::clamp(int(g * 255 + 0.5), 0, 255);
+    gCurrentBuffer->bg_color[2] = glm::clamp(int(b * 255 + 0.5), 0, 255);
+}
+
 void trSetModelMat(glm::mat4 mat)
 {
     gModelMat = mat;
