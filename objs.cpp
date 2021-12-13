@@ -26,7 +26,7 @@ TRObj::~TRObj()
     destory_texture(mTextureNormal);
 }
 
-bool TRObj::is_valid()
+bool TRObj::isValid()
 {
     if (mMeshData.vertices.size() != mMeshData.uvs.size()
             || mMeshData.vertices.size() != mMeshData.normals.size()
@@ -38,9 +38,9 @@ bool TRObj::is_valid()
 }
 
 
-bool TRObj::load_from_config_file(const char *config_file_name)
+bool TRObj::load(const char *config)
 {
-    ifstream in(config_file_name);
+    ifstream in(config);
     string line;
 
     if (in.bad())
@@ -92,7 +92,7 @@ bool TRObj::load_from_config_file(const char *config_file_name)
 
 bool TRObj::draw()
 {
-    if (is_valid() == false)
+    if (isValid() == false)
         return false;
 
     trBindTexture(&mTextureDiffuse, TEXTURE_DIFFUSE);

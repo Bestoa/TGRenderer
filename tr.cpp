@@ -356,11 +356,11 @@ void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec
                 __interpolation__(camera_v, 1, w0, w1, w2),
                 __interpolation__(camera_v, 2, w0, w1, w2)
                 );
-        glm::vec3 N = glm::normalize(glm::vec3(
-                    __interpolation__(n, 0, w0, w1, w2),
-                    __interpolation__(n, 1, w0, w1, w2),
-                    __interpolation__(n, 2, w0, w1, w2)
-                    ));
+        glm::vec3 N(
+                __interpolation__(n, 0, w0, w1, w2),
+                __interpolation__(n, 1, w0, w1, w2),
+                __interpolation__(n, 2, w0, w1, w2)
+                );
 
         uint8_t c[3];
         lighting_fragment_shader(light_postion, P, UV, N, T, c);

@@ -44,7 +44,7 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; i++)
     {
         std::shared_ptr<TRObj> obj(new TRObj());
-        if (obj->load_from_config_file(argv[i]))
+        if (obj->load(argv[i]))
             objs.push_back(obj);
     }
 

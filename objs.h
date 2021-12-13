@@ -7,8 +7,8 @@ class TRObj
     public:
         TRObj();
         ~TRObj();
-        bool load_from_config_file(const char *name);
-        bool is_valid();
+        bool load(const char *name);
+        bool isValid();
         bool draw();
 
     private:
