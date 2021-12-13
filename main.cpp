@@ -31,7 +31,10 @@ int main(int argc, char *argv[])
     TRBuffer buffer;
     ZERO(buffer);
 #if __ON_SCREEN__
-    trCreateRenderTarget(buffer, WIDTH, HEIGHT, true);
+    TRWindow w(WIDTH, HEIGHT);
+    if (!w.isRunning())
+        return 1;
+    w.createSurfaceRenderTarget(buffer, WIDTH, HEIGHT);
 #else
     trCreateRenderTarget(buffer, WIDTH, HEIGHT);
 #endif
@@ -58,29 +61,20 @@ int main(int argc, char *argv[])
     trSetProjMat(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f));
 
 #if __ON_SCREEN__
-    TRWindow *w = new TRWindow(WIDTH, HEIGHT);
-    if (w->fail())
-        return 1;
     int frame = 0;
-    void *addr;
     auto start = std::chrono::system_clock::now();
-    while (!w->should_exit() && frame < 200) {
-#endif
-#if __ON_SCREEN__
+    while (!w.shouldStop() && frame < 200) {
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
-        w->lock(&addr);
-        trSetExtBufferToRenderTarget(buffer, addr);
 #endif
         trClear();
         for (auto obj : objs)
             obj->draw();
 #if __ON_SCREEN__
-        w->unlock();
+        w.swapBuffer(buffer);
     }
     auto end = std::chrono::system_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    delete w;
     double fps = double(frame) / (double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den);
     printf("fps = %lf\n", fps);
 #endif

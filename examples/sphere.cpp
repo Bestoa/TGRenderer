@@ -130,9 +130,17 @@ int main(int argc, char *argv[])
         std::cout << "Usage: " << argv[0] << " texture_file" << std::endl;
         abort();
     }
+
     TRBuffer buffer;
     ZERO(buffer);
-    trCreateRenderTarget(buffer, WIDTH, HEIGHT, true);
+
+    TRWindow w(WIDTH, HEIGHT, "Sphere demo");
+    if (!w.isRunning())
+    {
+        std::cout << "Create window failed." << std::endl;
+        abort();
+    }
+    w.createSurfaceRenderTarget(buffer, WIDTH, HEIGHT);
     trMakeCurrent(buffer);
 
     TRMeshData data;
@@ -158,27 +166,17 @@ int main(int argc, char *argv[])
     }
     trBindTexture(&tex, TEXTURE_DIFFUSE);
 
-    TRWindow *w = new TRWindow(WIDTH, HEIGHT);
-    if (w->fail())
-    {
-        std::cout << "Create window failed." << std::endl;
-        abort();
-    }
     int frame = 0;
-    void *addr;
 
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));
-    while (!w->should_exit()) {
+    while (!w.shouldStop()) {
         frame++;
         trSetModelMat(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
-        w->lock(&addr);
-        trSetExtBufferToRenderTarget(buffer, addr);
 
         trClear();
         trTriangles(data, DRAW_WITH_TEXTURE);
-        w->unlock();
+        w.swapBuffer(buffer);
     }
-    delete w;
     std::cout << "frames = " << frame << std::endl;
     trDestoryRenderTarget(buffer);
     return 0;

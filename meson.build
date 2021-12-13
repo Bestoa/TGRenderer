@@ -26,7 +26,7 @@ libtrobj = shared_library('trobj',
 
 executable('ToyRrenderer',
            'main.cpp',
-           'simple-window.cpp',
+           'window.cpp',
            dependencies:[
              dep_glm,
              dep_sdl2,

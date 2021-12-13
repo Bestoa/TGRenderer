@@ -6,16 +6,21 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include "tr.h"
 
 class TRWindow {
     public:
-        TRWindow(int w, int h);
+        TRWindow(int w, int h, const char *name = "ToyRenderer");
         ~TRWindow();
 
-        bool fail();
+        // Old style method for swap buffer
         bool lock(void **addr);
         void unlock();
-        bool should_exit();
+
+        bool isRunning();
+        bool shouldStop();
+        bool createSurfaceRenderTarget(TRBuffer &buffer, int width, int height);
+        bool swapBuffer(TRBuffer &buffer);
 
     private:
         int mWidth;

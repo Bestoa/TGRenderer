@@ -21,7 +21,7 @@ void TRWindow::__disp_func__(TRWindow *w)
     cout << "[TRWindow]: Stop display thread." << endl;
 }
 
-TRWindow::TRWindow(int w, int h)
+TRWindow::TRWindow(int w, int h, const char *name)
 {
     mWidth = w;
     mHeight = h;
@@ -33,7 +33,7 @@ TRWindow::TRWindow(int w, int h)
     if (SDL_Init(SDL_INIT_VIDEO))
         goto error;
 
-    mWindow = SDL_CreateWindow("ToyRenderer", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, SDL_WINDOW_SHOWN|SDL_WINDOW_RESIZABLE);
+    mWindow = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, 0);
     if (mWindow == nullptr)
         goto error;
 
@@ -67,9 +67,9 @@ error:
     mRunning = false;
 }
 
-bool TRWindow::fail()
+bool TRWindow::isRunning()
 {
-    return !mRunning;
+    return mRunning;
 }
 
 bool TRWindow::lock(void **addr)
@@ -86,7 +86,31 @@ void TRWindow::unlock()
     mCV.notify_all();
 }
 
-bool TRWindow::should_exit()
+bool TRWindow::createSurfaceRenderTarget(TRBuffer &buffer, int width, int height)
+{
+    if (!trCreateRenderTarget(buffer, width, height, true))
+        return false;
+    void *addr;
+    if (!this->lock(&addr))
+    {
+        trDestoryRenderTarget(buffer);
+        return false;
+    }
+    trSetExtBufferToRenderTarget(buffer, addr);
+    return true;
+}
+
+bool TRWindow::swapBuffer(TRBuffer &buffer)
+{
+    this->unlock();
+    void *addr;
+    if (this->lock(&addr))
+        return false;
+    trSetExtBufferToRenderTarget(buffer, addr);
+    return true;
+};
+
+bool TRWindow::shouldStop()
 {
     SDL_Event event;
     while (SDL_PollEvent(&event) != 0)
