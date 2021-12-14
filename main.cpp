@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
     trMakeCurrent(buffer);
 
     trEnableLighting(true);
-    trClearColor3f(0.5, 0, 0);
+    trClearColor3f(0.1, 0.1, 0.1);
 
     std::vector<std::shared_ptr <TRObj>> objs;
     for (int i = 1; i < argc; i++)
@@ -63,7 +63,7 @@ int main(int argc, char *argv[])
 #if __ON_SCREEN__
     int frame = 0;
     auto start = std::chrono::system_clock::now();
-    while (!w.shouldStop() && frame < 200) {
+    while (!w.shouldStop() && frame < 720) {
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
 #endif

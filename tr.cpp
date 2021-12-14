@@ -73,7 +73,7 @@ static inline glm::vec3 __texture_color__(float u, float v, TRTexture *texture)
     // inverse y here
     int y = int(texture->h - 1 - v * (texture->h - 1) + 0.5);
     // Only support RGB texture
-    uint8_t *color = texture->data + y * texture->stride + x * 3;
+    uint8_t *color = texture->data + y * texture->stride + x * TEXTURE_BPP;
     return glm::vec3(color[0], color[1], color[2]);
 }
 
@@ -82,7 +82,7 @@ template <class T> float __interpolation__(T v[3], int i, float w0, float w1, fl
     return v[0][i] * w0 + v[1][i] * w1 + v[2][i] * w2;
 }
 
-static inline void __compute__tangent__(glm::vec3 v[3], glm::vec2 uv[3], glm::vec3 &t)
+static inline void __compute_tangent__(glm::vec3 v[3], glm::vec2 uv[3], glm::vec3 &t)
 {
     // Edges of the triangle : postion delta
     glm::vec3 deltaPos1 = v[1]-v[0];
@@ -105,7 +105,7 @@ void compute_tangent(TRMeshData &data)
         glm::vec3 v[3] = { vertices[i], vertices[i+1], vertices[i+2] };
         glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
         glm::vec3 t;
-        __compute__tangent__(v, uv, t);
+        __compute_tangent__(v, uv, t);
         data.tangents.push_back(t);
     }
 }
@@ -115,97 +115,6 @@ static inline void __compute_premultiply_mat__()
     __gMVMat__ =  gViewMat * gModelMat;
     __gMVPMat__ = gProjMat * __gMVMat__;
     gNormalMat = glm::mat3(glm::transpose(glm::inverse(__gMVMat__)));
-}
-
-// lighting vertex shader
-static void lighting_vertex_shader(
-        glm::vec3 v,
-        glm::vec3 &n/* out, for lighting */,
-        glm::vec4 &camera_v/* out, for lighting */,
-        glm::vec4 &clip_v/* out, for raster */)
-{
-    camera_v = __gMVMat__ * glm::vec4(v, 1.0f);
-    clip_v = gProjMat * camera_v;
-    n = gNormalMat * n;
-}
-
-// vertex shader
-static void vertex_shader(
-        glm::vec3 v,
-        glm::vec4 &clip_v/* out, for raster */)
-{
-    clip_v = __gMVPMat__ * glm::vec4(v, 1.0f);
-}
-
-// lighting fragment shader
-static void lighting_fragment_shader(glm::vec3 light_postion, glm::vec3 fragment_postion, glm::vec2 fragment_uv, glm::vec3 N, glm::vec3 T, uint8_t color[3]/* out */)
-{
-    float u = glm::clamp(fragment_uv.x, 0.0f, 1.0f);
-    float v = glm::clamp(fragment_uv.y, 0.0f, 1.0f);
-
-    glm::vec3 object_color = __texture_color__(u, v, gCurrentMaterial.diffuse);
-
-    // assume ambient light is (1.0, 1.0, 1.0)
-    glm::vec3 ambient = gAmbientStrength * object_color;
-
-    glm::vec3 n;
-    if (gCurrentMaterial.normal != NULL)
-    {
-        // Gram-Schmidt orthogonalize
-        T = glm::normalize(T - dot(T, N) * N);
-        glm::vec3 B = glm::cross(N, T);
-        glm::mat3 TBN = glm::mat3(T, B, N);
-        n = __texture_color__(u, v, gCurrentMaterial.normal) * 0.007843137f - 1.0f;
-        n = TBN * n;
-    }
-    else
-    {
-        n = N;
-    }
-    n = glm::normalize(n);
-    // from fragment to light
-    glm::vec3 l = glm::normalize(light_postion - fragment_postion);
-
-    float diff = glm::max(dot(n, l), 0.0f);
-    glm::vec3 diffuse = diff * gLightColor * object_color;
-
-    glm::vec3 result = ambient + diffuse;
-
-    if (gCurrentMaterial.specular != NULL)
-    {
-        // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
-        glm::vec3 e = glm::normalize(-fragment_postion);
-#if __BLINN_PHONG__
-        glm::vec3 h = glm::normalize(l + e);
-        float spec = glm::pow(glm::max(dot(n, h), 0.0f), gShininess);
-#else
-        glm::vec3 r = glm::reflect(-l, n);
-        float spec = glm::pow(glm::max(dot(e, r), 0.0f), gShininess);
-#endif
-        result += spec * gLightColor * __texture_color__(u, v, gCurrentMaterial.specular);
-    }
-
-    if (gCurrentMaterial.glow != NULL)
-    {
-        result += __texture_color__(u, v, gCurrentMaterial.glow);
-    }
-
-    color[0] = glm::clamp(int(result[0]), 0, 255);
-    color[1] = glm::clamp(int(result[1]), 0, 255);
-    color[2] = glm::clamp(int(result[2]), 0, 255);
-}
-
-// fragment shader
-static void fragment_shader(glm::vec2 fragment_uv, uint8_t color[3]/* out */)
-{
-    float u = glm::clamp(fragment_uv.x, 0.0f, 1.0f);
-    float v = glm::clamp(fragment_uv.y, 0.0f, 1.0f);
-
-    glm::vec3 object_color = __texture_color__(u, v, gCurrentMaterial.diffuse);
-
-    color[0] = glm::clamp(int(object_color[0]), 0, 255);
-    color[1] = glm::clamp(int(object_color[1]), 0, 255);
-    color[2] = glm::clamp(int(object_color[2]), 0, 255);
 }
 
 void __plot__(int x, int y)
@@ -264,13 +173,25 @@ void triangle_pipeline(glm::vec4 v[3])
 
     for (int i = 0; i < 3; i++)
     {
-        vertex_shader(v[i], clip_v[i]);
+        clip_v[i] = __gMVPMat__ * v[i];
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         __tr_viewport__(screen_v[i], ndc_v[i], gCurrentBuffer->vx, gCurrentBuffer->vy, gCurrentBuffer->vw, gCurrentBuffer->vh);
     }
     __draw_line__(screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
     __draw_line__(screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
     __draw_line__(screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
+}
+
+void tr_triangles_wireframe_index(TRMeshData &data, size_t index, size_t num)
+{
+    size_t i = 0, j = 0;
+    std::vector<glm::vec3> &vertices = data.vertices;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
+    {
+        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
+        triangle_pipeline(v);
+    }
 }
 
 static inline bool __depth_test__(TRBuffer *buffer, int depth_offset, float depth)
@@ -283,7 +204,7 @@ static inline bool __depth_test__(TRBuffer *buffer, int depth_offset, float dept
     return true;
 }
 
-void __tr_rasterization__(glm::vec4 clip_v[3], TRBuffer *buffer, std::vector<TRFragData> &frags)
+void tr_rasterization(glm::vec4 clip_v[3], TRBuffer *buffer, PFNFragShader fsFunc, TRFragShaderDataBase &fsdata)
 {
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
@@ -328,205 +249,339 @@ void __tr_rasterization__(glm::vec4 clip_v[3], TRBuffer *buffer, std::vector<TRF
             if (!__depth_test__(buffer, offset, depth))
                 continue;
 
-            TRFragData fdat = { j, i, w0, w1, w2, depth, &buffer->data[offset * BPP] };
-            frags.push_back(fdat);
+            fsdata.w[0] = w0;
+            fsdata.w[1] = w1;
+            fsdata.w[2] = w2;
+
+            uint8_t color[3];
+            fsFunc(fsdata, color);
+
+            uint8_t *addr = &buffer->data[offset * BPP];
+            /* depth test */
+            {
+                std::lock_guard<std::mutex> lck(gDepthMutex);
+                if (!__depth_test__(buffer, offset, depth))
+                    continue;
+
+                addr[0] = color[0];
+                addr[1] = color[1];
+                addr[2] = color[2];
+            }
         }
     }
 }
 
-// Texture with lighting pipeline
-void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3], glm::vec3 n[3], glm::vec3 t, glm::vec3 light_postion /* light postion in camera space */)
+class TRPhongVertShaderData : public TRVertShaderDataBase
 {
+    public:
+        glm::vec3 mV;
+        glm::vec2 mTexCoord;
+        glm::vec3 mViewFragPosition;
+        glm::vec3 mNormal;
+        glm::vec3 mLightPosition;
+        glm::vec3 mTangent;
+};
 
-    glm::vec4 camera_v[3];
-    glm::vec4 clip_v[3];
+class TRPhongFragShaderData : public TRFragShaderDataBase
+{
+    public:
+        glm::vec2 mTexCoord[3];
+        glm::vec3 mViewFragPosition[3];
+        glm::vec3 mNormal[3];
+        glm::vec3 mLightPosition;
+        glm::vec3 mTangent;
+};
 
-    glm::vec3 T = glm::normalize(gNormalMat * t);
-
-    for (int i = 0; i < 3; i++)
-        lighting_vertex_shader(v[i], n[i], camera_v[i], clip_v[i]);
-
-    std::vector<TRFragData> frags;
-    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
-
-    for (auto &frag : frags)
-    {
-        float w0 = frag.w[0];
-        float w1 = frag.w[1];
-        float w2 = frag.w[2];
-        int x = frag.x;
-        int y = frag.y;
-
-        int offset = y * gCurrentBuffer->w + x;
-
-        glm::vec2 UV(
-                __interpolation__(uv, 0, w0, w1, w2),
-                __interpolation__(uv, 1, w0, w1, w2)
-                );
-        glm::vec3 P(
-                __interpolation__(camera_v, 0, w0, w1, w2),
-                __interpolation__(camera_v, 1, w0, w1, w2),
-                __interpolation__(camera_v, 2, w0, w1, w2)
-                );
-        glm::vec3 N(
-                __interpolation__(n, 0, w0, w1, w2),
-                __interpolation__(n, 1, w0, w1, w2),
-                __interpolation__(n, 2, w0, w1, w2)
-                );
-
-        uint8_t c[3];
-        lighting_fragment_shader(light_postion, P, UV, N, T, c);
-
-        /* depth test */
-        {
-            std::lock_guard<std::mutex> lck(gDepthMutex);
-            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
-                continue;
-
-            frag.addr[0] = c[0];
-            frag.addr[1] = c[1];
-            frag.addr[2] = c[2];
-        }
-    }
+void tr_phong_vertex_shader(TRVertShaderDataBase &data, glm::vec4 &clipV)
+{
+    TRPhongVertShaderData &vsdata = dynamic_cast<TRPhongVertShaderData &>(data);
+    clipV = __gMVPMat__ * glm::vec4(vsdata.mV, 1.0f);
+    vsdata.mViewFragPosition = __gMVMat__ * glm::vec4(vsdata.mV, 1.0f);
+    vsdata.mNormal = gNormalMat * vsdata.mNormal;
 }
 
-// Texture without lighting pipeline
-void triangle_pipeline(glm::vec4 v[3], glm::vec2 uv[3])
+void tr_phong_geometry_shader(TRVertShaderDataBase data1[3], TRFragShaderDataBase &data2)
 {
-
-    glm::vec4 clip_v[3];
+    TRPhongVertShaderData *vsdata = dynamic_cast<TRPhongVertShaderData *>(data1);
+    TRPhongFragShaderData &fsdata = dynamic_cast<TRPhongFragShaderData &>(data2);
 
     for (int i = 0; i < 3; i++)
-        vertex_shader(v[i], clip_v[i]);
-
-    std::vector<TRFragData> frags;
-    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
-
-    for (auto &frag : frags)
     {
-        float w0 = frag.w[0];
-        float w1 = frag.w[1];
-        float w2 = frag.w[2];
-        int x = frag.x;
-        int y = frag.y;
-
-        int offset = y * gCurrentBuffer->w + x;
-
-        glm::vec2 UV(
-                __interpolation__(uv, 0, w0, w1, w2),
-                __interpolation__(uv, 1, w0, w1, w2)
-                );
-
-        uint8_t c[3];
-        fragment_shader(UV, c);
-        /* depth test */
-        {
-            std::lock_guard<std::mutex> lck(gDepthMutex);
-            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
-                continue;
-
-            frag.addr[0] = c[0];
-            frag.addr[1] = c[1];
-            frag.addr[2] = c[2];
-        }
+        fsdata.mTexCoord[i] = vsdata[i].mTexCoord;
+        fsdata.mViewFragPosition[i] = vsdata[i].mViewFragPosition;
+        fsdata.mNormal[i] = vsdata[i].mNormal;
     }
+    fsdata.mLightPosition = vsdata[0].mLightPosition;
+    fsdata.mTangent = glm::normalize(gNormalMat * vsdata[0].mTangent);
 }
 
-// Color pipeline
-void triangle_pipeline(glm::vec4 v[3], glm::vec3 c[3])
+void tr_phong_fragment_shader(TRFragShaderDataBase &data, uint8_t color[3])
 {
+    TRPhongFragShaderData &fsdata = dynamic_cast<TRPhongFragShaderData &>(data);
 
-    glm::vec4 clip_v[3];
+    float w0, w1, w2;
+    w0 = fsdata.w[0];
+    w1 = fsdata.w[1];
+    w2 = fsdata.w[2];
+
+    glm::vec3 viewFragPosition(
+            __interpolation__(fsdata.mViewFragPosition, 0, w0, w1, w2),
+            __interpolation__(fsdata.mViewFragPosition, 1, w0, w1, w2),
+            __interpolation__(fsdata.mViewFragPosition, 2, w0, w1, w2)
+            );
+    glm::vec3 normal(
+            __interpolation__(fsdata.mNormal, 0, w0, w1, w2),
+            __interpolation__(fsdata.mNormal, 1, w0, w1, w2),
+            __interpolation__(fsdata.mNormal, 2, w0, w1, w2)
+            );
+
+    float u = glm::clamp(__interpolation__(fsdata.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
+    float v = glm::clamp(__interpolation__(fsdata.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
+
+    glm::vec3 baseColor = __texture_color__(u, v, gCurrentMaterial.diffuse);
+
+    // assume ambient light is (1.0, 1.0, 1.0)
+    glm::vec3 ambient = gAmbientStrength * baseColor;
+
+    if (gCurrentMaterial.normal != NULL)
+    {
+        // Gram-Schmidt orthogonalize
+        glm::vec3 T = fsdata.mTangent;
+        T = glm::normalize(T - dot(T, normal) * normal);
+        glm::vec3 B = glm::cross(normal, T);
+        glm::mat3 TBN = glm::mat3(T, B, normal);
+        normal = __texture_color__(u, v, gCurrentMaterial.normal) * 0.007843137f - 1.0f;
+        normal = TBN * normal;
+    }
+    normal = glm::normalize(normal);
+    // from fragment to light
+    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
+
+    float diff = glm::max(dot(normal, lightDirection), 0.0f);
+    glm::vec3 diffuse = diff * gLightColor * baseColor;
+
+    glm::vec3 result = ambient + diffuse;
+
+    if (gCurrentMaterial.specular != NULL)
+    {
+        // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
+        glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
+#if __BLINN_PHONG__
+        glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
+        float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess);
+#else
+        glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
+        float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
+#endif
+        result += spec * gLightColor * __texture_color__(u, v, gCurrentMaterial.specular);
+    }
+
+    if (gCurrentMaterial.glow != NULL)
+    {
+        result += __texture_color__(u, v, gCurrentMaterial.glow);
+    }
+
+    color[0] = glm::clamp(int(result[0]), 0, 255);
+    color[1] = glm::clamp(int(result[1]), 0, 255);
+    color[2] = glm::clamp(int(result[2]), 0, 255);
+
+}
+
+class TRTextureVertShaderData : public TRVertShaderDataBase
+{
+    public:
+        glm::vec3 mV;
+        glm::vec2 mTexCoord;
+};
+
+class TRTextureFragShaderData : public TRFragShaderDataBase
+{
+    public:
+        glm::vec2 mTexCoord[3];
+};
+
+void tr_texture_vertex_shader(TRVertShaderDataBase &data, glm::vec4 &clipV)
+{
+    TRTextureVertShaderData &vsdata = dynamic_cast<TRTextureVertShaderData &>(data);
+    clipV = __gMVPMat__ * glm::vec4(vsdata.mV, 1.0f);
+}
+
+void tr_texture_geometry_shader(TRVertShaderDataBase data1[3], TRFragShaderDataBase &data2)
+{
+    TRTextureVertShaderData *vsdata = dynamic_cast<TRTextureVertShaderData *>(data1);
+    TRTextureFragShaderData &fsdata = dynamic_cast<TRTextureFragShaderData &>(data2);
+
+    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
+    fsdata.mTexCoord[1] = vsdata[1].mTexCoord;
+    fsdata.mTexCoord[2] = vsdata[2].mTexCoord;
+}
+
+void tr_texture_fragment_shader(TRFragShaderDataBase &data, uint8_t color[3])
+{
+    TRTextureFragShaderData &fsdata = dynamic_cast<TRTextureFragShaderData &>(data);
+
+    float w0, w1, w2;
+    w0 = fsdata.w[0];
+    w1 = fsdata.w[1];
+    w2 = fsdata.w[2];
+
+    float u = glm::clamp(__interpolation__(fsdata.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
+    float v = glm::clamp(__interpolation__(fsdata.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
+
+    glm::vec3 baseColor = __texture_color__(u, v, gCurrentMaterial.diffuse);
+
+    color[0] = glm::clamp(int(baseColor[0]), 0, 255);
+    color[1] = glm::clamp(int(baseColor[1]), 0, 255);
+    color[2] = glm::clamp(int(baseColor[2]), 0, 255);
+}
+
+class TRColorVertShaderData : public TRVertShaderDataBase
+{
+    public:
+        glm::vec3 mV;
+        glm::vec3 mColor;
+};
+
+class TRColorFragShaderData : public TRFragShaderDataBase
+{
+    public:
+        glm::vec3 mColor[3];
+};
+
+void tr_color_vertex_shader(TRVertShaderDataBase &data, glm::vec4 &clipV)
+{
+    TRColorVertShaderData &vsdata = dynamic_cast<TRColorVertShaderData &>(data);
+    clipV = __gMVPMat__ * glm::vec4(vsdata.mV, 1.0f);
+}
+
+void tr_color_geometry_shader(TRVertShaderDataBase data1[3], TRFragShaderDataBase &data2)
+{
+    TRColorVertShaderData *vsdata = dynamic_cast<TRColorVertShaderData *>(data1);
+    TRColorFragShaderData &fsdata = dynamic_cast<TRColorFragShaderData &>(data2);
+
+    fsdata.mColor[0] = vsdata[0].mColor;
+    fsdata.mColor[1] = vsdata[1].mColor;
+    fsdata.mColor[2] = vsdata[2].mColor;
+}
+
+void tr_color_fragment_shader(TRFragShaderDataBase &data, uint8_t color[3])
+{
+    TRColorFragShaderData &fsdata = dynamic_cast<TRColorFragShaderData &>(data);
+
+    float w0, w1, w2;
+    w0 = fsdata.w[0];
+    w1 = fsdata.w[1];
+    w2 = fsdata.w[2];
+
+    color[0] = int(glm::clamp(__interpolation__(fsdata.mColor, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+    color[1] = int(glm::clamp(__interpolation__(fsdata.mColor, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+    color[2] = int(glm::clamp(__interpolation__(fsdata.mColor, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+}
+
+// Uniform triangle pipeline.
+template <class TRVSData, class TRFSData>
+void uniform_triangle_pipeline(PFNVertShader vsFunc, PFNGeomShader gsFunc, PFNFragShader fsFunc, TRVSData vsdata[3], TRFSData &fsdata)
+{
+    glm::vec4 clipV[3];
 
     for (int i = 0; i < 3; i++)
-        vertex_shader(v[i], clip_v[i]);
+        vsFunc(vsdata[i], clipV[i]);
 
-    std::vector<TRFragData> frags;
-    __tr_rasterization__(clip_v, gCurrentBuffer, frags);
-
-    for (auto &frag : frags)
-    {
-        float w0 = frag.w[0];
-        float w1 = frag.w[1];
-        float w2 = frag.w[2];
-        int x = frag.x;
-        int y = frag.y;
-
-        int offset = y * gCurrentBuffer->w + x;
-
-        /* depth test */
-        {
-            std::lock_guard<std::mutex> lck(gDepthMutex);
-            if (!__depth_test__(gCurrentBuffer, offset, frag.depth))
-                continue;
-
-            frag.addr[0] = int(glm::clamp(__interpolation__(c, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-            frag.addr[1] = int(glm::clamp(__interpolation__(c, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-            frag.addr[2] = int(glm::clamp(__interpolation__(c, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-        }
-    }
+    gsFunc(vsdata, fsdata);
+    tr_rasterization(clipV, gCurrentBuffer, fsFunc, fsdata);
 }
 
 typedef void (*RenderFunc)(TRMeshData &, size_t, size_t);
 
-void tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
+void __tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
 {
     size_t i = 0, j = 0;
-    glm::vec3 light_postion = gViewMat * glm::vec4(gLightPosition, 1.0f);
+
+    std::vector<glm::vec3> &vertices = data.vertices;
+    std::vector<glm::vec2> &uvs = data.uvs;
+
+    TRTextureVertShaderData vsdata[3];
+    TRTextureFragShaderData fsdata;
+
+    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
+    {
+        for (int k = 0; k < 3; k++)
+        {
+            vsdata[k].mV = vertices[i + k];
+            vsdata[k].mTexCoord = uvs[i + k];
+        }
+        uniform_triangle_pipeline(tr_texture_vertex_shader, tr_texture_geometry_shader, tr_texture_fragment_shader, vsdata, fsdata);
+    }
+}
+
+void __tr_triangles_with_phong_index(TRMeshData &data, size_t index, size_t num)
+{
+    size_t i = 0, j = 0;
+
+    glm::vec3 viewLightPostion = gViewMat * glm::vec4(gLightPosition, 1.0f);
     std::vector<glm::vec3> &vertices = data.vertices;
     std::vector<glm::vec2> &uvs = data.uvs;
     std::vector<glm::vec3> &normals = data.normals;
     std::vector<glm::vec3> &tangents = data.tangents;
 
+    TRPhongVertShaderData vsdata[3];
+    TRPhongFragShaderData fsdata;
+
     for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
-        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
-        glm::vec2 uv[3] = { uvs[i], uvs[i+1], uvs[i+2] };
-        glm::vec3 n[3] = { normals[i], normals[i+1], normals[i+2] };
-        if (gEnableLighting)
-            triangle_pipeline(v, uv, n, tangents[i / 3], light_postion);
-        else
-            triangle_pipeline(v, uv);
+        for (int k = 0; k < 3; k++)
+        {
+            vsdata[k].mV = vertices[i + k];
+            vsdata[k].mTexCoord = uvs[i + k];
+            vsdata[k].mNormal = normals[i + k];
+            vsdata[k].mLightPosition = viewLightPostion;
+            vsdata[k].mTangent = tangents[i / 3];
+        }
+        uniform_triangle_pipeline(tr_phong_vertex_shader, tr_phong_geometry_shader, tr_phong_fragment_shader, vsdata, fsdata);
     }
 }
 
-void tr_triangles_with_color_index(TRMeshData &data, size_t index, size_t num)
+
+void tr_triangles_with_texture_index(TRMeshData &data, size_t index, size_t num)
+{
+    if (gEnableLighting)
+        __tr_triangles_with_phong_index(data, index, num);
+    else
+        __tr_triangles_with_texture_index(data, index, num);
+}
+
+void __tr_triangles_with_color_index(TRMeshData &data, size_t index, size_t num, bool demo = false)
 {
     size_t i = 0, j = 0;
     std::vector<glm::vec3> &vertices = data.vertices;
     std::vector<glm::vec3> &colors = data.colors;
 
+    glm::vec3 demoColor[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
+
+    TRColorVertShaderData vsdata[3];
+    TRColorFragShaderData fsdata;
     for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
     {
-        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
-        glm::vec3 c[3] = { colors[i], colors[i+1], colors[i+2] };
-        triangle_pipeline(v, c);
+        for (int k = 0; k < 3; k++)
+        {
+            vsdata[k].mV = vertices[i + k];
+            if (demo)
+                vsdata[k].mColor = demoColor[k];
+            else
+                vsdata[k].mColor = colors[k];
+        }
+        uniform_triangle_pipeline(tr_color_vertex_shader, tr_color_geometry_shader, tr_color_fragment_shader, vsdata, fsdata);
     }
+}
+
+void tr_triangles_with_color_index(TRMeshData &data, size_t index, size_t num)
+{
+    __tr_triangles_with_color_index(data, index, num);
 }
 
 void tr_triangles_with_demo_color_index(TRMeshData &data, size_t index, size_t num)
 {
-    size_t i = 0, j = 0;
-    std::vector<glm::vec3> &vertices = data.vertices;
-
-    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
-    {
-        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
-        glm::vec3 c[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
-        triangle_pipeline(v, c);
-    }
-}
-
-void tr_triangles_wireframe_index(TRMeshData &data, size_t index, size_t num)
-{
-    size_t i = 0, j = 0;
-    std::vector<glm::vec3> &vertices = data.vertices;
-
-    for (i = index * 3, j = 0; j < num && i < vertices.size(); i += 3, j++)
-    {
-        glm::vec4 v[3] = { glm::vec4(vertices[i], 1.0f), glm::vec4(vertices[i+1], 1.0f), glm::vec4(vertices[i+2], 1.0f) };
-        triangle_pipeline(v);
-    }
+    __tr_triangles_with_color_index(data, index, num, true);
 }
 
 void tr_triangles_mt(TRMeshData &data, RenderFunc render)
@@ -713,4 +768,3 @@ void trDestoryRenderTarget(TRBuffer &buffer)
     if (buffer.depth)
         delete buffer.depth;
 }
-

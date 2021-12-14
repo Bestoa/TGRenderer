@@ -7,6 +7,7 @@
 #include <vector>
 #include <glm/glm.hpp>
 
+#define TEXTURE_BPP (3)
 struct TRTexture
 {
     uint8_t *data;
@@ -48,16 +49,24 @@ enum TRDrawMode
     DRAW_WIREFRAME,
 };
 
-#define BPP (3)
-
-struct TRFragData
+class TRVertShaderDataBase
 {
-    int x, y;
-    float w[3];
-    float depth;
-    uint8_t *addr;
+    public:
+        virtual ~TRVertShaderDataBase() {};
 };
 
+class TRFragShaderDataBase
+{
+    public:
+        virtual ~TRFragShaderDataBase() {};
+        float w[3];
+};
+
+typedef void (*PFNVertShader)(TRVertShaderDataBase &, glm::vec4 &clipV);
+typedef void (*PFNGeomShader)(TRVertShaderDataBase *, TRFragShaderDataBase &);
+typedef void (*PFNFragShader)(TRFragShaderDataBase &, uint8_t color[3]);
+
+#define BPP (3)
 struct TRBuffer
 {
     uint8_t *data;
