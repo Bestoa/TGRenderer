@@ -132,7 +132,6 @@ int main(int argc, char *argv[])
     }
 
     TRBuffer buffer;
-    ZERO(buffer);
 
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
     if (!w.isRunning())

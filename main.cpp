@@ -29,7 +29,6 @@ int main(int argc, char *argv[])
         return 0;
     }
     TRBuffer buffer;
-    ZERO(buffer);
 #if __ON_SCREEN__
     TRWindow w(WIDTH, HEIGHT);
     if (!w.isRunning())
@@ -63,7 +62,7 @@ int main(int argc, char *argv[])
 #if __ON_SCREEN__
     int frame = 0;
     auto start = std::chrono::system_clock::now();
-    while (!w.shouldStop() && frame < 720) {
+    while (!w.shouldStop() && frame < 360) {
         frame++;
         trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
 #endif
