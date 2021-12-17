@@ -1,12 +1,11 @@
-root = meson.source_root()
 executable('sphere',
            'sphere.cpp',
-           root + '/window.cpp',
+           window_src,
            dependencies:[
              dep_glm,
              dep_sdl2,
              ],
-           cpp_args : [ '-I' + root, '-trigraphs' ],
+           include_directories: include_dir,
            link_args : '-pthread',
            link_with: libtrcore,
            install : true)
@@ -16,6 +15,6 @@ executable('01_triangles',
            dependencies:[
              dep_glm,
              ],
-           cpp_args : [ '-I' + root, '-trigraphs' ],
+           include_directories: include_dir,
            link_with: libtrcore,
            install : true)

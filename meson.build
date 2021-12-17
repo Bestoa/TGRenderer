@@ -6,34 +6,9 @@ dep_glm = dependency('glm')
 dep_sdl2 = dependency('SDL2')
 dep_sdl2_image = dependency('SDL2_image')
 
-libtrcore = shared_library('trcore',
-           'tr.cpp',
-           'utils.cpp',
-           dependencies:[
-             dep_glm,
-             ],
-           c_args: '-xc++',
-           link_args: '-pthread',
-           install : true)
+root = meson.source_root()
+include_dir = include_directories('include')
+window_src = root + '/src/window.cpp'
 
-libtrobj = shared_library('trobj',
-           'objs.cpp',
-           link_with: libtrcore,
-           dependencies:[
-             dep_glm,
-             ],
-           install : true)
-
-executable('TGRenderer',
-           'main.cpp',
-           'window.cpp',
-           dependencies:[
-             dep_glm,
-             dep_sdl2,
-             dep_sdl2_image,
-             ],
-           link_args: '-pthread',
-           link_with: [ libtrcore, libtrobj ] ,
-           install : true)
-
+subdir('src')
 subdir('examples')
