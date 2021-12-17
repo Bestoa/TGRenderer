@@ -1,5 +1,5 @@
-#ifndef __TINY_RENDER__
-#define __TINY_RENDER__
+#ifndef __TOPGUN_RENDERER__
+#define __TOPGUN_RENDERER__
 
 #include <cstdio>
 #include <cstring>

@@ -1,5 +1,5 @@
-project('ToyRenderer', 'cpp',
-  version : '0.1',
+project('TopGun Renderer', 'cpp',
+  version : '0.2',
   default_options : ['warning_level=3', 'cpp_std=c++14'])
 
 dep_glm = dependency('glm')
@@ -24,7 +24,7 @@ libtrobj = shared_library('trobj',
              ],
            install : true)
 
-executable('ToyRrenderer',
+executable('TGRenderer',
            'main.cpp',
            'window.cpp',
            dependencies:[
