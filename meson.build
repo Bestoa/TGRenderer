@@ -7,7 +7,7 @@ dep_sdl2 = dependency('SDL2')
 dep_sdl2_image = dependency('SDL2_image')
 
 root = meson.source_root()
-include_dir = include_directories('include')
+include_dir = [ include_directories('include'), include_directories('stb') ]
 window_src = root + '/src/window.cpp'
 
 subdir('src')
