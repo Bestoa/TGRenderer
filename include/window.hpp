@@ -6,7 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include "tr.h"
+#include "tr.hpp"
 
 class TRWindow {
     public:
@@ -19,15 +19,22 @@ class TRWindow {
 
         bool isRunning();
         bool shouldStop();
-        bool createSurfaceRenderTarget(TRBuffer &buffer, int width, int height);
-        bool swapBuffer(TRBuffer &buffer);
+        bool swapBuffer();
+        TRBuffer* getBuffer() { return mBuffer; };
+
+        // Disable copy init.
+        TRWindow(const TRWindow &) = delete;
+        TRWindow& operator=(const TRWindow &) = delete;
 
     private:
-        int mWidth;
-        int mHeight;
-        SDL_Window *mWindow;
-        SDL_Renderer *mRenderer;
-        SDL_Texture *mTexture;
+        TRWindow() = delete;
+
+        TRBuffer *mBuffer = nullptr;
+        int mWidth = 0;
+        int mHeight = 0;
+        SDL_Window *mWindow = nullptr;
+        SDL_Renderer *mRenderer = nullptr;
+        SDL_Texture *mTexture = nullptr;
         std::mutex mMutex;
         std::condition_variable mCV;
         std::thread mDisplayThread;

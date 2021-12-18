@@ -1,5 +1,6 @@
 libtrcore = shared_library('trcore',
            'tr.cpp',
+           'texture.cpp',
            'utils.cpp',
            dependencies:[
              dep_glm,

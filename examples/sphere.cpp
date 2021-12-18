@@ -6,9 +6,8 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "tr.h"
-#include "utils.h"
-#include "window.h"
+#include "tr.hpp"
+#include "window.hpp"
 
 #define WIDTH (800)
 #define HEIGHT (800)
@@ -131,16 +130,10 @@ int main(int argc, char *argv[])
         abort();
     }
 
-    TRBuffer buffer;
-
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
     if (!w.isRunning())
-    {
-        std::cout << "Create window failed." << std::endl;
-        abort();
-    }
-    w.createSurfaceRenderTarget(buffer, WIDTH, HEIGHT);
-    trMakeCurrent(buffer);
+        return 1;
+    trMakeCurrent(w.getBuffer());
 
     TRMeshData data;
     create_sphere(data.vertices, data.uvs, data.normals, 30, 30);
@@ -156,9 +149,8 @@ int main(int argc, char *argv[])
     trEnableLighting(true);
     trSetLightPosition3f(100.0f, 0.0f, 0.0f);
 
-    TRTexture tex;
-    ZERO(tex);
-    if (!load_texture(argv[1], tex))
+    TRTexture tex(argv[1]);
+    if (!tex.isValid())
     {
         std::cout << "Load texture failed." << std::endl;
         abort();
@@ -174,9 +166,8 @@ int main(int argc, char *argv[])
 
         trClear();
         trTriangles(data, DRAW_WITH_TEXTURE);
-        w.swapBuffer(buffer);
+        w.swapBuffer();
     }
     std::cout << "frames = " << frame << std::endl;
-    trDestoryRenderTarget(buffer);
     return 0;
 }

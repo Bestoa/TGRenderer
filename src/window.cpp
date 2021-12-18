@@ -2,7 +2,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include "window.h"
+#include "window.hpp"
 
 using namespace std;
 
@@ -45,6 +45,16 @@ TRWindow::TRWindow(int w, int h, const char *name)
     if (mTexture == nullptr)
         goto error;
 
+    mBuffer = TRBuffer::create(mWidth, mHeight, true);
+    if (!mBuffer)
+        goto error;
+
+    void *addr;
+    if (!lock(&addr))
+        goto error;
+
+    mBuffer->setExtBuffer(addr);
+
     mDisplayThread = thread(__disp_func__, this);
     if (!mDisplayThread.joinable())
         goto error;
@@ -54,6 +64,8 @@ TRWindow::TRWindow(int w, int h, const char *name)
     return;
 
 error:
+    if (mBuffer)
+        delete mBuffer;
     if (mTexture)
         SDL_DestroyTexture(mTexture);
     if (mRenderer)
@@ -86,27 +98,13 @@ void TRWindow::unlock()
     mCV.notify_all();
 }
 
-bool TRWindow::createSurfaceRenderTarget(TRBuffer &buffer, int width, int height)
+bool TRWindow::swapBuffer()
 {
-    if (!trCreateRenderTarget(buffer, width, height, true))
-        return false;
+    unlock();
     void *addr;
-    if (!this->lock(&addr))
-    {
-        trDestoryRenderTarget(buffer);
+    if (lock(&addr))
         return false;
-    }
-    trSetExtBufferToRenderTarget(buffer, addr);
-    return true;
-}
-
-bool TRWindow::swapBuffer(TRBuffer &buffer)
-{
-    this->unlock();
-    void *addr;
-    if (this->lock(&addr))
-        return false;
-    trSetExtBufferToRenderTarget(buffer, addr);
+    mBuffer->setExtBuffer(addr);
     return true;
 };
 
@@ -133,6 +131,7 @@ TRWindow::~TRWindow()
         mDisplayThread.join();
         cout << "[TRWindow]: Display thread exit." << endl;
 
+        delete mBuffer;
         SDL_DestroyTexture(mTexture);
         SDL_DestroyRenderer(mRenderer);
         SDL_DestroyWindow(mWindow);

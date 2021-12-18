@@ -1,14 +1,10 @@
 #include <cstdio>
-#include <cstring>
 #include <string>
 #include <vector>
 #include <glm/glm.hpp>
 
-#define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
-
-#include "tr.h"
-#include "utils.h"
+#include "tr.hpp"
+#include "utils.hpp"
 
 void save_ppm(const char *name, uint8_t *buffer, int width, int height)
 {
@@ -18,62 +14,6 @@ void save_ppm(const char *name, uint8_t *buffer, int width, int height)
     fprintf(fp, "P6\n%d %d\n255\n", width, height);
     fwrite(buffer, 1, width * height * 3, fp);
     fclose(fp);
-}
-
-bool load_texture(const char *name, TRTexture &tex)
-{
-    int width, height, nrChannels;
-    unsigned char *data = stbi_load(name, &width, &height, &nrChannels, 0);
-    if (!data)
-    {
-        printf("Load texture %s failed.\n", name);
-        return false;
-    }
-    if (nrChannels != 3 && nrChannels != 4)
-    {
-        printf("Only support RGB/RGBA texture.\n");
-        return false;
-    }
-    tex.w = width;
-    tex.h = height;
-    tex.stride = tex.w * 3;
-    tex.data = new uint8_t[tex.stride * tex.h];
-    if (!tex.data)
-        goto free_image;
-    printf("Loading texture %s, size %dx%d.\n", name, tex.w, tex.h);
-
-    for (int i = 0; i < tex.h; i++)
-    {
-        for (int j = 0; j < tex.w; j++)
-        {
-            tex.data[i * tex.stride + j * nrChannels + 0] = *(data + i * (nrChannels * width) + j * nrChannels + 0);
-            tex.data[i * tex.stride + j * nrChannels + 1] = *(data + i * (nrChannels * width) + j * nrChannels + 1);
-            tex.data[i * tex.stride + j * nrChannels + 2] = *(data + i * (nrChannels * width) + j * nrChannels + 2);
-        }
-    }
-
-    stbi_image_free(data);
-    return true;
-
-free_image:
-    stbi_image_free(data);
-    return false;
-}
-
-
-void destory_texture(TRTexture &tex)
-{
-    if (tex.data)
-        delete(tex.data);
-    ZERO(tex);
-}
-
-bool is_valid_texture(TRTexture &tex)
-{
-    if (tex.data == nullptr || tex.w == 0 || tex.h == 0)
-        return false;
-    else
-        return true;
 }
 
 bool load_obj(
