@@ -4,6 +4,7 @@
 #include <mutex>
 #include <algorithm>
 #include <glm/glm.hpp>
+#include <glm/ext.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "tr.hpp"
@@ -93,9 +94,9 @@ void TRBuffer::clearColor()
         uint8_t *base = &mData[i * mStride];
         for (uint32_t j = 0; j < mW; j++)
         {
-            base[j * BPP + 0] = mBGColor[0];
-            base[j * BPP + 1] = mBGColor[1];
-            base[j * BPP + 2] = mBGColor[2];
+            base[j * CHANNEL + 0] = mBGColor[0];
+            base[j * CHANNEL + 1] = mBGColor[1];
+            base[j * CHANNEL + 2] = mBGColor[2];
         }
     }
 }
@@ -140,7 +141,7 @@ TRBuffer::TRBuffer(int w, int h, bool ext)
     mExtBuffer = ext;
     if (!ext)
     {
-        mData = new uint8_t[w * h * BPP];
+        mData = new uint8_t[w * h * CHANNEL];
         if (!mData)
             return;
     }
@@ -153,7 +154,7 @@ TRBuffer::TRBuffer(int w, int h, bool ext)
     }
     mW = mVW = w;
     mH = mVH = h;
-    mStride = w * BPP;
+    mStride = w * CHANNEL;
     if (!ext)
         clearColor();
     clearDepth();
@@ -181,7 +182,7 @@ static inline void __compute_premultiply_mat__()
 
 void __plot__(TRBuffer *buffer, int x, int y)
 {
-    uint8_t *base = &buffer->mData[y * buffer->mStride + x * BPP];
+    uint8_t *base = &buffer->mData[y * buffer->mStride + x * CHANNEL];
     base[0] = base[1] = base[2] = 255;
 }
 
@@ -259,7 +260,7 @@ bool WireframeProgram::geometry()
     return false;
 }
 
-bool WireframeProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
+bool WireframeProgram::fragment(float w0, float w1, float w2, float color[3])
 {
     w0 = w1 = w2 = 0;
     (void)w0;
@@ -289,11 +290,11 @@ bool ColorProgram::geometry()
     return true;
 }
 
-bool ColorProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
+bool ColorProgram::fragment(float w0, float w1, float w2, float color[3])
 {
-    color[0] = int(glm::clamp(interpolation(mFSData.mColor, 0, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-    color[1] = int(glm::clamp(interpolation(mFSData.mColor, 1, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
-    color[2] = int(glm::clamp(interpolation(mFSData.mColor, 2, w0, w1, w2), 0.0f, 1.0f) * 255 + 0.5);
+    color[0] = interpolation(mFSData.mColor, 0, w0, w1, w2);
+    color[1] = interpolation(mFSData.mColor, 1, w0, w1, w2);
+    color[2] = interpolation(mFSData.mColor, 2, w0, w1, w2);
     return true;
 }
 
@@ -319,16 +320,16 @@ bool TextureMapProgram::geometry()
     return true;
 }
 
-bool TextureMapProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
+bool TextureMapProgram::fragment(float w0, float w1, float w2, float color[3])
 {
     float u = glm::clamp(interpolation(mFSData.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
     float v = glm::clamp(interpolation(mFSData.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
 
-    glm::vec3 baseColor = gTexture[TEXTURE_DIFFUSE]->getColor(u, v);
+    float *c = gTexture[TEXTURE_DIFFUSE]->getColor(u, v);
 
-    color[0] = glm::clamp(int(baseColor[0]), 0, 255);
-    color[1] = glm::clamp(int(baseColor[1]), 0, 255);
-    color[2] = glm::clamp(int(baseColor[2]), 0, 255);
+    color[0] = c[0];
+    color[1] = c[1];
+    color[2] = c[2];
     return true;
 }
 
@@ -366,7 +367,7 @@ bool PhongProgram::geometry()
     return true;
 }
 
-bool PhongProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
+bool PhongProgram::fragment(float w0, float w1, float w2, float color[3])
 {
     glm::vec3 viewFragPosition(
             interpolation(mFSData.mViewFragPosition, 0, w0, w1, w2),
@@ -382,19 +383,19 @@ bool PhongProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
     float u = glm::clamp(interpolation(mFSData.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
     float v = glm::clamp(interpolation(mFSData.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
 
-    glm::vec3 baseColor = gTexture[TEXTURE_DIFFUSE]->getColor(u, v);
+    glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(u, v));
 
     // assume ambient light is (1.0, 1.0, 1.0)
     glm::vec3 ambient = gAmbientStrength * baseColor;
 
-    if (gTexture[TEXTURE_NORMAL] != NULL)
+    if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
         // Gram-Schmidt orthogonalize
         glm::vec3 T = mFSData.mTangent;
         T = glm::normalize(T - dot(T, normal) * normal);
         glm::vec3 B = glm::cross(normal, T);
         glm::mat3 TBN = glm::mat3(T, B, normal);
-        normal = gTexture[TEXTURE_NORMAL]->getColor(u, v) * 0.007843137f - 1.0f;
+        normal = glm::make_vec3(gTexture[TEXTURE_NORMAL]->getColor(u, v)) * 2.0f - 1.0f;
         normal = TBN * normal;
     }
     normal = glm::normalize(normal);
@@ -406,7 +407,7 @@ bool PhongProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
 
     glm::vec3 result = ambient + diffuse;
 
-    if (gTexture[TEXTURE_SPECULAR] != NULL)
+    if (gTexture[TEXTURE_SPECULAR] != nullptr)
     {
         // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
         glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
@@ -417,17 +418,17 @@ bool PhongProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
         glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
         float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
 #endif
-        result += spec * gLightColor * gTexture[TEXTURE_SPECULAR]->getColor(u, v);
+        result += spec * gLightColor * glm::make_vec3(gTexture[TEXTURE_SPECULAR]->getColor(u, v));
     }
 
-    if (gTexture[TEXTURE_GLOW] != NULL)
+    if (gTexture[TEXTURE_GLOW] != nullptr)
     {
-        result += gTexture[TEXTURE_GLOW]->getColor(u, v);
+        result += glm::make_vec3(gTexture[TEXTURE_GLOW]->getColor(u, v));
     }
 
-    color[0] = glm::clamp(int(result[0]), 0, 255);
-    color[1] = glm::clamp(int(result[1]), 0, 255);
-    color[2] = glm::clamp(int(result[2]), 0, 255);
+    color[0] = glm::min(result[0], 1.f);
+    color[1] = glm::min(result[1], 1.f);
+    color[2] = glm::min(result[2], 1.f);
 
     return true;
 }
@@ -493,20 +494,20 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
             if (!mBuffer->depthTest(x, y, depth))
                 continue;
 
-            uint8_t color[3];
+            float color[3];
             if (!fragment(w0, w1, w2, color))
                 continue;
 
-            uint8_t *addr = &mBuffer->mData[offset * BPP];
+            uint8_t *addr = &mBuffer->mData[offset * CHANNEL];
             /* depth test */
             {
                 std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
                 if (!mBuffer->depthTest(x, y, depth))
                     continue;
 
-                addr[0] = color[0];
-                addr[1] = color[1];
-                addr[2] = color[2];
+                addr[0] = uint8_t(color[0] * 255 + 0.5);
+                addr[1] = uint8_t(color[1] * 255 + 0.5);
+                addr[2] = uint8_t(color[2] * 255 + 0.5);
             }
         }
     }

@@ -59,7 +59,7 @@ enum TRDrawMode
     DRAW_WIREFRAME,
 };
 
-#define BPP (3)
+#define CHANNEL (3)
 class TRBuffer
 {
     public:
@@ -95,7 +95,7 @@ class TRBuffer
         uint32_t mVW = 0;
         uint32_t mVH = 0;
 
-        uint8_t mBGColor[BPP] = { 0, 0, 0 };
+        uint8_t mBGColor[CHANNEL] = { 0, 0, 0 };
         // data was not allocated by us.
         bool mExtBuffer = false;
         bool mValid = false;
@@ -131,7 +131,7 @@ class TRProgramBase
         virtual void loadVertexData(TRMeshData &, size_t) = 0;
         virtual void vertex(size_t, glm::vec4 &) = 0;
         virtual bool geometry() = 0;
-        virtual bool fragment(float w0, float w1, float w2, uint8_t color[3]) = 0;
+        virtual bool fragment(float w0, float w1, float w2, float color[3]) = 0;
 
         void rasterization(glm::vec4 clip_v[3]);
 };
@@ -151,7 +151,7 @@ class WireframeProgram : public TRProgramBase<WireframeVSData, WireframeFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, uint8_t color[3]);
+    bool fragment(float w0, float w1, float w2, float color[3]);
 };
 
 class ColorVSData
@@ -172,7 +172,7 @@ class ColorProgram : public TRProgramBase<ColorVSData, ColorFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, uint8_t color[3]);
+    bool fragment(float w0, float w1, float w2, float color[3]);
 };
 
 class TextureMapVSData
@@ -193,7 +193,7 @@ class TextureMapProgram : public TRProgramBase<TextureMapVSData, TextureMapFSDat
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, uint8_t color[3]);
+    bool fragment(float w0, float w1, float w2, float color[3]);
 };
 
 class PhongVSData
@@ -222,7 +222,7 @@ class PhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, uint8_t color[3]);
+    bool fragment(float w0, float w1, float w2, float color[3]);
 };
 
 #ifndef __BLINN_PHONG__

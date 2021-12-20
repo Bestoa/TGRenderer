@@ -3,7 +3,7 @@
 
 #include <glm/glm.hpp>
 
-#define TEXTURE_BPP (3)
+#define TEXTURE_CHANNEL (3)
 class TRTexture
 {
     public:
@@ -18,21 +18,20 @@ class TRTexture
                 delete mData;
         };
 
-        glm::vec3 getColor(float u, float v)
+        float* getColor(float u, float v)
         {
             int x = int(u * (mW - 1) + 0.5);
             // inverse y here
             int y = int(mH - 1 - v * (mH - 1) + 0.5);
             // Only support RGB texture
-            uint8_t *color = mData + y * mStride + x * TEXTURE_BPP;
-            return glm::vec3(color[0], color[1], color[2]);
+            return mData + y * mStride + x * TEXTURE_CHANNEL;
         };
 
         bool isValid() { return mValid; };
 
     private:
         bool mValid = false;
-        uint8_t *mData = nullptr;
+        float *mData = nullptr;
         int mStride = 0;
         int mW = 0;
         int mH = 0;

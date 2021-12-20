@@ -7,39 +7,37 @@
 TRTexture::TRTexture(const char *name)
 {
     int width, height, nrChannels;
-    unsigned char *data = stbi_load(name, &width, &height, &nrChannels, 0);
-    if (!data)
+    stbi_ldr_to_hdr_gamma(1.0f);
+    float *texSrcData = stbi_loadf(name, &width, &height, &nrChannels, TEXTURE_CHANNEL);
+    if (!texSrcData)
     {
         std::cout << "Load texture " << name << " failed.\n";
         return;
     }
-    if (nrChannels != 3 && nrChannels != 4)
-    {
-        std::cout << "Only support RGB/RGBA texture.\n";
-        goto free_image;
-    }
     mW = width;
     mH = height;
-    mStride = mW * TEXTURE_BPP;
-    mData = new uint8_t[mStride * mH];
+    mStride = mW * TEXTURE_CHANNEL;
+    mData = new float[mStride * mH];
     if (!mData)
         goto free_image;
 
-    std::cout << "Loading texture " << name << ", size " << mW << "x" << mH << ".\n";
+    std::cout << "Loading texture " << name << ", size " << mW << "x" << mH << "x" << nrChannels << ".\n";
 
     for (int i = 0; i < mH; i++)
     {
+        float *src = texSrcData + i * mStride;
+        float *dst = mData + i * mStride;
         for (int j = 0; j < mW; j++)
         {
-            mData[i * mStride + j * nrChannels + 0] = *(data + i * (nrChannels * width) + j * nrChannels + 0);
-            mData[i * mStride + j * nrChannels + 1] = *(data + i * (nrChannels * width) + j * nrChannels + 1);
-            mData[i * mStride + j * nrChannels + 2] = *(data + i * (nrChannels * width) + j * nrChannels + 2);
+            dst[j * TEXTURE_CHANNEL + 0] = src[j * TEXTURE_CHANNEL + 0];
+            dst[j * TEXTURE_CHANNEL + 1] = src[j * TEXTURE_CHANNEL + 1];
+            dst[j * TEXTURE_CHANNEL + 2] = src[j * TEXTURE_CHANNEL + 2];
         }
     }
 
     mValid = true;
 
 free_image:
-    stbi_image_free(data);
+    stbi_image_free(texSrcData);
 }
 
