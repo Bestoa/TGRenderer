@@ -9,7 +9,7 @@
 #include "tr.hpp"
 
 // global value
-TRBuffer *gCurrentBuffer = nullptr;
+TRBuffer *gRenderTarget = nullptr;
 TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
 
 glm::mat4 gMat4[MAT_INDEX_MAX] =
@@ -519,7 +519,7 @@ void trTrianglesInstanced(TRMeshData &mesh, size_t index, size_t num)
     Program prog;
 
     for (i = index * 3, j = 0; j < num && i < mesh.vertices.size(); i += 3, j++)
-        prog.drawTriangle(gCurrentBuffer, mesh, i);
+        prog.drawTriangle(gRenderTarget, mesh, i);
 }
 
 template<class Program>
@@ -600,12 +600,12 @@ void trSetLightPosition3f(float x, float y, float z)
 
 void trViewport(int x, int y, int w, int h)
 {
-    gCurrentBuffer->setViewport(x, y, w, h);
+    gRenderTarget->setViewport(x, y, w, h);
 }
 
 void trMakeCurrent(TRBuffer *buffer)
 {
-    gCurrentBuffer = buffer;
+    gRenderTarget = buffer;
 }
 
 void trBindTexture(TRTexture *texture, int type)
@@ -618,13 +618,13 @@ void trBindTexture(TRTexture *texture, int type)
 
 void trClear()
 {
-    gCurrentBuffer->clearColor();
-    gCurrentBuffer->clearDepth();
+    gRenderTarget->clearColor();
+    gRenderTarget->clearDepth();
 }
 
 void trClearColor3f(float r, float g, float b)
 {
-    gCurrentBuffer->setBGColor(r, g, b);
+    gRenderTarget->setBGColor(r, g, b);
 }
 
 void trSetModelMat(glm::mat4 mat)
@@ -642,3 +642,12 @@ void trSetProjMat(glm::mat4 mat)
     gMat4[MAT4_PROJ] = mat;
 }
 
+TRBuffer * trCreateRenderTarget(int w, int h)
+{
+    return TRBuffer::create(w, h);
+}
+
+void trSetCurrentRenderTarget(TRBuffer *buffer)
+{
+    gRenderTarget = buffer;
+}

@@ -22,7 +22,6 @@ int main(int argc, char *argv[])
     TRWindow w(WIDTH, HEIGHT);
     if (!w.isRunning())
         return 1;
-    trMakeCurrent(w.getBuffer());
 
     trEnableLighting(true);
     trClearColor3f(0.1, 0.1, 0.1);

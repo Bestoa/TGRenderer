@@ -235,7 +235,6 @@ void trSetAmbientStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
 void trViewport(int x, int y, int w, int h);
-void trMakeCurrent(TRBuffer *buffer);
 void trBindTexture(TRTexture *texture, int index);
 void trClear();
 void trClearColor3f(float r, float g, float b);
@@ -243,4 +242,6 @@ void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);
 void trTriangles(TRMeshData &data, TRDrawMode mode);
+TRBuffer* trCreateRenderTarget(int w, int h);
+void trSetCurrentRenderTarget(TRBuffer *traget);
 #endif

@@ -133,7 +133,6 @@ int main(int argc, char *argv[])
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
     if (!w.isRunning())
         return 1;
-    trMakeCurrent(w.getBuffer());
 
     TRMeshData data;
     create_sphere(data.vertices, data.uvs, data.normals, 30, 30);

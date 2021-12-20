@@ -55,6 +55,8 @@ TRWindow::TRWindow(int w, int h, const char *name)
 
     mBuffer->setExtBuffer(addr);
 
+    trSetCurrentRenderTarget(mBuffer);
+
     mDisplayThread = thread(__disp_func__, this);
     if (!mDisplayThread.joinable())
         goto error;
