@@ -9,6 +9,31 @@
 
 #include "texture.hpp"
 
+enum MAT3_SYSTEM_TYPE
+{
+    MAT3_NORMAL,
+    MAT3_SYSTEM_TYPE_MAX,
+};
+
+enum MAT4_SYSTEM_TYPE
+{
+    MAT4_MODEL,
+    MAT4_VIEW,
+    MAT4_PROJ,
+    MAT4_MODELVIEW,
+    MAT4_MVP,
+    MAT4_SYSTEM_TYPE_MAX,
+};
+
+enum MAT_INDEX
+{
+    MAT0, MAT1, MAT2, MAT3, MAT4, MAT5, MAT6, MAT7, MAT8, MAT9, MAT10, MAT11, MAT12, MAT13, MAT14, MAT15,
+    MAT_INDEX_MAX,
+};
+
+const int MAT3_USER_0 = MAT_INDEX_MAX - MAT3_SYSTEM_TYPE_MAX;
+const int MAT4_USER_0 = MAT_INDEX_MAX - MAT4_SYSTEM_TYPE_MAX;
+
 class TRMeshData
 {
     public:
@@ -211,7 +236,7 @@ void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
 void trViewport(int x, int y, int w, int h);
 void trMakeCurrent(TRBuffer *buffer);
-void trBindTexture(TRTexture *texture, TRTextureType type);
+void trBindTexture(TRTexture *texture, int index);
 void trClear();
 void trClearColor3f(float r, float g, float b);
 void trSetModelMat(glm::mat4 mat);

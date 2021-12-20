@@ -10,16 +10,20 @@
 
 // global value
 TRBuffer *gCurrentBuffer = nullptr;
-TRTexture *gTexture[TEXTURE_TYPE_MAX] = { nullptr };
+TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
 
-glm::mat4 gModelMat = glm::mat4(1.0f);
-glm::mat4 gViewMat = glm::mat4(1.0f);
-// defult proj mat should swap z-order
-glm::mat4 gProjMat = glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f});
+glm::mat4 gMat4[MAT_INDEX_MAX] =
+{
+    glm::mat4(1.0f), // model mat
+    glm::mat4(1.0f), // view mat
+    // defult proj mat should swap z-order
+    glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}), // proj mat
+};
 
-glm::mat4 __gMVMat__ = glm::mat4(1.0f);
-glm::mat4 __gMVPMat__ = glm::mat4(1.0f);
-glm::mat3 __gNMat__ = glm::mat3(1.0f);
+glm::mat3 gMat3[MAT_INDEX_MAX] =
+{
+    glm::mat3(1.0f), // normal mat
+};
 
 bool gEnableLighting = false;
 float gAmbientStrength = 0.1;
@@ -170,9 +174,9 @@ TRBuffer::~TRBuffer()
 
 static inline void __compute_premultiply_mat__()
 {
-    __gMVMat__ =  gViewMat * gModelMat;
-    __gMVPMat__ = gProjMat * __gMVMat__;
-    __gNMat__ = glm::transpose(glm::inverse(__gMVMat__));
+    gMat4[MAT4_MODELVIEW] =  gMat4[MAT4_VIEW] * gMat4[MAT4_MODEL];
+    gMat4[MAT4_MVP] = gMat4[MAT4_PROJ] * gMat4[MAT4_MODELVIEW];
+    gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
 }
 
 void __plot__(TRBuffer *buffer, int x, int y)
@@ -244,7 +248,7 @@ bool WireframeProgram::geometry()
 
     for (int i = 0; i < 3; i++)
     {
-        clip_v[i] = __gMVPMat__ * glm::vec4(mVSData[i].mVertex, 1.0f);
+        clip_v[i] = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         mBuffer->viewport(screen_v[i], ndc_v[i]);
     }
@@ -274,7 +278,7 @@ void ColorProgram::loadVertexData(TRMeshData &mesh, size_t index)
 
 void ColorProgram::vertex(size_t i, glm::vec4 &clipV)
 {
-    clipV = __gMVPMat__ * glm::vec4(mVSData[i].mVertex, 1.0f);
+    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
 }
 
 bool ColorProgram::geometry()
@@ -304,7 +308,7 @@ void TextureMapProgram::loadVertexData(TRMeshData &mesh, size_t index)
 
 void TextureMapProgram::vertex(size_t i, glm::vec4 &clipV)
 {
-    clipV = __gMVPMat__ * glm::vec4(mVSData[i].mVertex, 1.0f);
+    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
 }
 
 bool TextureMapProgram::geometry()
@@ -330,7 +334,7 @@ bool TextureMapProgram::fragment(float w0, float w1, float w2, uint8_t color[3])
 
 void PhongProgram::loadVertexData(TRMeshData &mesh, size_t index)
 {
-    glm::vec3 viewLightPostion = gViewMat * glm::vec4(gLightPosition, 1.0f);
+    glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
 
     for (int i = 0; i < 3; i++)
     {
@@ -344,9 +348,9 @@ void PhongProgram::loadVertexData(TRMeshData &mesh, size_t index)
 
 void PhongProgram::vertex(size_t i, glm::vec4 &clipV)
 {
-    clipV = __gMVPMat__ * glm::vec4(mVSData[i].mVertex, 1.0f);
-    mVSData[i].mViewFragPosition = __gMVMat__ * glm::vec4(mVSData[i].mVertex, 1.0f);
-    mVSData[i].mNormal = __gNMat__ * mVSData[i].mNormal;
+    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
+    mVSData[i].mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(mVSData[i].mVertex, 1.0f);
+    mVSData[i].mNormal = gMat3[MAT3_NORMAL] * mVSData[i].mNormal;
 }
 
 bool PhongProgram::geometry()
@@ -358,7 +362,7 @@ bool PhongProgram::geometry()
         mFSData.mNormal[i] = mVSData[i].mNormal;
     }
     mFSData.mLightPosition = mVSData[0].mLightPosition;
-    mFSData.mTangent = glm::normalize(__gNMat__ * mVSData[0].mTangent);
+    mFSData.mTangent = glm::normalize(gMat3[MAT3_NORMAL] * mVSData[0].mTangent);
     return true;
 }
 
@@ -604,9 +608,9 @@ void trMakeCurrent(TRBuffer *buffer)
     gCurrentBuffer = buffer;
 }
 
-void trBindTexture(TRTexture *texture, TRTextureType type)
+void trBindTexture(TRTexture *texture, int type)
 {
-    if (type < TEXTURE_TYPE_MAX)
+    if (type < TEXTURE_INDEX_MAX)
         gTexture[type] = texture;
     else
         std::cout << "Unknow texture type!\n";
@@ -625,16 +629,16 @@ void trClearColor3f(float r, float g, float b)
 
 void trSetModelMat(glm::mat4 mat)
 {
-    gModelMat = mat;
+    gMat4[MAT4_MODEL] = mat;
 }
 
 void trSetViewMat(glm::mat4 mat)
 {
-    gViewMat = mat;
+    gMat4[MAT4_VIEW] = mat;
 }
 
 void trSetProjMat(glm::mat4 mat)
 {
-    gProjMat = mat;
+    gMat4[MAT4_PROJ] = mat;
 }
 
