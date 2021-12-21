@@ -260,11 +260,11 @@ bool WireframeProgram::geometry()
     return false;
 }
 
-bool WireframeProgram::fragment(float w0, float w1, float w2, float color[3])
+bool WireframeProgram::fragment(float uPC, float vPC, float color[3])
 {
-    w0 = w1 = w2 = 0;
-    (void)w0;
-    color[0] = color[1] = color[2] = 0;
+    (void)uPC;
+    (void)vPC;
+    color[0] = 0;
     return false;
 }
 
@@ -285,16 +285,17 @@ void ColorProgram::vertex(size_t i, glm::vec4 &clipV)
 bool ColorProgram::geometry()
 {
     mFSData.mColor[0] = mVSData[0].mColor;
-    mFSData.mColor[1] = mVSData[1].mColor;
-    mFSData.mColor[2] = mVSData[2].mColor;
+    mFSData.mColor[1] = mVSData[1].mColor - mVSData[0].mColor;
+    mFSData.mColor[2] = mVSData[2].mColor - mVSData[0].mColor;
     return true;
 }
 
-bool ColorProgram::fragment(float w0, float w1, float w2, float color[3])
+bool ColorProgram::fragment(float uPC, float vPC, float color[3])
 {
-    color[0] = interpolation(mFSData.mColor, 0, w0, w1, w2);
-    color[1] = interpolation(mFSData.mColor, 1, w0, w1, w2);
-    color[2] = interpolation(mFSData.mColor, 2, w0, w1, w2);
+    glm::vec3 C = interpFast(mFSData.mColor, uPC, vPC);
+    color[0] = C[0];
+    color[1] = C[1];
+    color[2] = C[2];
     return true;
 }
 
@@ -315,17 +316,16 @@ void TextureMapProgram::vertex(size_t i, glm::vec4 &clipV)
 bool TextureMapProgram::geometry()
 {
     mFSData.mTexCoord[0] = mVSData[0].mTexCoord;
-    mFSData.mTexCoord[1] = mVSData[1].mTexCoord;
-    mFSData.mTexCoord[2] = mVSData[2].mTexCoord;
+    mFSData.mTexCoord[1] = mVSData[1].mTexCoord - mVSData[0].mTexCoord;
+    mFSData.mTexCoord[2] = mVSData[2].mTexCoord - mVSData[0].mTexCoord;
     return true;
 }
 
-bool TextureMapProgram::fragment(float w0, float w1, float w2, float color[3])
+bool TextureMapProgram::fragment(float uPC, float vPC, float color[3])
 {
-    float u = glm::clamp(interpolation(mFSData.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
-    float v = glm::clamp(interpolation(mFSData.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
+    glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
 
-    float *c = gTexture[TEXTURE_DIFFUSE]->getColor(u, v);
+    float *c = gTexture[TEXTURE_DIFFUSE]->getColor(texCoord[0], texCoord[1]);
 
     color[0] = c[0];
     color[1] = c[1];
@@ -356,34 +356,30 @@ void PhongProgram::vertex(size_t i, glm::vec4 &clipV)
 
 bool PhongProgram::geometry()
 {
-    for (int i = 0; i < 3; i++)
-    {
-        mFSData.mTexCoord[i] = mVSData[i].mTexCoord;
-        mFSData.mViewFragPosition[i] = mVSData[i].mViewFragPosition;
-        mFSData.mNormal[i] = mVSData[i].mNormal;
-    }
+    mFSData.mTexCoord[0] = mVSData[0].mTexCoord;
+    mFSData.mTexCoord[1] = mVSData[1].mTexCoord - mVSData[0].mTexCoord;
+    mFSData.mTexCoord[2] = mVSData[2].mTexCoord - mVSData[0].mTexCoord;
+
+    mFSData.mViewFragPosition[0] = mVSData[0].mViewFragPosition;
+    mFSData.mViewFragPosition[1] = mVSData[1].mViewFragPosition - mVSData[0].mViewFragPosition;
+    mFSData.mViewFragPosition[2] = mVSData[2].mViewFragPosition - mVSData[0].mViewFragPosition;
+
+    mFSData.mNormal[0] = mVSData[0].mNormal;
+    mFSData.mNormal[1] = mVSData[1].mNormal - mVSData[0].mNormal;
+    mFSData.mNormal[2] = mVSData[2].mNormal - mVSData[0].mNormal;
+
     mFSData.mLightPosition = mVSData[0].mLightPosition;
     mFSData.mTangent = glm::normalize(gMat3[MAT3_NORMAL] * mVSData[0].mTangent);
     return true;
 }
 
-bool PhongProgram::fragment(float w0, float w1, float w2, float color[3])
+bool PhongProgram::fragment(float uPC, float vPC, float color[3])
 {
-    glm::vec3 viewFragPosition(
-            interpolation(mFSData.mViewFragPosition, 0, w0, w1, w2),
-            interpolation(mFSData.mViewFragPosition, 1, w0, w1, w2),
-            interpolation(mFSData.mViewFragPosition, 2, w0, w1, w2)
-            );
-    glm::vec3 normal(
-            interpolation(mFSData.mNormal, 0, w0, w1, w2),
-            interpolation(mFSData.mNormal, 1, w0, w1, w2),
-            interpolation(mFSData.mNormal, 2, w0, w1, w2)
-            );
+    glm::vec3 viewFragPosition = interpFast(mFSData.mViewFragPosition, uPC, vPC);
+    glm::vec3 normal = interpFast(mFSData.mNormal, uPC, vPC);
+    glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
 
-    float u = glm::clamp(interpolation(mFSData.mTexCoord, 0, w0, w1, w2), 0.0f, 1.0f);
-    float v = glm::clamp(interpolation(mFSData.mTexCoord, 1, w0, w1, w2), 0.0f, 1.0f);
-
-    glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(u, v));
+    glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y));
 
     // assume ambient light is (1.0, 1.0, 1.0)
     glm::vec3 ambient = gAmbientStrength * baseColor;
@@ -395,7 +391,7 @@ bool PhongProgram::fragment(float w0, float w1, float w2, float color[3])
         T = glm::normalize(T - dot(T, normal) * normal);
         glm::vec3 B = glm::cross(normal, T);
         glm::mat3 TBN = glm::mat3(T, B, normal);
-        normal = glm::make_vec3(gTexture[TEXTURE_NORMAL]->getColor(u, v)) * 2.0f - 1.0f;
+        normal = glm::make_vec3(gTexture[TEXTURE_NORMAL]->getColor(texCoord.x, texCoord.y)) * 2.0f - 1.0f;
         normal = TBN * normal;
     }
     normal = glm::normalize(normal);
@@ -418,12 +414,12 @@ bool PhongProgram::fragment(float w0, float w1, float w2, float color[3])
         glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
         float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
 #endif
-        result += spec * gLightColor * glm::make_vec3(gTexture[TEXTURE_SPECULAR]->getColor(u, v));
+        result += spec * gLightColor * glm::make_vec3(gTexture[TEXTURE_SPECULAR]->getColor(texCoord.x, texCoord.y));
     }
 
     if (gTexture[TEXTURE_GLOW] != nullptr)
     {
-        result += glm::make_vec3(gTexture[TEXTURE_GLOW]->getColor(u, v));
+        result += glm::make_vec3(gTexture[TEXTURE_GLOW]->getColor(texCoord.x, texCoord.y));
     }
 
     color[0] = glm::min(result[0], 1.f);
@@ -459,33 +455,46 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         mBuffer->viewport(screen_v[i], ndc_v[i]);
     }
+
     float area = edge(screen_v[0], screen_v[1], screen_v[2]);
-    if (area <= 0) return;
-    glm::vec2 left_up, right_down;
-    left_up.x = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    left_up.y = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-    right_down.x = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-    right_down.y = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-    for (int y = left_up.y; y < right_down.y; y++) {
+    if (area <= 0)
+        return;
+
+    int xStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
+    int yStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
+    int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
+    int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
+
+    float z0 = ndc_v[0].z, z1 = ndc_v[1].z - ndc_v[0].z, z2 = ndc_v[2].z - ndc_v[0].z;
+
+    for (int y = yStart; y < yEnd; y++) {
         int offset_base = y * mBuffer->mW;
-        for (int x = left_up.x; x < right_down.x; x++) {
+        for (int x = xStart; x < xEnd; x++) {
             glm::vec2 v(x, y);
             float w0 = edge(screen_v[1], screen_v[2], v);
             float w1 = edge(screen_v[2], screen_v[0], v);
             float w2 = edge(screen_v[0], screen_v[1], v);
-            int flag = 0;
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0)
-                flag = 1;
-            if (!flag)
+            if (w0 < 0 || w1 < 0 || w2 < 0)
                 continue;
-            w0 /= (area + 1e-6);
-            w1 /= (area + 1e-6);
-            w2 /= (area + 1e-6);
 
-            /* use ndc z to calculate depth */
-            float depth = interpolation(ndc_v, 2, w0, w1, w2);
+            /* Barycentric coordinate */
+            w0 /= area;
+            w1 /= area;
+            w2 /= area;
+
+            /* Perspective-Correct */
+            w0 /= clip_v[0].w;
+            w1 /= clip_v[1].w;
+            w2 /= clip_v[2].w;
+
+            float areaPC =  1 / (w0 + w1 + w2);
+            float uPC = w1 * areaPC;
+            float vPC = w2 * areaPC;
+
+            float depth = z0 + z1 * uPC + z2 * vPC;
+
             /* z in ndc of opengl should between 0.0f to 1.0f */
-            if (depth > 1.0f || depth < 0.0f)
+            if (depth < 0.0f)
                 continue;
 
             int offset = offset_base + x;
@@ -495,7 +504,7 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
                 continue;
 
             float color[3];
-            if (!fragment(w0, w1, w2, color))
+            if (!fragment(uPC, vPC, color))
                 continue;
 
             uint8_t *addr = &mBuffer->mData[offset * CHANNEL];

@@ -103,10 +103,18 @@ class TRBuffer
         TRBuffer(int w, int h, bool ext);
 };
 
+/* Slow interpolation funciotn */
 template <class T>
-static inline float interpolation(T v[3], int i, float w0, float w1, float w2)
+static inline T interp(T v[3], float uPC, float vPC)
 {
-    return v[0][i] * w0 + v[1][i] * w1 + v[2][i] * w2;
+    return v[0] + (v[1] - v[0]) * uPC + (v[2] - v[0]) * vPC;
+}
+
+/* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
+template <class T>
+static inline T interpFast(T v[3], float uPC, float vPC)
+{
+    return v[0] + v[1] * uPC + v[2] * vPC;
 }
 
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
@@ -131,7 +139,7 @@ class TRProgramBase
         virtual void loadVertexData(TRMeshData &, size_t) = 0;
         virtual void vertex(size_t, glm::vec4 &) = 0;
         virtual bool geometry() = 0;
-        virtual bool fragment(float w0, float w1, float w2, float color[3]) = 0;
+        virtual bool fragment(float , float , float color[3]) = 0;
 
         void rasterization(glm::vec4 clip_v[3]);
 };
@@ -151,7 +159,7 @@ class WireframeProgram : public TRProgramBase<WireframeVSData, WireframeFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, float color[3]);
+    bool fragment(float , float , float color[3]);
 };
 
 class ColorVSData
@@ -172,7 +180,7 @@ class ColorProgram : public TRProgramBase<ColorVSData, ColorFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, float color[3]);
+    bool fragment(float , float , float color[3]);
 };
 
 class TextureMapVSData
@@ -193,7 +201,7 @@ class TextureMapProgram : public TRProgramBase<TextureMapVSData, TextureMapFSDat
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, float color[3]);
+    bool fragment(float , float , float color[3]);
 };
 
 class PhongVSData
@@ -222,7 +230,7 @@ class PhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
     void loadVertexData(TRMeshData &, size_t);
     void vertex(size_t, glm::vec4 &clipV);
     bool geometry();
-    bool fragment(float w0, float w1, float w2, float color[3]);
+    bool fragment(float , float , float color[3]);
 };
 
 #ifndef __BLINN_PHONG__
