@@ -35,6 +35,24 @@ glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
 size_t gThreadNum = 4;
 
 // internal function
+void __texture_coord_repeat__(glm::vec2 &coord)
+{
+    coord.x = glm::fract(coord.x);
+    coord.y = glm::fract(coord.y);
+}
+
+void __texture_coord_clamp_edge__(glm::vec2 &coord)
+{
+    coord.x = glm::clamp(coord.x, 0.0f, 1.0f);
+    coord.y = glm::clamp(coord.y, 0.0f, 1.0f);
+}
+
+void textureCoordWrap(glm::vec2 &coord)
+{
+    if (coord.x < 0 || coord.x > 1 || coord.y < 0 || coord.y > 1)
+       __texture_coord_repeat__(coord);
+}
+
 void TRMeshData::computeTangent()
 {
     for (size_t i = 0; i < vertices.size(); i += 3)
@@ -324,8 +342,9 @@ bool TextureMapProgram::geometry()
 bool TextureMapProgram::fragment(float uPC, float vPC, float color[3])
 {
     glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
+    textureCoordWrap(texCoord);
 
-    float *c = gTexture[TEXTURE_DIFFUSE]->getColor(texCoord[0], texCoord[1]);
+    float *c = gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y);
 
     color[0] = c[0];
     color[1] = c[1];
@@ -378,6 +397,7 @@ bool PhongProgram::fragment(float uPC, float vPC, float color[3])
     glm::vec3 viewFragPosition = interpFast(mFSData.mViewFragPosition, uPC, vPC);
     glm::vec3 normal = interpFast(mFSData.mNormal, uPC, vPC);
     glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
+    textureCoordWrap(texCoord);
 
     glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y));
 
