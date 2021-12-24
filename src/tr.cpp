@@ -245,29 +245,30 @@ void __draw_line__(TRBuffer *buffer, float x0, float y0, float x1, float y1)
 }
 
 // tr api
-void WireframeProgram::loadVertexData(TRMeshData &mesh, size_t index)
+void WireframeProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
 {
     for (int i = 0; i < 3; i++)
     {
-        mVSData[i].mVertex = mesh.vertices[i + index];
+        vsdata[i].mVertex = mesh.vertices[i + index];
     }
 }
 
-void WireframeProgram::vertex(size_t i, glm::vec4 &clipV)
+void WireframeProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
 {
-    (void)i;
-    clipV = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+    (void)vsdata;
+    (void)clipV;
 }
 
-bool WireframeProgram::geometry()
+bool WireframeProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
+    (void)fsdata;
     glm::vec4 clip_v[3];
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
 
     for (int i = 0; i < 3; i++)
     {
-        clip_v[i] = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
+        clip_v[i] = gMat4[MAT4_MVP] * glm::vec4(vsdata[i].mVertex, 1.0f);
         ndc_v[i] = clip_v[i] / clip_v[i].w;
         mBuffer->viewport(screen_v[i], ndc_v[i]);
     }
@@ -278,70 +279,69 @@ bool WireframeProgram::geometry()
     return false;
 }
 
-bool WireframeProgram::fragment(float uPC, float vPC, float color[3])
+bool WireframeProgram::fragment(FSDataBase &fsdata, float color[3])
 {
-    (void)uPC;
-    (void)vPC;
-    color[0] = 0;
+    (void)fsdata;
+    (void)color;
     return false;
 }
 
-void ColorProgram::loadVertexData(TRMeshData &mesh, size_t index)
+void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
 {
     for (int i = 0; i < 3; i++)
     {
-        mVSData[i].mVertex = mesh.vertices[i + index];
-        mVSData[i].mColor = mesh.colors[i + index];
+        vsdata[i].mVertex = mesh.vertices[i + index];
+        vsdata[i].mColor = mesh.colors[i + index];
     }
 }
 
-void ColorProgram::vertex(size_t i, glm::vec4 &clipV)
+void ColorProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
+    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
-bool ColorProgram::geometry()
+bool ColorProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
-    mFSData.mColor[0] = mVSData[0].mColor;
-    mFSData.mColor[1] = mVSData[1].mColor - mVSData[0].mColor;
-    mFSData.mColor[2] = mVSData[2].mColor - mVSData[0].mColor;
+    fsdata.mColor[0] = vsdata[0].mColor;
+    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
+    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
     return true;
 }
 
-bool ColorProgram::fragment(float uPC, float vPC, float color[3])
+bool ColorProgram::fragment(FSDataBase &fsdata, float color[3])
 {
-    glm::vec3 C = interpFast(mFSData.mColor, uPC, vPC);
+    glm::vec3 C = interpFast(fsdata.mColor);
     color[0] = C[0];
     color[1] = C[1];
     color[2] = C[2];
     return true;
 }
 
-void TextureMapProgram::loadVertexData(TRMeshData &mesh, size_t index)
+void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
 {
     for (int i = 0; i < 3; i++)
     {
-        mVSData[i].mVertex = mesh.vertices[i + index];
-        mVSData[i].mTexCoord = mesh.uvs[i + index];
+        vsdata[i].mVertex = mesh.vertices[i + index];
+        vsdata[i].mTexCoord = mesh.uvs[i + index];
     }
 }
 
-void TextureMapProgram::vertex(size_t i, glm::vec4 &clipV)
+void TextureMapProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
+    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
-bool TextureMapProgram::geometry()
+bool TextureMapProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
-    mFSData.mTexCoord[0] = mVSData[0].mTexCoord;
-    mFSData.mTexCoord[1] = mVSData[1].mTexCoord - mVSData[0].mTexCoord;
-    mFSData.mTexCoord[2] = mVSData[2].mTexCoord - mVSData[0].mTexCoord;
+    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
+    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
+    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
     return true;
 }
 
-bool TextureMapProgram::fragment(float uPC, float vPC, float color[3])
+bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
 {
-    glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
+    glm::vec2 texCoord = interpFast(fsdata.mTexCoord);
     textureCoordWrap(texCoord);
 
     float *c = gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y);
@@ -352,51 +352,51 @@ bool TextureMapProgram::fragment(float uPC, float vPC, float color[3])
     return true;
 }
 
-void PhongProgram::loadVertexData(TRMeshData &mesh, size_t index)
+void PhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
 {
     glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
 
     for (int i = 0; i < 3; i++)
     {
-        mVSData[i].mVertex = mesh.vertices[i + index];
-        mVSData[i].mTexCoord = mesh.uvs[i + index];
-        mVSData[i].mNormal = mesh.normals[i + index];
-        mVSData[i].mLightPosition = viewLightPostion;
-        mVSData[i].mTangent = mesh.tangents[i / 3];
+        vsdata[i].mVertex = mesh.vertices[i + index];
+        vsdata[i].mTexCoord = mesh.uvs[i + index];
+        vsdata[i].mNormal = mesh.normals[i + index];
+        vsdata[i].mLightPosition = viewLightPostion;
+        vsdata[i].mTangent = mesh.tangents[i / 3];
     }
 }
 
-void PhongProgram::vertex(size_t i, glm::vec4 &clipV)
+void PhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(mVSData[i].mVertex, 1.0f);
-    mVSData[i].mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(mVSData[i].mVertex, 1.0f);
-    mVSData[i].mNormal = gMat3[MAT3_NORMAL] * mVSData[i].mNormal;
+    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 }
 
-bool PhongProgram::geometry()
+bool PhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
-    mFSData.mTexCoord[0] = mVSData[0].mTexCoord;
-    mFSData.mTexCoord[1] = mVSData[1].mTexCoord - mVSData[0].mTexCoord;
-    mFSData.mTexCoord[2] = mVSData[2].mTexCoord - mVSData[0].mTexCoord;
+    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
+    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
+    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
 
-    mFSData.mViewFragPosition[0] = mVSData[0].mViewFragPosition;
-    mFSData.mViewFragPosition[1] = mVSData[1].mViewFragPosition - mVSData[0].mViewFragPosition;
-    mFSData.mViewFragPosition[2] = mVSData[2].mViewFragPosition - mVSData[0].mViewFragPosition;
+    fsdata.mViewFragPosition[0] = vsdata[0].mViewFragPosition;
+    fsdata.mViewFragPosition[1] = vsdata[1].mViewFragPosition - vsdata[0].mViewFragPosition;
+    fsdata.mViewFragPosition[2] = vsdata[2].mViewFragPosition - vsdata[0].mViewFragPosition;
 
-    mFSData.mNormal[0] = mVSData[0].mNormal;
-    mFSData.mNormal[1] = mVSData[1].mNormal - mVSData[0].mNormal;
-    mFSData.mNormal[2] = mVSData[2].mNormal - mVSData[0].mNormal;
+    fsdata.mNormal[0] = vsdata[0].mNormal;
+    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
+    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
 
-    mFSData.mLightPosition = mVSData[0].mLightPosition;
-    mFSData.mTangent = glm::normalize(gMat3[MAT3_NORMAL] * mVSData[0].mTangent);
+    fsdata.mLightPosition = vsdata[0].mLightPosition;
+    fsdata.mTangent = glm::normalize(gMat3[MAT3_NORMAL] * vsdata[0].mTangent);
     return true;
 }
 
-bool PhongProgram::fragment(float uPC, float vPC, float color[3])
+bool PhongProgram::fragment(PhongFSData &fsdata, float color[3])
 {
-    glm::vec3 viewFragPosition = interpFast(mFSData.mViewFragPosition, uPC, vPC);
-    glm::vec3 normal = interpFast(mFSData.mNormal, uPC, vPC);
-    glm::vec2 texCoord = interpFast(mFSData.mTexCoord, uPC, vPC);
+    glm::vec3 viewFragPosition = interpFast(fsdata.mViewFragPosition);
+    glm::vec3 normal = interpFast(fsdata.mNormal);
+    glm::vec2 texCoord = interpFast(fsdata.mTexCoord);
     textureCoordWrap(texCoord);
 
     glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y));
@@ -407,7 +407,7 @@ bool PhongProgram::fragment(float uPC, float vPC, float color[3])
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
         // Gram-Schmidt orthogonalize
-        glm::vec3 T = mFSData.mTangent;
+        glm::vec3 T = fsdata.mTangent;
         T = glm::normalize(T - dot(T, normal) * normal);
         glm::vec3 B = glm::cross(normal, T);
         glm::mat3 TBN = glm::mat3(T, B, normal);
@@ -416,7 +416,7 @@ bool PhongProgram::fragment(float uPC, float vPC, float color[3])
     }
     normal = glm::normalize(normal);
     // from fragment to light
-    glm::vec3 lightDirection = glm::normalize(mFSData.mLightPosition - viewFragPosition);
+    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
 
     float diff = glm::max(dot(normal, lightDirection), 0.0f);
     glm::vec3 diffuse = diff * gLightColor * baseColor;
@@ -450,18 +450,28 @@ bool PhongProgram::fragment(float uPC, float vPC, float color[3])
 }
 
 template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRBuffer *buffer, TRMeshData &mesh, size_t i)
+void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t index)
 {
     glm::vec4 clipV[3];
 
+    loadVertexData(mesh, mVSData, index * 3);
+    for (size_t i = 0; i < 3; i++)
+        vertex(mVSData[i], clipV[i]);
+
+    if(geometry(mVSData, mFSData))
+        rasterization(clipV);
+}
+
+template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
+{
+    size_t i = 0, j = 0;
+    size_t trianglesNum = mesh.vertices.size() / 3;
+
     mBuffer = buffer;
 
-    loadVertexData(mesh, i);
-    for (size_t i = 0; i < 3; i++)
-        vertex(i, clipV[i]);
-
-    if(geometry())
-        rasterization(clipV);
+    for (i = index, j = 0; i < trianglesNum && j < num; i++, j++)
+        drawTriangle(mesh, i);
 }
 
 template <class TRVSData, class TRFSData>
@@ -485,7 +495,7 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
     int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
     int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
 
-    float z0 = ndc_v[0].z, z1 = ndc_v[1].z - ndc_v[0].z, z2 = ndc_v[2].z - ndc_v[0].z;
+    float Z[3] = { ndc_v[0].z, ndc_v[1].z - ndc_v[0].z, ndc_v[2].z - ndc_v[0].z };
 
     for (int y = yStart; y < yEnd; y++) {
         int offset_base = y * mBuffer->mW;
@@ -508,10 +518,10 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
             w2 /= clip_v[2].w;
 
             float areaPC =  1 / (w0 + w1 + w2);
-            float uPC = w1 * areaPC;
-            float vPC = w2 * areaPC;
+            mUPC = w1 * areaPC;
+            mVPC = w2 * areaPC;
 
-            float depth = z0 + z1 * uPC + z2 * vPC;
+            float depth = interpFast(Z);
 
             /* z in ndc of opengl should between 0.0f to 1.0f */
             if (depth < 0.0f)
@@ -524,7 +534,7 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
                 continue;
 
             float color[3];
-            if (!fragment(uPC, vPC, color))
+            if (!fragment(mFSData, color))
                 continue;
 
             uint8_t *addr = &mBuffer->mData[offset * CHANNEL];
@@ -545,11 +555,8 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
 template<class Program>
 void trTrianglesInstanced(TRMeshData &mesh, size_t index, size_t num)
 {
-    size_t i = 0, j = 0;
     Program prog;
-
-    for (i = index * 3, j = 0; j < num && i < mesh.vertices.size(); i += 3, j++)
-        prog.drawTriangle(gRenderTarget, mesh, i);
+    prog.drawTrianglesInstanced(gRenderTarget, mesh, index, num);
 }
 
 template<class Program>

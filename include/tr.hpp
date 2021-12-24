@@ -103,20 +103,6 @@ class TRBuffer
         TRBuffer(int w, int h, bool ext);
 };
 
-/* Slow interpolation funciotn */
-template <class T>
-static inline T interp(T v[3], float uPC, float vPC)
-{
-    return v[0] + (v[1] - v[0]) * uPC + (v[2] - v[0]) * vPC;
-}
-
-/* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
-template <class T>
-static inline T interpFast(T v[3], float uPC, float vPC)
-{
-    return v[0] + v[1] * uPC + v[2] * vPC;
-}
-
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
 {
     return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
@@ -126,111 +112,102 @@ template <class TRVSData, class TRFSData>
 class TRProgramBase
 {
     public:
-        TRVSData mVSData[3];
-        TRFSData mFSData;
+        virtual ~TRProgramBase() {}
+        void drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num);
+
+    protected:
         TRBuffer *mBuffer;
 
-        virtual ~TRProgramBase() {};
+        /* Slow interpolation funciotn */
+        template <class T> T interp(T v[3])
+        {
+            return v[0] + (v[1] - v[0]) * mUPC + (v[2] - v[0]) * mVPC;
+        }
 
-        void drawTriangle(TRBuffer *buffer, TRMeshData &mesh, size_t i);
+        /* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
+        template <class T> inline T interpFast(T v[3])
+        {
+            return v[0] + v[1] * mUPC + v[2] * mVPC;
+        }
 
     private:
+        TRVSData mVSData[3];
+        TRFSData mFSData;
+        float mUPC;
+        float mVPC;
 
-        virtual void loadVertexData(TRMeshData &, size_t) = 0;
-        virtual void vertex(size_t, glm::vec4 &) = 0;
-        virtual bool geometry() = 0;
-        virtual bool fragment(float , float , float color[3]) = 0;
+        virtual void loadVertexData(TRMeshData &, TRVSData *, size_t) = 0;
+        virtual void vertex(TRVSData &, glm::vec4 &clipV /* Out */) = 0;
+        virtual bool geometry(TRVSData *, TRFSData &) = 0;
+        virtual bool fragment(TRFSData &, float color[3]/* Out */) = 0;
 
+        void drawTriangle(TRMeshData &, size_t index);
         void rasterization(glm::vec4 clip_v[3]);
 };
 
-class WireframeVSData
-{
-    public:
-        glm::vec3 mVertex;
-};
-
-class WireframeFSData
-{
-};
-
-class WireframeProgram : public TRProgramBase<WireframeVSData, WireframeFSData>
-{
-    void loadVertexData(TRMeshData &, size_t);
-    void vertex(size_t, glm::vec4 &clipV);
-    bool geometry();
-    bool fragment(float , float , float color[3]);
-};
-
-class ColorVSData
-{
-    public:
-        glm::vec3 mVertex;
-        glm::vec3 mColor;
-};
-
-class ColorFSData
-{
-    public:
-        glm::vec3 mColor[3];
-};
-
-class ColorProgram : public TRProgramBase<ColorVSData, ColorFSData>
-{
-    void loadVertexData(TRMeshData &, size_t);
-    void vertex(size_t, glm::vec4 &clipV);
-    bool geometry();
-    bool fragment(float , float , float color[3]);
-};
-
-class TextureMapVSData
+class VSDataBase
 {
     public:
         glm::vec3 mVertex;
         glm::vec2 mTexCoord;
-};
-
-class TextureMapFSData
-{
-    public:
-        glm::vec2 mTexCoord[3];
-};
-
-class TextureMapProgram : public TRProgramBase<TextureMapVSData, TextureMapFSData>
-{
-    void loadVertexData(TRMeshData &, size_t);
-    void vertex(size_t, glm::vec4 &clipV);
-    bool geometry();
-    bool fragment(float , float , float color[3]);
-};
-
-class PhongVSData
-{
-    public:
-        glm::vec3 mVertex;
-        glm::vec2 mTexCoord;
-        glm::vec3 mViewFragPosition;
         glm::vec3 mNormal;
-        glm::vec3 mLightPosition;
+        glm::vec3 mColor;
         glm::vec3 mTangent;
 };
 
-class PhongFSData
+class FSDataBase
 {
     public:
         glm::vec2 mTexCoord[3];
-        glm::vec3 mViewFragPosition[3];
         glm::vec3 mNormal[3];
-        glm::vec3 mLightPosition;
+        glm::vec3 mColor[3];
         glm::vec3 mTangent;
+};
+
+class WireframeProgram : public TRProgramBase<VSDataBase, FSDataBase>
+{
+    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
+    void vertex(VSDataBase &, glm::vec4 &);
+    bool geometry(VSDataBase *, FSDataBase &);
+    bool fragment(FSDataBase &, float color[3]);
+};
+
+class ColorProgram : public TRProgramBase<VSDataBase, FSDataBase>
+{
+    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
+    void vertex(VSDataBase &, glm::vec4 &);
+    bool geometry(VSDataBase *, FSDataBase &);
+    bool fragment(FSDataBase &, float color[3]);
+};
+
+class TextureMapProgram : public TRProgramBase<VSDataBase, FSDataBase>
+{
+    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
+    void vertex(VSDataBase &, glm::vec4 &clipV);
+    bool geometry(VSDataBase *, FSDataBase &);
+    bool fragment(FSDataBase &, float color[3]);
+};
+
+class PhongVSData : public VSDataBase
+{
+    public:
+        glm::vec3 mViewFragPosition;
+        glm::vec3 mLightPosition;
+};
+
+class PhongFSData : public FSDataBase
+{
+    public:
+        glm::vec3 mViewFragPosition[3];
+        glm::vec3 mLightPosition;
 };
 
 class PhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
-    void loadVertexData(TRMeshData &, size_t);
-    void vertex(size_t, glm::vec4 &clipV);
-    bool geometry();
-    bool fragment(float , float , float color[3]);
+    void loadVertexData(TRMeshData &, PhongVSData *, size_t);
+    void vertex(PhongVSData &, glm::vec4 &clipV);
+    bool geometry(PhongVSData *, PhongFSData &);
+    bool fragment(PhongFSData &, float color[3]);
 };
 
 #ifndef __BLINN_PHONG__
