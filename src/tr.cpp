@@ -28,6 +28,7 @@ glm::mat3 gMat3[MAT_INDEX_MAX] =
 
 bool gEnableLighting = false;
 float gAmbientStrength = 0.1;
+float gSpecularStrength = 0.2;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
@@ -352,7 +353,75 @@ bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
     return true;
 }
 
-void PhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
+void ColorPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
+{
+    glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
+
+    for (int i = 0; i < 3; i++)
+    {
+        vsdata[i].mVertex = mesh.vertices[i + index];
+        vsdata[i].mNormal = mesh.normals[i + index];
+        vsdata[i].mColor = mesh.colors[i + index];
+        vsdata[i].mLightPosition = viewLightPostion;
+    }
+}
+
+void ColorPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
+{
+    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
+}
+
+bool ColorPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
+{
+    fsdata.mViewFragPosition[0] = vsdata[0].mViewFragPosition;
+    fsdata.mViewFragPosition[1] = vsdata[1].mViewFragPosition - vsdata[0].mViewFragPosition;
+    fsdata.mViewFragPosition[2] = vsdata[2].mViewFragPosition - vsdata[0].mViewFragPosition;
+
+    fsdata.mNormal[0] = vsdata[0].mNormal;
+    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
+    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
+
+    fsdata.mColor[0] = vsdata[0].mColor;
+    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
+    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
+
+    fsdata.mLightPosition = vsdata[0].mLightPosition;
+    return true;
+}
+
+bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
+{
+    glm::vec3 viewFragPosition = interpFast(fsdata.mViewFragPosition);
+    glm::vec3 normal = interpFast(fsdata.mNormal);
+    glm::vec3 baseColor = interpFast(fsdata.mColor);
+
+    normal = glm::normalize(normal);
+    // from fragment to light
+    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
+
+    float diff = glm::max(dot(normal, lightDirection), 0.0f);
+
+    // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
+    glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
+#if __BLINN_PHONG__
+    glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
+    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess * 2);
+#else
+    glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
+    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
+#endif
+    glm::vec3 result = (gAmbientStrength + diff * gLightColor) * baseColor + spec * gSpecularStrength * gLightColor;
+
+    color[0] = glm::min(result[0], 1.f);
+    color[1] = glm::min(result[1], 1.f);
+    color[2] = glm::min(result[2], 1.f);
+
+    return true;
+}
+
+void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
 {
     glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
 
@@ -366,14 +435,14 @@ void PhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_
     }
 }
 
-void PhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
+void TextureMapPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
 {
     clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 }
 
-bool PhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
+bool TextureMapPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
     fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
     fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
@@ -392,7 +461,7 @@ bool PhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
     return true;
 }
 
-bool PhongProgram::fragment(PhongFSData &fsdata, float color[3])
+bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 {
     glm::vec3 viewFragPosition = interpFast(fsdata.mViewFragPosition);
     glm::vec3 normal = interpFast(fsdata.mNormal);
@@ -400,9 +469,6 @@ bool PhongProgram::fragment(PhongFSData &fsdata, float color[3])
     textureCoordWrap(texCoord);
 
     glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y));
-
-    // assume ambient light is (1.0, 1.0, 1.0)
-    glm::vec3 ambient = gAmbientStrength * baseColor;
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
@@ -419,28 +485,27 @@ bool PhongProgram::fragment(PhongFSData &fsdata, float color[3])
     glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
 
     float diff = glm::max(dot(normal, lightDirection), 0.0f);
-    glm::vec3 diffuse = diff * gLightColor * baseColor;
 
-    glm::vec3 result = ambient + diffuse;
+    // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
+    glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
+#if __BLINN_PHONG__
+    glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
+    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess * 2);
+#else
+    glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
+    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
+#endif
+    glm::vec3 specular = spec * gLightColor;
 
     if (gTexture[TEXTURE_SPECULAR] != nullptr)
-    {
-        // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
-        glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
-#if __BLINN_PHONG__
-        glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
-        float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess);
-#else
-        glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
-        float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), gShininess);
-#endif
-        result += spec * gLightColor * glm::make_vec3(gTexture[TEXTURE_SPECULAR]->getColor(texCoord.x, texCoord.y));
-    }
+        specular *= glm::make_vec3(gTexture[TEXTURE_SPECULAR]->getColor(texCoord.x, texCoord.y));
+    else
+        specular *= gSpecularStrength;
+
+    glm::vec3 result = (gAmbientStrength + diff * gLightColor) * baseColor + specular;
 
     if (gTexture[TEXTURE_GLOW] != nullptr)
-    {
         result += glm::make_vec3(gTexture[TEXTURE_GLOW]->getColor(texCoord.x, texCoord.y));
-    }
 
     color[0] = glm::min(result[0], 1.f);
     color[1] = glm::min(result[1], 1.f);
@@ -588,16 +653,22 @@ void trTriangles(TRMeshData &mesh, TRDrawMode mode)
             if (mesh.tangents.size() == 0)
                 mesh.computeTangent();
             if (gEnableLighting)
-                trTrianglesMT<PhongProgram>(mesh);
+                trTrianglesMT<TextureMapPhongProgram>(mesh);
             else
                 trTrianglesMT<TextureMapProgram>(mesh);
             break;
         case DRAW_WITH_DEMO_COLOR:
             mesh.fillDemoColor();
-            trTrianglesMT<ColorProgram>(mesh);
+            if (gEnableLighting)
+                trTrianglesMT<ColorPhongProgram>(mesh);
+            else
+                trTrianglesMT<ColorProgram>(mesh);
             break;
         case DRAW_WITH_COLOR:
-            trTrianglesMT<ColorProgram>(mesh);
+            if (gEnableLighting)
+                trTrianglesMT<ColorPhongProgram>(mesh);
+            else
+                trTrianglesMT<ColorProgram>(mesh);
             break;
         case DRAW_WIREFRAME:
             trTrianglesMT<WireframeProgram>(mesh);
@@ -618,6 +689,11 @@ void trEnableLighting(bool enable)
 void trSetAmbientStrength(float v)
 {
     gAmbientStrength = v;
+}
+
+void trSetSpecularStrength(float v)
+{
+    gSpecularStrength = v;
 }
 
 void trSetShininess(int v)

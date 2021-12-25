@@ -202,7 +202,15 @@ class PhongFSData : public FSDataBase
         glm::vec3 mLightPosition;
 };
 
-class PhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
+class ColorPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
+{
+    void loadVertexData(TRMeshData &, PhongVSData *, size_t);
+    void vertex(PhongVSData &, glm::vec4 &clipV);
+    bool geometry(PhongVSData *, PhongFSData &);
+    bool fragment(PhongFSData &, float color[3]);
+};
+
+class TextureMapPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
     void loadVertexData(TRMeshData &, PhongVSData *, size_t);
     void vertex(PhongVSData &, glm::vec4 &clipV);
@@ -217,6 +225,7 @@ class PhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 void trSetRenderThreadNum(size_t num);
 void trEnableLighting(bool enable);
 void trSetAmbientStrength(float v);
+void trSetSpecularStrength(float v);
 void trSetLightColor3f(float r, float g, float b);
 void trSetLightPosition3f(float x, float y, float z);
 void trViewport(int x, int y, int w, int h);
