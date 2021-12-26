@@ -148,15 +148,16 @@ class TextureMapProgram : public TRProgramBase<VSDataBase, FSDataBase>
 class PhongVSData : public VSDataBase
 {
     public:
-        glm::vec3 mViewFragPosition;
+        glm::vec3 mFragmentPosition;
         glm::vec3 mLightPosition;
 };
 
 class PhongFSData : public FSDataBase
 {
     public:
-        glm::vec3 mViewFragPosition[3];
+        glm::vec3 mFragmentPosition[3];
         glm::vec3 mLightPosition;
+        glm::vec3 mTangentLightPosition[3];
 };
 
 class ColorPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>

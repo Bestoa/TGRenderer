@@ -369,15 +369,15 @@ void ColorPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], 
 void ColorPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
 {
     clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 }
 
 bool ColorPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
-    fsdata.mViewFragPosition[0] = vsdata[0].mViewFragPosition;
-    fsdata.mViewFragPosition[1] = vsdata[1].mViewFragPosition - vsdata[0].mViewFragPosition;
-    fsdata.mViewFragPosition[2] = vsdata[2].mViewFragPosition - vsdata[0].mViewFragPosition;
+    fsdata.mFragmentPosition[0] = vsdata[0].mFragmentPosition;
+    fsdata.mFragmentPosition[1] = vsdata[1].mFragmentPosition - vsdata[0].mFragmentPosition;
+    fsdata.mFragmentPosition[2] = vsdata[2].mFragmentPosition - vsdata[0].mFragmentPosition;
 
     fsdata.mNormal[0] = vsdata[0].mNormal;
     fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
@@ -393,18 +393,18 @@ bool ColorPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
 
 bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 {
-    glm::vec3 viewFragPosition = interpFast(fsdata.mViewFragPosition);
+    glm::vec3 fragmentPosition = interpFast(fsdata.mFragmentPosition);
     glm::vec3 normal = interpFast(fsdata.mNormal);
     glm::vec3 baseColor = interpFast(fsdata.mColor);
 
     normal = glm::normalize(normal);
     // from fragment to light
-    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
+    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - fragmentPosition);
 
     float diff = glm::max(dot(normal, lightDirection), 0.0f);
 
     // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
-    glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
+    glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
     float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess * 2);
@@ -438,8 +438,21 @@ void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata
 void TextureMapPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
 {
     clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mViewFragPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
+
+    if (gTexture[TEXTURE_NORMAL] != nullptr)
+    {
+        glm::vec3 N = glm::normalize(vsdata.mNormal);
+        glm::vec3 T = glm::normalize(gMat3[MAT3_NORMAL] * vsdata.mTangent);
+        T = glm::normalize(T - dot(T, N) * N);
+        glm::vec3 B = glm::cross(N, T);
+        // Mat3 from view space to tangent space
+        glm::mat3 TBN = glm::transpose(glm::mat3(T, B, N));
+        vsdata.mFragmentPosition = TBN * vsdata.mFragmentPosition;
+        // Light Position is fixed in view space, but will changed in tangent space
+        vsdata.mLightPosition = TBN * vsdata.mLightPosition;
+    }
 }
 
 bool TextureMapPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
@@ -448,46 +461,51 @@ bool TextureMapPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata
     fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
     fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
 
-    fsdata.mViewFragPosition[0] = vsdata[0].mViewFragPosition;
-    fsdata.mViewFragPosition[1] = vsdata[1].mViewFragPosition - vsdata[0].mViewFragPosition;
-    fsdata.mViewFragPosition[2] = vsdata[2].mViewFragPosition - vsdata[0].mViewFragPosition;
+    fsdata.mFragmentPosition[0] = vsdata[0].mFragmentPosition;
+    fsdata.mFragmentPosition[1] = vsdata[1].mFragmentPosition - vsdata[0].mFragmentPosition;
+    fsdata.mFragmentPosition[2] = vsdata[2].mFragmentPosition - vsdata[0].mFragmentPosition;
 
-    fsdata.mNormal[0] = vsdata[0].mNormal;
-    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
-    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
-
-    fsdata.mLightPosition = vsdata[0].mLightPosition;
-    fsdata.mTangent = glm::normalize(gMat3[MAT3_NORMAL] * vsdata[0].mTangent);
+    if (gTexture[TEXTURE_NORMAL] != nullptr)
+    {
+        fsdata.mTangentLightPosition[0] = vsdata[0].mLightPosition;
+        fsdata.mTangentLightPosition[1] = vsdata[1].mLightPosition - vsdata[0].mLightPosition;
+        fsdata.mTangentLightPosition[2] = vsdata[2].mLightPosition - vsdata[0].mLightPosition;
+    } else {
+        fsdata.mNormal[0] = vsdata[0].mNormal;
+        fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
+        fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
+        fsdata.mLightPosition = vsdata[0].mLightPosition;
+    }
     return true;
 }
 
 bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 {
-    glm::vec3 viewFragPosition = interpFast(fsdata.mViewFragPosition);
-    glm::vec3 normal = interpFast(fsdata.mNormal);
+    glm::vec3 fragmentPosition = interpFast(fsdata.mFragmentPosition);
     glm::vec2 texCoord = interpFast(fsdata.mTexCoord);
     textureCoordWrap(texCoord);
+    glm::vec3 normal;
+    glm::vec3 lightPosition;
 
     glm::vec3 baseColor = glm::make_vec3(gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y));
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
-        // Gram-Schmidt orthogonalize
-        glm::vec3 T = fsdata.mTangent;
-        T = glm::normalize(T - dot(T, normal) * normal);
-        glm::vec3 B = glm::cross(normal, T);
-        glm::mat3 TBN = glm::mat3(T, B, normal);
         normal = glm::make_vec3(gTexture[TEXTURE_NORMAL]->getColor(texCoord.x, texCoord.y)) * 2.0f - 1.0f;
-        normal = TBN * normal;
+        lightPosition = interpFast(fsdata.mTangentLightPosition);
+    } else {
+        normal = interpFast(fsdata.mNormal);
+        lightPosition = fsdata.mLightPosition;
     }
     normal = glm::normalize(normal);
     // from fragment to light
-    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - viewFragPosition);
+    glm::vec3 lightDirection = glm::normalize(lightPosition - fragmentPosition);
 
     float diff = glm::max(dot(normal, lightDirection), 0.0f);
 
     // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
-    glm::vec3 eyeDirection = glm::normalize(-viewFragPosition);
+    // even in tangent space, eys still in (0, 0, 0)
+    glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
     float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), gShininess * 2);
