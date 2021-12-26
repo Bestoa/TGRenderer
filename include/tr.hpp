@@ -7,6 +7,7 @@
 #include <mutex>
 #include <glm/glm.hpp>
 
+#include "buffer.hpp"
 #include "texture.hpp"
 
 enum MAT3_SYSTEM_TYPE
@@ -57,50 +58,6 @@ enum TRDrawMode
     DRAW_WITH_COLOR,
     DRAW_WITH_DEMO_COLOR,
     DRAW_WIREFRAME,
-};
-
-#define CHANNEL (3)
-class TRBuffer
-{
-    public:
-        uint8_t *mData = nullptr;
-        uint32_t mW = 0;
-        uint32_t mH = 0;
-        uint32_t mStride = 0;
-
-        std::mutex mDepthMutex;
-
-        void setViewport(int x, int y, int w, int h);
-        void viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v);
-        void setBGColor(float r, float g, float b);
-        void clearColor();
-        void clearDepth();
-        bool depthTest(int x, int y, float depth);
-
-        void setExtBuffer(void *addr);
-
-        TRBuffer() = delete;
-        TRBuffer(const TRBuffer &) = delete;
-        TRBuffer& operator=(const TRBuffer &) = delete;
-
-        ~TRBuffer();
-
-        static TRBuffer* create(int w, int h, bool ext = false);
-
-    private:
-        float *mDepth = nullptr;
-
-        uint32_t mVX = 0;
-        uint32_t mVY = 0;
-        uint32_t mVW = 0;
-        uint32_t mVH = 0;
-
-        uint8_t mBGColor[CHANNEL] = { 0, 0, 0 };
-        // data was not allocated by us.
-        bool mExtBuffer = false;
-        bool mValid = false;
-
-        TRBuffer(int w, int h, bool ext);
 };
 
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)

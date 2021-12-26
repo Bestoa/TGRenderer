@@ -1,5 +1,5 @@
-#ifndef __TOPGUN_BUFFER__
-#define __TOPGUN_BUFFER__
+#ifndef __TOPGUN_TEXTURE__
+#define __TOPGUN_TEXTURE__
 
 #include <glm/glm.hpp>
 

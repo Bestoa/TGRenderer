@@ -59,12 +59,12 @@ void TRMeshData::computeTangent()
     for (size_t i = 0; i < vertices.size(); i += 3)
     {
         // Edges of the triangle : postion delta
-        glm::vec3 deltaPos1 = vertices[1] - vertices[0];
-        glm::vec3 deltaPos2 = vertices[2] - vertices[0];
+        glm::vec3 deltaPos1 = vertices[i+1] - vertices[i];
+        glm::vec3 deltaPos2 = vertices[i+2] - vertices[i];
 
         // UV delta
-        glm::vec2 deltaUV1 = uvs[1]-uvs[0];
-        glm::vec2 deltaUV2 = uvs[2]-uvs[0];
+        glm::vec2 deltaUV1 = uvs[i+1]-uvs[i];
+        glm::vec2 deltaUV2 = uvs[i+2]-uvs[i];
 
         float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
 
