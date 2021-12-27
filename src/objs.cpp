@@ -49,7 +49,7 @@ TRObj::TRObj(const char *config)
 
     cout << "Loading OBJ..." << endl;
     getline(in, line);
-    if (!line.length() || !load_obj(line.c_str(), mMeshData.vertices, mMeshData.uvs, mMeshData.normals))
+    if (!line.length() || !truLoadObj(line.c_str(), mMeshData.vertices, mMeshData.uvs, mMeshData.normals))
     {
         cout << "Load OBJ file error!" << endl;
         return;

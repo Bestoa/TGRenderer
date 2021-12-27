@@ -1,12 +1,12 @@
 #include <cstdio>
 #include <string>
 #include <vector>
-#include <glm/glm.hpp>
+#include <glm/ext.hpp>
 
 #include "tr.hpp"
 #include "utils.hpp"
 
-void save_ppm(const char *name, uint8_t *buffer, int width, int height)
+void truSavePPM(const char *name, uint8_t *buffer, int width, int height)
 {
     FILE *fp = fopen(name, "wb");
     if (!fp)
@@ -16,7 +16,25 @@ void save_ppm(const char *name, uint8_t *buffer, int width, int height)
     fclose(fp);
 }
 
-bool load_obj(
+void truLoadVec4(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec4> &out)
+{
+    for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
+        out.push_back(glm::make_vec4(&data[i]));
+}
+
+void truLoadVec3(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out)
+{
+    for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
+        out.push_back(glm::make_vec3(&data[i]));
+}
+
+void truLoadVec2(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out)
+{
+    for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
+        out.push_back(glm::make_vec2(&data[i]));
+}
+
+bool truLoadObj(
         const char * path,
         std::vector<glm::vec3> & out_vertices,
         std::vector<glm::vec2> & out_uvs,

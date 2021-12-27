@@ -18,23 +18,26 @@ int main()
 
     trClearColor3f(0.1, 0.1, 0.1);
 
-    TRMeshData data;
-    data.vertices.push_back(glm::vec3(-0.5f, -0.5f, 0.0f));
-    data.vertices.push_back(glm::vec3(0.5f, -0.5f, 0.0f));
-    data.vertices.push_back(glm::vec3(0.0f, 0.5f, 0.0f));
+    float vertex[] =
+    {
+        -0.5f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f,
+        0.5f, -0.5f, 0.0f, 0.5f, 0.5f, 0.5f,
+        0.0f, 0.5f, 0.0f, 1.0f, 1.0f, 1.0f,
+    };
+
+    TRMeshData mesh;
+    truLoadVec3(vertex, 0, 3, 0, 6, mesh.vertices);
 
     trClear();
-    trTriangles(data, DRAW_WITH_DEMO_COLOR);
-    save_ppm("01_demo_color.ppm", buffer->mData, buffer->mW, buffer->mH);
+    trTriangles(mesh, DRAW_WITH_DEMO_COLOR);
+    truSavePPM("01_demo_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
-    data.colors.clear();
-    data.colors.push_back(glm::vec3(0.0f, 0.0f, 0.0f));
-    data.colors.push_back(glm::vec3(0.5f, 0.5f, 0.5f));
-    data.colors.push_back(glm::vec3(1.0f, 1.0f, 1.0f));
+    mesh.colors.clear();
+    truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);
 
     trClear();
-    trTriangles(data, DRAW_WITH_COLOR);
-    save_ppm("01_color.ppm", buffer->mData, buffer->mW, buffer->mH);
+    trTriangles(mesh, DRAW_WITH_COLOR);
+    truSavePPM("01_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     delete buffer;
 

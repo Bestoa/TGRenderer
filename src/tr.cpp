@@ -3,9 +3,7 @@
 #include <thread>
 #include <mutex>
 #include <algorithm>
-#include <glm/glm.hpp>
 #include <glm/ext.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 
 #include "tr.hpp"
 
