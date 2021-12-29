@@ -296,13 +296,6 @@ void ColorProgram::vertex(VSDataBase &vsdata)
     vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
-void ColorProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
-{
-    fsdata.mColor[0] = vsdata[0].mColor;
-    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
-    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
-}
-
 bool ColorProgram::fragment(FSDataBase &fsdata, float color[3])
 {
     glm::vec3 C = interpFast(fsdata.mColor);
@@ -325,13 +318,6 @@ void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], s
 void TextureMapProgram::vertex(VSDataBase &vsdata)
 {
     vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-}
-
-void TextureMapProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
-{
-    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
-    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
-    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
 }
 
 bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
@@ -369,17 +355,10 @@ void ColorPhongProgram::vertex(PhongVSData &vsdata)
 
 void ColorPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
+    TRProgramBase::preInterp(vsdata, fsdata);
     fsdata.mFragmentPosition[0] = vsdata[0].mFragmentPosition;
     fsdata.mFragmentPosition[1] = vsdata[1].mFragmentPosition - vsdata[0].mFragmentPosition;
     fsdata.mFragmentPosition[2] = vsdata[2].mFragmentPosition - vsdata[0].mFragmentPosition;
-
-    fsdata.mNormal[0] = vsdata[0].mNormal;
-    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
-    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
-
-    fsdata.mColor[0] = vsdata[0].mColor;
-    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
-    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
 
     fsdata.mLightPosition = vsdata[0].mLightPosition;
 }
@@ -456,9 +435,7 @@ void TextureMapPhongProgram::vertex(PhongVSData &vsdata)
 
 void TextureMapPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
-    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
-    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
-    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
+    TRProgramBase::preInterp(vsdata, fsdata);
 
     fsdata.mFragmentPosition[0] = vsdata[0].mFragmentPosition;
     fsdata.mFragmentPosition[1] = vsdata[1].mFragmentPosition - vsdata[0].mFragmentPosition;
@@ -470,9 +447,6 @@ void TextureMapPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdat
         fsdata.mTangentLightPosition[1] = vsdata[1].mLightPosition - vsdata[0].mLightPosition;
         fsdata.mTangentLightPosition[2] = vsdata[2].mLightPosition - vsdata[0].mLightPosition;
     } else {
-        fsdata.mNormal[0] = vsdata[0].mNormal;
-        fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
-        fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
         fsdata.mLightPosition = vsdata[0].mLightPosition;
     }
 }
@@ -538,13 +512,27 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 }
 
 template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::preInterp(TRVSData *vsdata, TRFSData &fsdata)
+{
+    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
+    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
+    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
+
+    fsdata.mNormal[0] = vsdata[0].mNormal;
+    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
+    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
+
+    fsdata.mColor[0] = vsdata[0].mColor;
+    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
+    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
+}
+
+template <class TRVSData, class TRFSData>
 void TRProgramBase<TRVSData, TRFSData>::interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV)
 {
-    outV.mVertex = in2.mVertex + t * (in1.mVertex - in2.mVertex);
     outV.mTexCoord = in2.mTexCoord + t * (in1.mTexCoord - in2.mTexCoord);
     outV.mNormal = in2.mNormal + t * (in1.mNormal - in2.mNormal);
     outV.mColor = in2.mColor + t * (in1.mColor - in2.mColor);
-    outV.mTangent = in2.mTangent + t * (in1.mTangent - in2.mTangent);
     outV.mClipV = in2.mClipV + t * (in1.mClipV - in2.mClipV);
 
 }

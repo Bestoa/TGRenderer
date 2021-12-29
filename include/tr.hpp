@@ -87,6 +87,7 @@ class TRProgramBase
             return v[0] + v[1] * mUPC + v[2] * mVPC;
         }
 
+        virtual void preInterp(TRVSData *, TRFSData &);
         virtual void interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV);
 
     private:
@@ -95,7 +96,6 @@ class TRProgramBase
 
         virtual void loadVertexData(TRMeshData &, TRVSData *, size_t) = 0;
         virtual void vertex(TRVSData &) = 0;
-        virtual void preInterp(TRVSData *, TRFSData &) = 0;
         virtual bool fragment(TRFSData &, float color[3]/* Out */) = 0;
 
         void drawTriangle(TRMeshData &, size_t index);
@@ -123,7 +123,6 @@ class FSDataBase
         glm::vec2 mTexCoord[3];
         glm::vec3 mNormal[3];
         glm::vec3 mColor[3];
-        glm::vec3 mTangent;
 };
 
 class WireframeProgram : public TRProgramBase<VSDataBase, FSDataBase>
@@ -138,7 +137,6 @@ class ColorProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
     void vertex(VSDataBase &);
-    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
 };
 
@@ -146,7 +144,6 @@ class TextureMapProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
     void vertex(VSDataBase &);
-    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
 };
 
