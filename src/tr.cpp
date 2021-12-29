@@ -252,13 +252,12 @@ void WireframeProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], si
     }
 }
 
-void WireframeProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
+void WireframeProgram::vertex(VSDataBase &vsdata)
 {
     (void)vsdata;
-    (void)clipV;
 }
 
-bool WireframeProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
+void WireframeProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
     (void)fsdata;
     glm::vec4 clip_v[3];
@@ -274,8 +273,6 @@ bool WireframeProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
     __draw_line__(mBuffer, screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
     __draw_line__(mBuffer, screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
     __draw_line__(mBuffer, screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
-
-    return false;
 }
 
 bool WireframeProgram::fragment(FSDataBase &fsdata, float color[3])
@@ -294,17 +291,16 @@ void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t
     }
 }
 
-void ColorProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
+void ColorProgram::vertex(VSDataBase &vsdata)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
-bool ColorProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
+void ColorProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
     fsdata.mColor[0] = vsdata[0].mColor;
     fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
     fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
-    return true;
 }
 
 bool ColorProgram::fragment(FSDataBase &fsdata, float color[3])
@@ -325,17 +321,16 @@ void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], s
     }
 }
 
-void TextureMapProgram::vertex(VSDataBase &vsdata, glm::vec4 &clipV)
+void TextureMapProgram::vertex(VSDataBase &vsdata)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
-bool TextureMapProgram::geometry(VSDataBase vsdata[3], FSDataBase &fsdata)
+void TextureMapProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
 {
     fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
     fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
     fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
-    return true;
 }
 
 bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
@@ -364,14 +359,14 @@ void ColorPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], 
     }
 }
 
-void ColorPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
+void ColorPhongProgram::vertex(PhongVSData &vsdata)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 }
 
-bool ColorPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
+void ColorPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
     fsdata.mFragmentPosition[0] = vsdata[0].mFragmentPosition;
     fsdata.mFragmentPosition[1] = vsdata[1].mFragmentPosition - vsdata[0].mFragmentPosition;
@@ -386,7 +381,6 @@ bool ColorPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
     fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
 
     fsdata.mLightPosition = vsdata[0].mLightPosition;
-    return true;
 }
 
 bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
@@ -433,9 +427,9 @@ void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata
     }
 }
 
-void TextureMapPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
+void TextureMapPhongProgram::vertex(PhongVSData &vsdata)
 {
-    clipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 
@@ -453,7 +447,7 @@ void TextureMapPhongProgram::vertex(PhongVSData &vsdata, glm::vec4 &clipV)
     }
 }
 
-bool TextureMapPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata)
+void TextureMapPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
     fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
     fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
@@ -474,7 +468,6 @@ bool TextureMapPhongProgram::geometry(PhongVSData vsdata[3], PhongFSData &fsdata
         fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
         fsdata.mLightPosition = vsdata[0].mLightPosition;
     }
-    return true;
 }
 
 bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
@@ -533,14 +526,17 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 template <class TRVSData, class TRFSData>
 void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t index)
 {
-    glm::vec4 clipV[3];
+    TRVSData vsdata[3];
+    TRFSData fsdata;
 
-    loadVertexData(mesh, mVSData, index * 3);
+    loadVertexData(mesh, vsdata, index * 3);
     for (size_t i = 0; i < 3; i++)
-        vertex(mVSData[i], clipV[i]);
+        vertex(vsdata[i]);
 
-    if(geometry(mVSData, mFSData))
-        rasterization(clipV);
+    glm::vec4 clipV[3] = { vsdata[0].mClipV, vsdata[1].mClipV, vsdata[2].mClipV };
+
+    preInterp(vsdata, fsdata);
+    rasterization(clipV, fsdata);
 }
 
 template <class TRVSData, class TRFSData>
@@ -556,7 +552,7 @@ void TRProgramBase<TRVSData, TRFSData>::drawTrianglesInstanced(TRBuffer *buffer,
 }
 
 template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
+void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3], TRFSData &fsdata)
 {
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
@@ -614,7 +610,7 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
                 continue;
 
             float color[3];
-            if (!fragment(mFSData, color))
+            if (!fragment(fsdata, color))
                 continue;
 
             uint8_t *addr = &mBuffer->mData[offset * CHANNEL];

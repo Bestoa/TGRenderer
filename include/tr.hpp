@@ -88,18 +88,16 @@ class TRProgramBase
         }
 
     private:
-        TRVSData mVSData[3];
-        TRFSData mFSData;
         float mUPC;
         float mVPC;
 
         virtual void loadVertexData(TRMeshData &, TRVSData *, size_t) = 0;
-        virtual void vertex(TRVSData &, glm::vec4 &clipV /* Out */) = 0;
-        virtual bool geometry(TRVSData *, TRFSData &) = 0;
+        virtual void vertex(TRVSData &) = 0;
+        virtual void preInterp(TRVSData *, TRFSData &) = 0;
         virtual bool fragment(TRFSData &, float color[3]/* Out */) = 0;
 
         void drawTriangle(TRMeshData &, size_t index);
-        void rasterization(glm::vec4 clip_v[3]);
+        void rasterization(glm::vec4 clip_v[3], TRFSData &);
 };
 
 class VSDataBase
@@ -110,6 +108,8 @@ class VSDataBase
         glm::vec3 mNormal;
         glm::vec3 mColor;
         glm::vec3 mTangent;
+
+        glm::vec4 mClipV;
 };
 
 class FSDataBase
@@ -124,24 +124,24 @@ class FSDataBase
 class WireframeProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase &, glm::vec4 &);
-    bool geometry(VSDataBase *, FSDataBase &);
+    void vertex(VSDataBase &);
+    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
 };
 
 class ColorProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase &, glm::vec4 &);
-    bool geometry(VSDataBase *, FSDataBase &);
+    void vertex(VSDataBase &);
+    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
 };
 
 class TextureMapProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase &, glm::vec4 &clipV);
-    bool geometry(VSDataBase *, FSDataBase &);
+    void vertex(VSDataBase &);
+    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
 };
 
@@ -163,16 +163,16 @@ class PhongFSData : public FSDataBase
 class ColorPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
     void loadVertexData(TRMeshData &, PhongVSData *, size_t);
-    void vertex(PhongVSData &, glm::vec4 &clipV);
-    bool geometry(PhongVSData *, PhongFSData &);
+    void vertex(PhongVSData &);
+    void preInterp(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
 };
 
 class TextureMapPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
     void loadVertexData(TRMeshData &, PhongVSData *, size_t);
-    void vertex(PhongVSData &, glm::vec4 &clipV);
-    bool geometry(PhongVSData *, PhongFSData &);
+    void vertex(PhongVSData &);
+    void preInterp(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
 };
 
