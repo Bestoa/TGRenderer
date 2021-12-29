@@ -99,7 +99,7 @@ class TRProgramBase
         virtual bool fragment(TRFSData &, float color[3]/* Out */) = 0;
 
         void drawTriangle(TRMeshData &, size_t index);
-        void rasterization(glm::vec4 clip_v[3], TRFSData &);
+        virtual void rasterization(glm::vec4 clip_v[3], TRFSData &);
 
         void clipLine(TRVSData &in1, TRVSData &in2, std::vector<TRVSData> &out);
         void clipNear(TRVSData in[3], std::vector<TRVSData> &out);
@@ -129,8 +129,8 @@ class WireframeProgram : public TRProgramBase<VSDataBase, FSDataBase>
 {
     void loadVertexData(TRMeshData &, VSDataBase *, size_t);
     void vertex(VSDataBase &);
-    void preInterp(VSDataBase *, FSDataBase &);
     bool fragment(FSDataBase &, float color[3]);
+    void rasterization(glm::vec4 clip_v[3], FSDataBase &fsdata);
 };
 
 class ColorProgram : public TRProgramBase<VSDataBase, FSDataBase>

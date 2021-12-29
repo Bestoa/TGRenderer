@@ -199,6 +199,9 @@ static inline void __compute_premultiply_mat__()
 
 void __plot__(TRBuffer *buffer, int x, int y)
 {
+    // Not good, but works well
+    if (x > (int)buffer->mW || y > (int)buffer->mH || x < 0 || y < 0)
+        return;
     uint8_t *base = &buffer->mData[y * buffer->mStride + x * CHANNEL];
     base[0] = base[1] = base[2] = 255;
 }
@@ -254,25 +257,7 @@ void WireframeProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], si
 
 void WireframeProgram::vertex(VSDataBase &vsdata)
 {
-    (void)vsdata;
-}
-
-void WireframeProgram::preInterp(VSDataBase vsdata[3], FSDataBase &fsdata)
-{
-    (void)fsdata;
-    glm::vec4 clip_v[3];
-    glm::vec4 ndc_v[3];
-    glm::vec2 screen_v[3];
-
-    for (int i = 0; i < 3; i++)
-    {
-        clip_v[i] = gMat4[MAT4_MVP] * glm::vec4(vsdata[i].mVertex, 1.0f);
-        ndc_v[i] = clip_v[i] / clip_v[i].w;
-        mBuffer->viewport(screen_v[i], ndc_v[i]);
-    }
-    __draw_line__(mBuffer, screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
-    __draw_line__(mBuffer, screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
-    __draw_line__(mBuffer, screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
+    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
 }
 
 bool WireframeProgram::fragment(FSDataBase &fsdata, float color[3])
@@ -280,6 +265,23 @@ bool WireframeProgram::fragment(FSDataBase &fsdata, float color[3])
     (void)fsdata;
     (void)color;
     return false;
+}
+
+void WireframeProgram::rasterization(glm::vec4 clip_v[3], FSDataBase &fsdata)
+{
+    (void)fsdata;
+    glm::vec4 ndc_v[3];
+    glm::vec2 screen_v[3];
+
+    for (int i = 0; i < 3; i++)
+    {
+        ndc_v[i] = clip_v[i] / clip_v[i].w;
+        mBuffer->viewport(screen_v[i], ndc_v[i]);
+    }
+
+    __draw_line__(mBuffer, screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
+    __draw_line__(mBuffer, screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
+    __draw_line__(mBuffer, screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
 
 void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
