@@ -87,6 +87,8 @@ class TRProgramBase
             return v[0] + v[1] * mUPC + v[2] * mVPC;
         }
 
+        virtual void interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV);
+
     private:
         float mUPC;
         float mVPC;
@@ -98,6 +100,9 @@ class TRProgramBase
 
         void drawTriangle(TRMeshData &, size_t index);
         void rasterization(glm::vec4 clip_v[3], TRFSData &);
+
+        void clipLine(TRVSData &in1, TRVSData &in2, std::vector<TRVSData> &out);
+        void clipNear(TRVSData in[3], std::vector<TRVSData> &out);
 };
 
 class VSDataBase
@@ -166,6 +171,7 @@ class ColorPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
     void vertex(PhongVSData &);
     void preInterp(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
+    void interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV);
 };
 
 class TextureMapPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
@@ -174,6 +180,7 @@ class TextureMapPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
     void vertex(PhongVSData &);
     void preInterp(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
+    void interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV);
 };
 
 #ifndef __BLINN_PHONG__

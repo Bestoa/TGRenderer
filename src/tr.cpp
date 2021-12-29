@@ -312,6 +312,7 @@ bool ColorProgram::fragment(FSDataBase &fsdata, float color[3])
     return true;
 }
 
+
 void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
 {
     for (int i = 0; i < 3; i++)
@@ -413,6 +414,12 @@ bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
     return true;
 }
 
+void ColorPhongProgram::interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV)
+{
+    TRProgramBase::interpVertex(t, in1, in2, outV);
+    outV.mFragmentPosition = in2.mFragmentPosition + t * (in1.mFragmentPosition - in2.mFragmentPosition);
+}
+
 void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
 {
     glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
@@ -470,6 +477,13 @@ void TextureMapPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdat
     }
 }
 
+void TextureMapPhongProgram::interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV)
+{
+    TRProgramBase::interpVertex(t, in1, in2, outV);
+    outV.mFragmentPosition = in2.mFragmentPosition + t * (in1.mFragmentPosition - in2.mFragmentPosition);
+    outV.mLightPosition = in2.mLightPosition + t * (in1.mLightPosition - in2.mLightPosition);
+}
+
 bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 {
     glm::vec3 fragmentPosition = interpFast(fsdata.mFragmentPosition);
@@ -524,6 +538,56 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 }
 
 template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV)
+{
+    outV.mVertex = in2.mVertex + t * (in1.mVertex - in2.mVertex);
+    outV.mTexCoord = in2.mTexCoord + t * (in1.mTexCoord - in2.mTexCoord);
+    outV.mNormal = in2.mNormal + t * (in1.mNormal - in2.mNormal);
+    outV.mColor = in2.mColor + t * (in1.mColor - in2.mColor);
+    outV.mTangent = in2.mTangent + t * (in1.mTangent - in2.mTangent);
+    outV.mClipV = in2.mClipV + t * (in1.mClipV - in2.mClipV);
+
+}
+#define W_NEAR (0.1f)
+
+template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::clipLine(TRVSData &in1, TRVSData &in2, std::vector<TRVSData> &out)
+{
+    // Sutherland-Hodgeman clip
+    // t = w1 / (w1 - w2)
+    // V = V1 + t * (V2 - V1)
+    if (in1.mClipV.w > 0 && in2.mClipV.w > 0)
+    {
+        out.push_back(in2);
+    }
+    else if (in1.mClipV.w > 0 && in2.mClipV.w < 0)
+    {
+        float t = (in2.mClipV.w - W_NEAR)/(in2.mClipV.w - in1.mClipV.w);
+        TRVSData outV;
+        // get interp V and put V into output
+        interpVertex(t, in1, in2, outV);
+        out.push_back(outV);
+    }
+    else if (in1.mClipV.w < 0 && in2.mClipV.w > 0)
+    {
+        float t = (in1.mClipV.w - W_NEAR) /(in1.mClipV.w - in2.mClipV.w);
+        TRVSData outV;
+        // get interp V and put V and V2 into output
+        interpVertex(t, in2, in1, outV);
+        out.push_back(outV);
+        out.push_back(in2);
+    }
+}
+
+template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::clipNear(TRVSData in[3], std::vector<TRVSData> &out)
+{
+    clipLine(in[0], in[1], out);
+    clipLine(in[1], in[2], out);
+    clipLine(in[2], in[0], out);
+}
+
+template <class TRVSData, class TRFSData>
 void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t index)
 {
     TRVSData vsdata[3];
@@ -533,10 +597,18 @@ void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t in
     for (size_t i = 0; i < 3; i++)
         vertex(vsdata[i]);
 
-    glm::vec4 clipV[3] = { vsdata[0].mClipV, vsdata[1].mClipV, vsdata[2].mClipV };
+    std::vector<TRVSData> out;
+    clipNear(vsdata, out);
 
-    preInterp(vsdata, fsdata);
-    rasterization(clipV, fsdata);
+    for (size_t i = 0; i < out.size() - 2; i++)
+    {
+        vsdata[0] = out[0];
+        vsdata[1] = out[i + 1];
+        vsdata[2] = out[i + 2];
+        glm::vec4 clipV[3] = { vsdata[0].mClipV, vsdata[1].mClipV, vsdata[2].mClipV };
+        preInterp(vsdata, fsdata);
+        rasterization(clipV, fsdata);
+    }
 }
 
 template <class TRVSData, class TRFSData>
