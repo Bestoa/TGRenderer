@@ -101,8 +101,8 @@ class TRProgramBase
         void drawTriangle(TRMeshData &, size_t index);
         virtual void rasterization(glm::vec4 clip_v[3], TRFSData &);
 
-        void clipLine(TRVSData &in1, TRVSData &in2, std::vector<TRVSData> &out);
-        void clipNear(TRVSData in[3], std::vector<TRVSData> &out);
+        void clipLineNear(TRVSData &in1, TRVSData &in2, TRVSData out[4], size_t &index);
+        void clipNear(TRVSData in[3], TRVSData out[4], size_t &index);
 };
 
 class VSDataBase

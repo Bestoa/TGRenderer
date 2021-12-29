@@ -541,14 +541,14 @@ void TRProgramBase<TRVSData, TRFSData>::interpVertex(float t, TRVSData &in1, TRV
 #define W_NEAR (0.1f)
 
 template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::clipLine(TRVSData &in1, TRVSData &in2, std::vector<TRVSData> &out)
+void TRProgramBase<TRVSData, TRFSData>::clipLineNear(TRVSData &in1, TRVSData &in2, TRVSData out[3], size_t &index)
 {
     // Sutherland-Hodgeman clip
     // t = w1 / (w1 - w2)
     // V = V1 + t * (V2 - V1)
     if (in1.mClipV.w > 0 && in2.mClipV.w > 0)
     {
-        out.push_back(in2);
+        out[index++] = in2;
     }
     else if (in1.mClipV.w > 0 && in2.mClipV.w < 0)
     {
@@ -556,7 +556,7 @@ void TRProgramBase<TRVSData, TRFSData>::clipLine(TRVSData &in1, TRVSData &in2, s
         TRVSData outV;
         // get interp V and put V into output
         interpVertex(t, in1, in2, outV);
-        out.push_back(outV);
+        out[index++] = outV;
     }
     else if (in1.mClipV.w < 0 && in2.mClipV.w > 0)
     {
@@ -564,17 +564,18 @@ void TRProgramBase<TRVSData, TRFSData>::clipLine(TRVSData &in1, TRVSData &in2, s
         TRVSData outV;
         // get interp V and put V and V2 into output
         interpVertex(t, in2, in1, outV);
-        out.push_back(outV);
-        out.push_back(in2);
+        out[index++] = outV;
+        out[index++] = in2;
     }
 }
 
 template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::clipNear(TRVSData in[3], std::vector<TRVSData> &out)
+void TRProgramBase<TRVSData, TRFSData>::clipNear(TRVSData in[3], TRVSData out[4], size_t &index)
 {
-    clipLine(in[0], in[1], out);
-    clipLine(in[1], in[2], out);
-    clipLine(in[2], in[0], out);
+    index = 0;
+    clipLineNear(in[0], in[1], out, index);
+    clipLineNear(in[1], in[2], out, index);
+    clipLineNear(in[2], in[0], out, index);
 }
 
 template <class TRVSData, class TRFSData>
@@ -587,10 +588,12 @@ void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t in
     for (size_t i = 0; i < 3; i++)
         vertex(vsdata[i]);
 
-    std::vector<TRVSData> out;
-    clipNear(vsdata, out);
+    // Max is 4 output.
+    TRVSData out[4];
+    size_t total = 0;
+    clipNear(vsdata, out, total);
 
-    for (size_t i = 0; i < out.size() - 2; i++)
+    for (size_t i = 0; i < total - 2; i++)
     {
         vsdata[0] = out[0];
         vsdata[1] = out[i + 1];
