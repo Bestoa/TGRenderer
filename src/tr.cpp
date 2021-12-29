@@ -576,8 +576,6 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
     int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
     int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
 
-    float Z[3] = { ndc_v[0].z, ndc_v[1].z - ndc_v[0].z, ndc_v[2].z - ndc_v[0].z };
-
     for (int y = yStart; y < yEnd; y++) {
         int offset_base = y * mBuffer->mW;
         for (int x = xStart; x < xEnd; x++) {
@@ -593,6 +591,13 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
             w1 /= area;
             w2 /= area;
 
+            /* Using the ndc.z to calculate depth, faster then using the interpolated clip.z / clip.w. */
+            float depth = w0 * ndc_v[0].z + w1 * ndc_v[1].z + w2 * ndc_v[2].z;
+            depth = depth / 2.0f + 0.5f;
+            /* z in ndc of opengl should between 0.0f to 1.0f */
+            if (depth < 0.0f)
+                continue;
+
             /* Perspective-Correct */
             w0 /= clip_v[0].w;
             w1 /= clip_v[1].w;
@@ -601,12 +606,6 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3])
             float areaPC =  1 / (w0 + w1 + w2);
             mUPC = w1 * areaPC;
             mVPC = w2 * areaPC;
-
-            float depth = interpFast(Z);
-
-            /* z in ndc of opengl should between 0.0f to 1.0f */
-            if (depth < 0.0f)
-                continue;
 
             int offset = offset_base + x;
             /* easy-z */
