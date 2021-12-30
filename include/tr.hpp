@@ -49,15 +49,19 @@ class TRMeshData
         TRMeshData& operator=(const TRMeshData &) = delete;
 
         void computeTangent();
-        void fillDemoColor();
+        void fillSpriteColor();
+};
+
+enum TRDrawType
+{
+    DRAW_WITH_TEXTURE,
+    DRAW_WITH_COLOR,
 };
 
 enum TRDrawMode
 {
-    DRAW_WITH_TEXTURE,
-    DRAW_WITH_COLOR,
-    DRAW_WITH_DEMO_COLOR,
-    DRAW_WIREFRAME,
+    TR_FILL,
+    TR_LINE,
 };
 
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
@@ -98,11 +102,14 @@ class TRProgramBase
         virtual void vertex(TRVSData &) = 0;
         virtual bool fragment(TRFSData &, float color[3]/* Out */) = 0;
 
-        void drawTriangle(TRMeshData &, size_t index);
-        virtual void rasterization(glm::vec4 clip_v[3], TRFSData &);
-
         void clipLineNear(TRVSData &in1, TRVSData &in2, TRVSData out[4], size_t &index);
         void clipNear(TRVSData in[3], TRVSData out[4], size_t &index);
+
+        void drawTriangle(TRMeshData &, size_t index);
+        void rasterization(glm::vec4 clip_v[3], TRFSData &);
+
+        void rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, TRFSData &fsdata, bool insideCheck);
+        void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, TRFSData &fsdata);
 };
 
 class VSDataBase
@@ -123,14 +130,6 @@ class FSDataBase
         glm::vec2 mTexCoord[3];
         glm::vec3 mNormal[3];
         glm::vec3 mColor[3];
-};
-
-class WireframeProgram : public TRProgramBase<VSDataBase, FSDataBase>
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase &);
-    bool fragment(FSDataBase &, float color[3]);
-    void rasterization(glm::vec4 clip_v[3], FSDataBase &fsdata);
 };
 
 class ColorProgram : public TRProgramBase<VSDataBase, FSDataBase>
@@ -197,7 +196,8 @@ void trClearColor3f(float r, float g, float b);
 void trSetModelMat(glm::mat4 mat);
 void trSetViewMat(glm::mat4 mat);
 void trSetProjMat(glm::mat4 mat);
-void trTriangles(TRMeshData &data, TRDrawMode mode);
+void trTriangles(TRMeshData &data, TRDrawType type);
+void trDrawMode(TRDrawMode mode);
 TRBuffer* trCreateRenderTarget(int w, int h);
 void trSetCurrentRenderTarget(TRBuffer *traget);
 #endif

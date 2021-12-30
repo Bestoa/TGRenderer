@@ -29,8 +29,9 @@ int main()
     truLoadVec3(vertex, 0, 3, 0, 6, mesh.vertices);
 
     trClear();
-    trTriangles(mesh, DRAW_WITH_DEMO_COLOR);
-    truSavePPM("01_demo_color.ppm", buffer->mData, buffer->mW, buffer->mH);
+    mesh.fillSpriteColor();
+    trTriangles(mesh, DRAW_WITH_COLOR);
+    truSavePPM("01_sprite_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     mesh.colors.clear();
     truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);

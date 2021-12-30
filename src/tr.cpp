@@ -33,6 +33,8 @@ glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
 
 size_t gThreadNum = 4;
 
+int gDrawMode = TR_FILL;
+
 // internal function
 void __texture_coord_repeat__(glm::vec2 &coord)
 {
@@ -71,15 +73,15 @@ void TRMeshData::computeTangent()
     }
 }
 
-void TRMeshData::fillDemoColor()
+void TRMeshData::fillSpriteColor()
 {
     if (colors.size() != 0)
         return;
 
-    glm::vec3 demoColor[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
+    glm::vec3 color[3] = { glm::vec3(1.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f) };
 
     for (size_t i = 0; i < vertices.size(); i++)
-        colors.push_back(demoColor[i % 3]);
+        colors.push_back(color[i % 3]);
 }
 
 void TRBuffer::setViewport(int x, int y, int w, int h)
@@ -195,93 +197,6 @@ static inline void __compute_premultiply_mat__()
     gMat4[MAT4_MODELVIEW] =  gMat4[MAT4_VIEW] * gMat4[MAT4_MODEL];
     gMat4[MAT4_MVP] = gMat4[MAT4_PROJ] * gMat4[MAT4_MODELVIEW];
     gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
-}
-
-void __plot__(TRBuffer *buffer, int x, int y)
-{
-    // Not good, but works well
-    if (x > (int)buffer->mW || y > (int)buffer->mH || x < 0 || y < 0)
-        return;
-    uint8_t *base = &buffer->mData[y * buffer->mStride + x * CHANNEL];
-    base[0] = base[1] = base[2] = 255;
-}
-
-void __draw_line__(TRBuffer *buffer, float x0, float y0, float x1, float y1)
-{
-    // Bresenham's line algorithm
-    bool steep = abs(y1 - y0) > abs(x1 - x0);
-    if (steep)
-    {
-        std::swap(x0, y0);
-        std::swap(x1, y1);
-    }
-
-    if (x0 > x1)
-    {
-        std::swap(x0, x1);
-        std::swap(y0, y1);
-    }
-    int deltax = int(x1 - x0);
-    int deltay = int(abs(y1 - y0));
-    float error = 0;
-    float deltaerr = (float)deltay / (float)deltax;
-    int ystep;
-    int y = y0;
-    if (y0 < y1)
-        ystep = 1;
-    else
-        ystep = -1;
-    for (int x = int(x0 + 0.5); x < x1; x++)
-    {
-        if (steep)
-            __plot__(buffer, y, x);
-        else
-            __plot__(buffer, x, y);
-        error += deltaerr;
-        if (error >= 0.5)
-        {
-            y += ystep;
-            error -= 1.0;
-        }
-    }
-}
-
-// tr api
-void WireframeProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
-{
-    for (int i = 0; i < 3; i++)
-    {
-        vsdata[i].mVertex = mesh.vertices[i + index];
-    }
-}
-
-void WireframeProgram::vertex(VSDataBase &vsdata)
-{
-    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-}
-
-bool WireframeProgram::fragment(FSDataBase &fsdata, float color[3])
-{
-    (void)fsdata;
-    (void)color;
-    return false;
-}
-
-void WireframeProgram::rasterization(glm::vec4 clip_v[3], FSDataBase &fsdata)
-{
-    (void)fsdata;
-    glm::vec4 ndc_v[3];
-    glm::vec2 screen_v[3];
-
-    for (int i = 0; i < 3; i++)
-    {
-        ndc_v[i] = clip_v[i] / clip_v[i].w;
-        mBuffer->viewport(screen_v[i], ndc_v[i]);
-    }
-
-    __draw_line__(mBuffer, screen_v[0].x, screen_v[0].y, screen_v[1].x, screen_v[1].y);
-    __draw_line__(mBuffer, screen_v[1].x, screen_v[1].y, screen_v[2].x, screen_v[2].y);
-    __draw_line__(mBuffer, screen_v[2].x, screen_v[2].y, screen_v[0].x, screen_v[0].y);
 }
 
 void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
@@ -617,6 +532,111 @@ void TRProgramBase<TRVSData, TRFSData>::drawTrianglesInstanced(TRBuffer *buffer,
 }
 
 template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::rasterizationPoint(
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, TRFSData &fsdata, bool insideCheck)
+{
+    float w0 = edge(screen_v[1], screen_v[2], point);
+    float w1 = edge(screen_v[2], screen_v[0], point);
+    float w2 = edge(screen_v[0], screen_v[1], point);
+    if (insideCheck && (w0 < 0 || w1 < 0 || w2 < 0))
+        return;
+
+    int x = (int)point.x;
+    int y = (int)point.y;
+
+    /* Barycentric coordinate */
+    w0 /= area;
+    w1 /= area;
+    w2 /= area;
+
+    /* Using the ndc.z to calculate depth, faster then using the interpolated clip.z / clip.w. */
+    float depth = w0 * ndc_v[0].z + w1 * ndc_v[1].z + w2 * ndc_v[2].z;
+    depth = depth / 2.0f + 0.5f;
+    /* z in ndc of opengl should between 0.0f to 1.0f */
+    if (depth < 0.0f)
+        return;
+
+    /* Perspective-Correct */
+    w0 /= clip_v[0].w;
+    w1 /= clip_v[1].w;
+    w2 /= clip_v[2].w;
+
+    float areaPC =  1 / (w0 + w1 + w2);
+    mUPC = w1 * areaPC;
+    mVPC = w2 * areaPC;
+
+    /* easy-z */
+    /* Do not use mutex here to speed up */
+    if (!mBuffer->depthTest(x, y, depth))
+        return;
+
+    float color[3];
+    if (!fragment(fsdata, color))
+        return;
+
+    uint8_t *addr = &mBuffer->mData[(y * mBuffer->mW + x) * CHANNEL];
+    /* depth test */
+    std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
+    if (!mBuffer->depthTest(x, y, depth))
+        return;
+
+    addr[0] = uint8_t(color[0] * 255 + 0.5);
+    addr[1] = uint8_t(color[1] * 255 + 0.5);
+    addr[2] = uint8_t(color[2] * 255 + 0.5);
+}
+
+template <class TRVSData, class TRFSData>
+void TRProgramBase<TRVSData, TRFSData>::rasterizationLine(
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, TRFSData &fsdata)
+{
+    float x0 = screen_v[p1].x, x1 = screen_v[p2].x;
+    float y0 = screen_v[p1].y, y1 = screen_v[p2].y;
+
+    // Bresenham's line algorithm
+    bool steep = abs(y1 - y0) > abs(x1 - x0);
+    if (steep)
+    {
+        std::swap(x0, y0);
+        std::swap(x1, y1);
+    }
+
+    if (x0 > x1)
+    {
+        std::swap(x0, x1);
+        std::swap(y0, y1);
+    }
+    int deltax = int(x1 - x0);
+    int deltay = int(abs(y1 - y0));
+    float error = 0;
+    float deltaerr = (float)deltay / (float)deltax;
+    int ystep;
+    int y = y0;
+    if (y0 < y1)
+        ystep = 1;
+    else
+        ystep = -1;
+    for (int x = int(x0 + 0.5); x < x1; x++)
+    {
+        glm::vec2 v(x, y);
+        if (steep)
+           v = glm::vec2(y, x);
+        // Not good, but works well
+        if (v.x > (int)mBuffer->mW || v.y > (int)mBuffer->mH || v.x < 0 || v.y < 0)
+            continue;
+
+        // skip inside check for draw line
+        rasterizationPoint(clip_v, ndc_v, screen_v, area, v, fsdata, false);
+
+        error += deltaerr;
+        if (error >= 0.5)
+        {
+            y += ystep;
+            error -= 1.0;
+        }
+    }
+}
+
+template <class TRVSData, class TRFSData>
 void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3], TRFSData &fsdata)
 {
     glm::vec4 ndc_v[3];
@@ -632,63 +652,23 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3], TRFSD
     if (area <= 0)
         return;
 
+    if (gDrawMode == TR_LINE)
+    {
+        rasterizationLine(clip_v, ndc_v, screen_v, area, 0, 1, fsdata);
+        rasterizationLine(clip_v, ndc_v, screen_v, area, 1, 2, fsdata);
+        rasterizationLine(clip_v, ndc_v, screen_v, area, 2, 0, fsdata);
+        return;
+    }
+
     int xStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
     int yStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
     int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
     int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
 
     for (int y = yStart; y < yEnd; y++) {
-        int offset_base = y * mBuffer->mW;
         for (int x = xStart; x < xEnd; x++) {
-            glm::vec2 v(x, y);
-            float w0 = edge(screen_v[1], screen_v[2], v);
-            float w1 = edge(screen_v[2], screen_v[0], v);
-            float w2 = edge(screen_v[0], screen_v[1], v);
-            if (w0 < 0 || w1 < 0 || w2 < 0)
-                continue;
-
-            /* Barycentric coordinate */
-            w0 /= area;
-            w1 /= area;
-            w2 /= area;
-
-            /* Using the ndc.z to calculate depth, faster then using the interpolated clip.z / clip.w. */
-            float depth = w0 * ndc_v[0].z + w1 * ndc_v[1].z + w2 * ndc_v[2].z;
-            depth = depth / 2.0f + 0.5f;
-            /* z in ndc of opengl should between 0.0f to 1.0f */
-            if (depth < 0.0f)
-                continue;
-
-            /* Perspective-Correct */
-            w0 /= clip_v[0].w;
-            w1 /= clip_v[1].w;
-            w2 /= clip_v[2].w;
-
-            float areaPC =  1 / (w0 + w1 + w2);
-            mUPC = w1 * areaPC;
-            mVPC = w2 * areaPC;
-
-            int offset = offset_base + x;
-            /* easy-z */
-            /* Do not use mutex here to speed up */
-            if (!mBuffer->depthTest(x, y, depth))
-                continue;
-
-            float color[3];
-            if (!fragment(fsdata, color))
-                continue;
-
-            uint8_t *addr = &mBuffer->mData[offset * CHANNEL];
-            /* depth test */
-            {
-                std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
-                if (!mBuffer->depthTest(x, y, depth))
-                    continue;
-
-                addr[0] = uint8_t(color[0] * 255 + 0.5);
-                addr[1] = uint8_t(color[1] * 255 + 0.5);
-                addr[2] = uint8_t(color[2] * 255 + 0.5);
-            }
+            glm::vec2 point(x, y);
+            rasterizationPoint(clip_v, ndc_v, screen_v, area, point, fsdata, true);
         }
     }
 }
@@ -719,11 +699,11 @@ void trTrianglesMT(TRMeshData &mesh)
     }
 }
 
-void trTriangles(TRMeshData &mesh, TRDrawMode mode)
+void trTriangles(TRMeshData &mesh, TRDrawType type)
 {
     __compute_premultiply_mat__();
 
-    switch (mode)
+    switch (type)
     {
         case DRAW_WITH_TEXTURE:
             if (mesh.tangents.size() == 0)
@@ -733,21 +713,11 @@ void trTriangles(TRMeshData &mesh, TRDrawMode mode)
             else
                 trTrianglesMT<TextureMapProgram>(mesh);
             break;
-        case DRAW_WITH_DEMO_COLOR:
-            mesh.fillDemoColor();
-            if (gEnableLighting)
-                trTrianglesMT<ColorPhongProgram>(mesh);
-            else
-                trTrianglesMT<ColorProgram>(mesh);
-            break;
         case DRAW_WITH_COLOR:
             if (gEnableLighting)
                 trTrianglesMT<ColorPhongProgram>(mesh);
             else
                 trTrianglesMT<ColorProgram>(mesh);
-            break;
-        case DRAW_WIREFRAME:
-            trTrianglesMT<WireframeProgram>(mesh);
             break;
     }
 }
@@ -829,6 +799,11 @@ void trSetViewMat(glm::mat4 mat)
 void trSetProjMat(glm::mat4 mat)
 {
     gMat4[MAT4_PROJ] = mat;
+}
+
+void trDrawMode(TRDrawMode mode)
+{
+    gDrawMode = mode;
 }
 
 TRBuffer * trCreateRenderTarget(int w, int h)
