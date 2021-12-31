@@ -121,12 +121,13 @@ class VSDataBase
         glm::vec3 mColor;
         glm::vec3 mTangent;
 
-        glm::vec4 mClipV;
+        glm::vec4 mClipV; /* out */
 };
 
 class FSDataBase
 {
     public:
+        glm::vec4 mClipV[3];
         glm::vec2 mTexCoord[3];
         glm::vec3 mNormal[3];
         glm::vec3 mColor[3];
@@ -149,14 +150,16 @@ class TextureMapProgram : public TRProgramBase<VSDataBase, FSDataBase>
 class PhongVSData : public VSDataBase
 {
     public:
-        glm::vec3 mFragmentPosition;
+        glm::vec3 mViewFragmentPosition;
+        glm::vec3 mTangentFragmentPosition;
         glm::vec3 mLightPosition;
 };
 
 class PhongFSData : public FSDataBase
 {
     public:
-        glm::vec3 mFragmentPosition[3];
+        glm::vec3 mViewFragmentPosition[3];
+        glm::vec3 mTangentFragmentPosition[3];
         glm::vec3 mLightPosition;
         glm::vec3 mTangentLightPosition[3];
 };
