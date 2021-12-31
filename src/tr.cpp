@@ -798,19 +798,16 @@ void trClearColor3f(float r, float g, float b)
     gRenderTarget->setBGColor(r, g, b);
 }
 
-void trSetModelMat(glm::mat4 mat)
+void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type)
 {
-    gMat4[MAT4_MODEL] = mat;
+    if (type < MAT_INDEX_MAX)
+        gMat3[type] = mat;
 }
 
-void trSetViewMat(glm::mat4 mat)
+void trSetMat4(glm::mat4 mat, MAT_INDEX_TYPE type)
 {
-    gMat4[MAT4_VIEW] = mat;
-}
-
-void trSetProjMat(glm::mat4 mat)
-{
-    gMat4[MAT4_PROJ] = mat;
+    if (type < MAT_INDEX_MAX)
+        gMat4[type] = mat;
 }
 
 void trDrawMode(TRDrawMode mode)

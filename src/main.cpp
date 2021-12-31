@@ -37,20 +37,20 @@ int main(int argc, char *argv[])
     if (objs.size() == 0)
         abort();
 
-    trSetViewMat(glm::lookAt(
+    trSetMat4(glm::lookAt(
                 glm::vec3(0,0.75,1.5), // Camera is at (0,0.75,1.5), in World Space
                 glm::vec3(0,0,0), // and looks at the origin
                 glm::vec3(0,1,0)  // Head is up (set to 0,-1,0 to look upside-down)
-                ));
+                ), MAT4_VIEW);
 
     // Projection matrix : xx Field of View, w:h ratio, display range : 0.1 unit <-> 100 units
-    trSetProjMat(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f));
+    trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
 
     int frame = 0;
     auto start = std::chrono::system_clock::now();
     while (!w.shouldStop() && frame < 360) {
         frame++;
-        trSetModelMat(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
+        trSetMat4(glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)), MAT4_MODEL);
         trClear();
         for (auto obj : objs)
             obj->draw();

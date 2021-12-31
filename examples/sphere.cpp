@@ -137,13 +137,13 @@ int main(int argc, char *argv[])
     TRMeshData data;
     create_sphere(data.vertices, data.uvs, data.normals, 30, 30);
 
-    trSetViewMat(glm::lookAt(
+    trSetMat4(glm::lookAt(
                 glm::vec3(2,1,2),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0)
-                ));
+                ), MAT4_VIEW);
 
-    trSetProjMat(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f));
+    trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
 
     trEnableLighting(true);
     trSetLightPosition3f(100.0f, 0.0f, 0.0f);
@@ -161,7 +161,7 @@ int main(int argc, char *argv[])
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     while (!w.shouldStop()) {
         frame++;
-        trSetModelMat(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)));
+        trSetMat4(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)), MAT4_MODEL);
 
         trClear();
         trTriangles(data, DRAW_WITH_TEXTURE);
