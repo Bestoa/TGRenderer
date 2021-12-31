@@ -24,6 +24,8 @@ int main(int argc, char *argv[])
         return 1;
 
     trEnableLighting(true);
+    trSetLightPosition3f(1.0f, 1.0f, 1.0f);
+
     trClearColor3f(0.1, 0.1, 0.1);
 
     std::vector<std::shared_ptr <TRObj>> objs;

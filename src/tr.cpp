@@ -29,7 +29,7 @@ float gAmbientStrength = 0.1;
 float gSpecularStrength = 0.2;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-glm::vec3 gLightPosition = glm::vec3(1.0f, 1.0f, 1.0f);
+glm::vec3 gLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
 size_t gThreadNum = 4;
 
