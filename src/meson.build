@@ -2,32 +2,33 @@ libtrcore = shared_library('trcore',
            'tr.cpp',
            'texture.cpp',
            'utils.cpp',
-           dependencies:[
+           dependencies : [
              dep_glm,
              ],
-           link_args: '-pthread',
-           include_directories: include_dir,
+           cpp_args : '-O3',
+           link_args : '-pthread',
+           include_directories : include_dir,
            install : true)
 
 libtrobj = shared_library('trobj',
            'objs.cpp',
-           link_with: libtrcore,
-           dependencies:[
+           link_with : libtrcore,
+           dependencies : [
              dep_glm,
              ],
-           include_directories: include_dir,
+           include_directories : include_dir,
            install : true)
 
 executable('TGRenderer',
            'main.cpp',
            window_src,
-           dependencies:[
+           dependencies : [
              dep_glm,
              dep_sdl2,
              dep_sdl2_image,
              ],
-           include_directories: include_dir,
-           link_args: '-pthread',
-           link_with: [ libtrcore, libtrobj ] ,
+           include_directories : include_dir,
+           link_args : '-pthread',
+           link_with : [ libtrcore, libtrobj ] ,
            install : true)
 
