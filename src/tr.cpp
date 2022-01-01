@@ -84,114 +84,6 @@ void TRMeshData::fillSpriteColor()
         colors.push_back(color[i % 3]);
 }
 
-void TRBuffer::setViewport(int x, int y, int w, int h)
-{
-    mVX = x;
-    mVY = y;
-    mVW = w;
-    mVH = h;
-}
-
-void TRBuffer::viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v)
-{
-    screen_v.x = mVX + (mW - 1) * (ndc_v.x / 2 + 0.5);
-    // inverse y here
-    screen_v.y = mVY + (mH - 1) - (mH - 1) * (ndc_v.y / 2 + 0.5);
-}
-
-void TRBuffer::setBGColor(float r, float g, float b)
-{
-    mBGColor[0] = glm::clamp(int(r * 255 + 0.5), 0, 255);
-    mBGColor[1] = glm::clamp(int(g * 255 + 0.5), 0, 255);
-    mBGColor[2] = glm::clamp(int(b * 255 + 0.5), 0, 255);
-}
-
-void TRBuffer::clearColor()
-{
-    for (uint32_t i = 0; i < mH; i++)
-    {
-        uint8_t *base = &mData[i * mStride];
-        for (uint32_t j = 0; j < mW; j++)
-        {
-            base[j * CHANNEL + 0] = mBGColor[0];
-            base[j * CHANNEL + 1] = mBGColor[1];
-            base[j * CHANNEL + 2] = mBGColor[2];
-        }
-    }
-}
-
-void TRBuffer::clearDepth()
-{
-    for (size_t i = 0; i < mW * mH; i++)
-        mDepth[i] = 1.0f;
-}
-
-bool TRBuffer::depthTest(int x, int y, float depth)
-{
-    size_t depth_offset = y * mW + x;
-    /* projection matrix will inverse z-order. */
-    if (mDepth[depth_offset] < depth)
-        return false;
-    else
-        mDepth[depth_offset] = depth;
-    return true;
-}
-
-void TRBuffer::setExtBuffer(void *addr)
-{
-    if (mValid && mExtBuffer)
-        mData = reinterpret_cast<uint8_t *>(addr);
-}
-
-TRBuffer* TRBuffer::create(int w, int h, bool ext)
-{
-    TRBuffer *buffer = new TRBuffer(w, h, ext);
-    if (buffer && buffer->mValid)
-        return buffer;
-
-    if (buffer)
-        delete buffer;
-    return nullptr;
-}
-
-TRBuffer::TRBuffer(int w, int h, bool ext)
-{
-    std::cout << "Create TRBuffer: " << w << "x" << h << " ext = " << ext << std::endl;
-    mExtBuffer = ext;
-    if (!ext)
-    {
-        mData = new uint8_t[w * h * CHANNEL];
-        if (!mData)
-            return;
-    }
-    mDepth = new float[w * h];
-    if (!mDepth)
-    {
-        if (mData)
-            delete mData;
-        return;
-    }
-    mW = mVW = w;
-    mH = mVH = h;
-    mStride = w * CHANNEL;
-    if (!ext)
-        clearColor();
-    clearDepth();
-
-    mValid = true;
-}
-
-TRBuffer::~TRBuffer()
-{
-    std::cout << "Destory TRBuffer.\n";
-    if (!mValid)
-        return;
-    if (!mExtBuffer && mData)
-        delete mData;
-    if (mDepth)
-        delete mDepth;
-}
-
 static inline void __compute_premultiply_mat__()
 {
     gMat4[MAT4_MODELVIEW] =  gMat4[MAT4_VIEW] * gMat4[MAT4_MODEL];
@@ -577,24 +469,23 @@ void TRProgramBase<TRVSData, TRFSData>::rasterizationPoint(
     mUPC = w1 * areaPC;
     mVPC = w2 * areaPC;
 
+    size_t offset = mBuffer->getOffset(x, y);
     /* easy-z */
     /* Do not use mutex here to speed up */
-    if (!mBuffer->depthTest(x, y, depth))
+    if (!mBuffer->depthTest(offset, depth))
         return;
 
     float color[3];
     if (!fragment(fsdata, color))
         return;
 
-    uint8_t *addr = &mBuffer->mData[(y * mBuffer->mW + x) * CHANNEL];
     /* depth test */
     std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
-    if (!mBuffer->depthTest(x, y, depth))
+    if (!mBuffer->depthTest(offset, depth))
         return;
 
-    addr[0] = uint8_t(color[0] * 255 + 0.5);
-    addr[1] = uint8_t(color[1] * 255 + 0.5);
-    addr[2] = uint8_t(color[2] * 255 + 0.5);
+    mBuffer->setColor(offset, color);
+
 }
 
 template <class TRVSData, class TRFSData>
@@ -795,7 +686,7 @@ void trClear()
 
 void trClearColor3f(float r, float g, float b)
 {
-    gRenderTarget->setBGColor(r, g, b);
+    gRenderTarget->setBgColor(r, g, b);
 }
 
 void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type)
@@ -817,7 +708,7 @@ void trDrawMode(TRDrawMode mode)
 
 TRBuffer * trCreateRenderTarget(int w, int h)
 {
-    return TRBuffer::create(w, h);
+    return new TRBuffer(w, h, true);
 }
 
 void trSetCurrentRenderTarget(TRBuffer *buffer)

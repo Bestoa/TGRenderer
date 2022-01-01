@@ -41,3 +41,37 @@ free_image:
     stbi_image_free(texSrcData);
 }
 
+TRTexture::TRTexture(int w, int h)
+{
+    mW = w;
+    mH = h;
+    mStride = mW * TEXTURE_CHANNEL;
+    mData = new float[mStride * mH];
+    if (mData)
+        mValid = true;
+}
+
+TRTexture::~TRTexture()
+{
+    if (mData)
+        delete mData;
+}
+
+float* TRTexture::getColor(float u, float v)
+{
+    int x = int(u * (mW - 1) + 0.5);
+    // inverse y here
+    int y = int(mH - 1 - v * (mH - 1) + 0.5);
+    // Only support RGB texture
+    return mData + y * mStride + x * TEXTURE_CHANNEL;
+}
+
+float* TRTexture::getBuffer()
+{
+    return mData;
+}
+
+bool TRTexture::isValid()
+{
+    return mValid;
+}

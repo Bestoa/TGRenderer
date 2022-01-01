@@ -2,32 +2,25 @@
 #define __TOPGUN_TEXTURE__
 
 #include <glm/glm.hpp>
+#include "buffer.hpp"
 
 #define TEXTURE_CHANNEL (3)
 class TRTexture
 {
     public:
         TRTexture(const char *);
+        // Empty texture
+        TRTexture(int w, int h);
         TRTexture() = delete;
         TRTexture(const TRTexture &) = delete;
         TRTexture& operator=(const TRTexture &) = delete;
 
-        ~TRTexture()
-        {
-            if (mData)
-                delete mData;
-        };
+        ~TRTexture();
 
-        float* getColor(float u, float v)
-        {
-            int x = int(u * (mW - 1) + 0.5);
-            // inverse y here
-            int y = int(mH - 1 - v * (mH - 1) + 0.5);
-            // Only support RGB texture
-            return mData + y * mStride + x * TEXTURE_CHANNEL;
-        };
+        float* getColor(float u, float v);
+        float* getBuffer();
 
-        bool isValid() { return mValid; };
+        bool isValid();
 
     private:
         bool mValid = false;
@@ -35,6 +28,24 @@ class TRTexture
         int mStride = 0;
         int mW = 0;
         int mH = 0;
+};
+
+class TRTextureBuffer : public TRBuffer
+{
+    public:
+        TRTextureBuffer(int w, int h);
+        TRTextureBuffer() = delete;
+        TRTextureBuffer(const TRTextureBuffer &) = delete;
+        TRTextureBuffer& operator=(const TRTextureBuffer &) = delete;
+
+        ~TRTextureBuffer();
+
+        void clearColor();
+        void setColor(size_t offset, float c[BUFFER_CHANNEL]);
+        TRTexture *getTexture();
+
+    private:
+        TRTexture *mTexture = nullptr;
 };
 
 enum TRTextureType

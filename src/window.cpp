@@ -45,8 +45,8 @@ TRWindow::TRWindow(int w, int h, const char *name)
     if (mTexture == nullptr)
         goto error;
 
-    mBuffer = TRBuffer::create(mWidth, mHeight, true);
-    if (!mBuffer)
+    mBuffer = new TRBuffer(mWidth, mHeight, false);
+    if (!mBuffer || !mBuffer->isValid())
         goto error;
 
     void *addr;

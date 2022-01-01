@@ -3,33 +3,41 @@
 
 #include <glm/glm.hpp>
 
-#define CHANNEL (3)
+#define BUFFER_CHANNEL (3)
 class TRBuffer
 {
     public:
         uint8_t *mData = nullptr;
         uint32_t mW = 0;
         uint32_t mH = 0;
-        uint32_t mStride = 0;
 
         std::mutex mDepthMutex;
 
         void setViewport(int x, int y, int w, int h);
         void viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v);
-        void setBGColor(float r, float g, float b);
-        void clearColor();
+        void setBgColor(float r, float g, float b);
+        virtual void clearColor();
         void clearDepth();
-        bool depthTest(int x, int y, float depth);
+
+        size_t getOffset(int x, int y);
+        virtual void setColor(size_t offset, float c[BUFFER_CHANNEL]);
+        bool depthTest(size_t offset, float depth);
 
         void setExtBuffer(void *addr);
 
         TRBuffer() = delete;
+        TRBuffer(int w, int h, bool alloc = true);
         TRBuffer(const TRBuffer &) = delete;
         TRBuffer& operator=(const TRBuffer &) = delete;
 
-        ~TRBuffer();
+        virtual ~TRBuffer();
 
-        static TRBuffer* create(int w, int h, bool ext = false);
+        bool isValid();
+
+    protected:
+        bool mValid = false;
+        uint8_t mBgColor3i[BUFFER_CHANNEL] = { 0, 0, 0 };
+        float mBgColor3f[BUFFER_CHANNEL] = { 0.0f, 0.0f, 0.0f };
 
     private:
         float *mDepth = nullptr;
@@ -39,11 +47,8 @@ class TRBuffer
         uint32_t mVW = 0;
         uint32_t mVH = 0;
 
-        uint8_t mBGColor[CHANNEL] = { 0, 0, 0 };
-        // data was not allocated by us.
-        bool mExtBuffer = false;
-        bool mValid = false;
-
-        TRBuffer(int w, int h, bool ext);
+        // data was allocated by us.
+        bool mAlloc = true;
+        unsigned int mId = 0;
 };
 #endif
