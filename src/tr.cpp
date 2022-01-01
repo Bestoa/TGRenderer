@@ -270,9 +270,9 @@ void ColorPhongProgram::vertex(PhongVSData &vsdata)
     vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
 }
 
-void ColorPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
+void ColorPhongProgram::prepareFragmentData(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
-    TRProgramBase::preInterp(vsdata, fsdata);
+    TRProgramBase::prepareFragmentData(vsdata, fsdata);
     fsdata.mViewFragmentPosition[0] = vsdata[0].mViewFragmentPosition;
     fsdata.mViewFragmentPosition[1] = vsdata[1].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
     fsdata.mViewFragmentPosition[2] = vsdata[2].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
@@ -351,9 +351,9 @@ void TextureMapPhongProgram::vertex(PhongVSData &vsdata)
     }
 }
 
-void TextureMapPhongProgram::preInterp(PhongVSData vsdata[3], PhongFSData &fsdata)
+void TextureMapPhongProgram::prepareFragmentData(PhongVSData vsdata[3], PhongFSData &fsdata)
 {
-    TRProgramBase::preInterp(vsdata, fsdata);
+    TRProgramBase::prepareFragmentData(vsdata, fsdata);
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
@@ -437,7 +437,7 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 }
 
 template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::preInterp(TRVSData *vsdata, TRFSData &fsdata)
+void TRProgramBase<TRVSData, TRFSData>::prepareFragmentData(TRVSData *vsdata, TRFSData &fsdata)
 {
     fsdata.mClipV[0] = vsdata[0].mClipV;
     fsdata.mClipV[1] = vsdata[1].mClipV - vsdata[0].mClipV;
@@ -526,7 +526,7 @@ void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t in
         vsdata[1] = out[i + 1];
         vsdata[2] = out[i + 2];
         glm::vec4 clipV[3] = { vsdata[0].mClipV, vsdata[1].mClipV, vsdata[2].mClipV };
-        preInterp(vsdata, fsdata);
+        prepareFragmentData(vsdata, fsdata);
         rasterization(clipV, fsdata);
     }
 }

@@ -67,7 +67,14 @@ class TRProgramBase
             return v[0] + v[1] * mUPC + v[2] * mVPC;
         }
 
-        virtual void preInterp(TRVSData *, TRFSData &);
+        /* Prepare fragment data for interpolation. If you want the user added variable
+         * (such like AAA) in TRVSData can be interpolated for each fragment,
+         * just put { V0.AAA, V1.AAA - V0.AAA, V2.AAA - V0.AAA } into TRFSData.
+         * For uniform variables, only need to copy from TRVSData to TRFSData. */
+        virtual void prepareFragmentData(TRVSData *, TRFSData &);
+
+        /* Add a new vertex if needed when clipping near plane. Formula:
+         * new V.AAA = in2.AAA + t * (in1.AAA -in2.AAA) */
         virtual void interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV);
 
     private:
@@ -144,7 +151,7 @@ class ColorPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
     void loadVertexData(TRMeshData &, PhongVSData *, size_t);
     void vertex(PhongVSData &);
-    void preInterp(PhongVSData *, PhongFSData &);
+    void prepareFragmentData(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
     void interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV);
 };
@@ -153,7 +160,7 @@ class TextureMapPhongProgram : public TRProgramBase<PhongVSData, PhongFSData>
 {
     void loadVertexData(TRMeshData &, PhongVSData *, size_t);
     void vertex(PhongVSData &);
-    void preInterp(PhongVSData *, PhongFSData &);
+    void prepareFragmentData(PhongVSData *, PhongFSData &);
     bool fragment(PhongFSData &, float color[3]);
     void interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV);
 };
