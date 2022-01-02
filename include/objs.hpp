@@ -14,9 +14,12 @@ class TRObj
         TRObj() = delete;
         TRObj(const TRObj &) = delete;
         TRObj& operator=(const TRObj &) = delete;
+
     private:
 
         TRMeshData mMeshData;
+
+        TextureMapPhongProgram mProg;
 
         TRTexture *mTextureDiffuse = nullptr;
         TRTexture *mTextureSpecular = nullptr;

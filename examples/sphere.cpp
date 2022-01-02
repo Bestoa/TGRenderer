@@ -134,8 +134,10 @@ int main(int argc, char *argv[])
     if (!w.isRunning())
         return 1;
 
-    TRMeshData data;
-    create_sphere(data.vertices, data.uvs, data.normals, 30, 30);
+    TRMeshData sphere;
+    create_sphere(sphere.vertices, sphere.uvs, sphere.normals, 30, 30);
+    sphere.fillSpriteColor();
+    sphere.computeTangent();
 
     trSetMat4(glm::lookAt(
                 glm::vec3(2,1,2),
@@ -145,7 +147,6 @@ int main(int argc, char *argv[])
 
     trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
 
-    trEnableLighting(true);
     trSetLightPosition3f(100.0f, 0.0f, 0.0f);
 
     TRTexture tex(argv[1]);
@@ -157,6 +158,7 @@ int main(int argc, char *argv[])
     trBindTexture(&tex, TEXTURE_DIFFUSE);
 
     int frame = 0;
+    TextureMapPhongProgram prog;
 
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     while (!w.shouldStop()) {
@@ -164,7 +166,7 @@ int main(int argc, char *argv[])
         trSetMat4(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)), MAT4_MODEL);
 
         trClear();
-        trTriangles(data, DRAW_WITH_TEXTURE);
+        trTriangles(sphere, &prog);
         w.swapBuffer();
     }
     std::cout << "frames = " << frame << std::endl;

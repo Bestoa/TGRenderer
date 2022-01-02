@@ -9,8 +9,8 @@
 #include "window.hpp"
 #include "objs.hpp"
 
-#define WIDTH (800)
-#define HEIGHT (600)
+#define WIDTH (1280)
+#define HEIGHT (720)
 
 int main(int argc, char *argv[])
 {
@@ -23,7 +23,6 @@ int main(int argc, char *argv[])
     if (!w.isRunning())
         return 1;
 
-    trEnableLighting(true);
     trSetLightPosition3f(1.0f, 1.0f, 1.0f);
 
     trClearColor3f(0.1, 0.1, 0.1);

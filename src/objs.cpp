@@ -62,6 +62,8 @@ TRObj::TRObj(const char *config)
         cout << "Mesh data is invalid." << endl;
         return;
     }
+    mMeshData.computeTangent();
+    mMeshData.fillSpriteColor();
 
     cout << "Loading diffuse texture..." << endl;
     getline(in, line);
@@ -127,7 +129,7 @@ bool TRObj::draw()
     if (mTextureNormal && mTextureNormal->isValid())
         trBindTexture(mTextureNormal, TEXTURE_NORMAL);
 
-    trTriangles(mMeshData, DRAW_WITH_TEXTURE);
+    trTriangles(mMeshData, &mProg);
 
     return true;
 }

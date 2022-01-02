@@ -28,16 +28,18 @@ int main()
     TRMeshData mesh;
     truLoadVec3(vertex, 0, 3, 0, 6, mesh.vertices);
 
+    ColorProgram prog;
+
     trClear();
     mesh.fillSpriteColor();
-    trTriangles(mesh, DRAW_WITH_COLOR);
+    trTriangles(mesh, &prog);
     truSavePPM("01_sprite_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     mesh.colors.clear();
     truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);
 
     trClear();
-    trTriangles(mesh, DRAW_WITH_COLOR);
+    trTriangles(mesh, &prog);
     truSavePPM("01_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     delete buffer;

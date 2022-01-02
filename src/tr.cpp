@@ -24,14 +24,13 @@ glm::mat3 gMat3[MAT_INDEX_MAX] =
     glm::mat3(1.0f), // normal mat
 };
 
-bool gEnableLighting = false;
 float gAmbientStrength = 0.1;
 float gSpecularStrength = 0.2;
 int gShininess = 32;
 glm::vec3 gLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
 glm::vec3 gLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 
-size_t gThreadNum = 4;
+size_t gThreadNum = 2;
 
 int gDrawMode = TR_FILL;
 
@@ -56,6 +55,9 @@ void textureCoordWrap(glm::vec2 &coord)
 
 void TRMeshData::computeTangent()
 {
+    if (tangents.size() != 0)
+        return;
+
     for (size_t i = 0; i < vertices.size(); i += 3)
     {
         // Edges of the triangle : postion delta
@@ -91,47 +93,45 @@ static inline void __compute_premultiply_mat__()
     gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
 }
 
-void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
+void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase *vsdata, size_t index)
 {
-    for (int i = 0; i < 3; i++)
-    {
-        vsdata[i].mVertex = mesh.vertices[i + index];
-        vsdata[i].mColor = mesh.colors[i + index];
-    }
+    vsdata->mVertex = mesh.vertices[index];
+    vsdata->mColor = mesh.colors[index];
 }
 
-void ColorProgram::vertex(VSDataBase &vsdata)
+void ColorProgram::vertex(VSDataBase *vsdata)
 {
-    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata->mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata->mVertex, 1.0f);
 }
 
-bool ColorProgram::fragment(FSDataBase &fsdata, float color[3])
+bool ColorProgram::fragment(FSDataBase *fsdata, float color[3])
 {
-    glm::vec3 C = interpFast(fsdata.mColor);
+    glm::vec3 C = interpFast(fsdata->mColor);
     color[0] = C[0];
     color[1] = C[1];
     color[2] = C[2];
     return true;
 }
 
-
-void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase vsdata[3], size_t index)
+TRProgramBase* ColorProgram::clone()
 {
-    for (int i = 0; i < 3; i++)
-    {
-        vsdata[i].mVertex = mesh.vertices[i + index];
-        vsdata[i].mTexCoord = mesh.uvs[i + index];
-    }
+    return new ColorProgram();
 }
 
-void TextureMapProgram::vertex(VSDataBase &vsdata)
+void TextureMapProgram::loadVertexData(TRMeshData &mesh, VSDataBase *vsdata, size_t index)
 {
-    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
+    vsdata->mVertex = mesh.vertices[index];
+    vsdata->mTexCoord = mesh.uvs[index];
 }
 
-bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
+void TextureMapProgram::vertex(VSDataBase *vsdata)
 {
-    glm::vec2 texCoord = interpFast(fsdata.mTexCoord);
+    vsdata->mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata->mVertex, 1.0f);
+}
+
+bool TextureMapProgram::fragment(FSDataBase *fsdata, float color[3])
+{
+    glm::vec2 texCoord = interpFast(fsdata->mTexCoord);
     textureCoordWrap(texCoord);
 
     float *c = gTexture[TEXTURE_DIFFUSE]->getColor(texCoord.x, texCoord.y);
@@ -142,52 +142,68 @@ bool TextureMapProgram::fragment(FSDataBase &fsdata, float color[3])
     return true;
 }
 
-void ColorPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
+TRProgramBase* TextureMapProgram::clone()
+{
+    return new TextureMapProgram();
+}
+
+void ColorPhongProgram::loadVertexData(TRMeshData &mesh, VSDataBase *v, size_t index)
 {
     glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
+    PhongVSData *vsdata = dynamic_cast<PhongVSData *>(v);
 
-    for (int i = 0; i < 3; i++)
-    {
-        vsdata[i].mVertex = mesh.vertices[i + index];
-        vsdata[i].mNormal = mesh.normals[i + index];
-        vsdata[i].mColor = mesh.colors[i + index];
-        vsdata[i].mLightPosition = viewLightPostion;
-    }
+    vsdata->mVertex = mesh.vertices[index];
+    vsdata->mNormal = mesh.normals[index];
+    vsdata->mColor = mesh.colors[index];
+    vsdata->mLightPosition = viewLightPostion;
 }
 
-void ColorPhongProgram::vertex(PhongVSData &vsdata)
+void ColorPhongProgram::vertex(VSDataBase *v)
 {
-    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mViewFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
+    PhongVSData *vsdata = dynamic_cast<PhongVSData *>(v);
+
+    vsdata->mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata->mVertex, 1.0f);
+    vsdata->mViewFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata->mVertex, 1.0f);
+    vsdata->mNormal = gMat3[MAT3_NORMAL] * vsdata->mNormal;
 }
 
-void ColorPhongProgram::prepareFragmentData(PhongVSData vsdata[3], PhongFSData &fsdata)
+void ColorPhongProgram::prepareFragmentData(VSDataBase *v[3], FSDataBase *f)
 {
-    TRProgramBase::prepareFragmentData(vsdata, fsdata);
-    fsdata.mViewFragmentPosition[0] = vsdata[0].mViewFragmentPosition;
-    fsdata.mViewFragmentPosition[1] = vsdata[1].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
-    fsdata.mViewFragmentPosition[2] = vsdata[2].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
+    TRProgramBase::prepareFragmentData(v, f);
 
-    fsdata.mLightPosition = vsdata[0].mLightPosition;
+    PhongVSData **vsdata = reinterpret_cast<PhongVSData **>(v);
+    PhongFSData *fsdata = dynamic_cast<PhongFSData *>(f);
+
+    fsdata->mViewFragmentPosition[0] = vsdata[0]->mViewFragmentPosition;
+    fsdata->mViewFragmentPosition[1] = vsdata[1]->mViewFragmentPosition - vsdata[0]->mViewFragmentPosition;
+    fsdata->mViewFragmentPosition[2] = vsdata[2]->mViewFragmentPosition - vsdata[0]->mViewFragmentPosition;
+
+    fsdata->mLightPosition = vsdata[0]->mLightPosition;
 }
 
-void ColorPhongProgram::interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV)
+void ColorPhongProgram::interpVertex(float t, VSDataBase *in1, VSDataBase *in2, VSDataBase *outV)
 {
     TRProgramBase::interpVertex(t, in1, in2, outV);
-    outV.mViewFragmentPosition = in2.mViewFragmentPosition + t * (in1.mViewFragmentPosition - in2.mViewFragmentPosition);
-    outV.mLightPosition = in2.mLightPosition + t * (in1.mLightPosition - in2.mLightPosition);
+
+    PhongVSData *nin1 = dynamic_cast<PhongVSData *>(in1);
+    PhongVSData *nin2 = dynamic_cast<PhongVSData *>(in2);
+    PhongVSData *noutV = dynamic_cast<PhongVSData *>(outV);
+
+    noutV->mViewFragmentPosition = nin2->mViewFragmentPosition + t * (nin1->mViewFragmentPosition - nin2->mViewFragmentPosition);
+    noutV->mLightPosition = nin2->mLightPosition + t * (nin1->mLightPosition - nin2->mLightPosition);
 }
 
-bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
+bool ColorPhongProgram::fragment(FSDataBase *f, float color[3])
 {
-    glm::vec3 fragmentPosition = interpFast(fsdata.mViewFragmentPosition);
-    glm::vec3 normal = interpFast(fsdata.mNormal);
-    glm::vec3 baseColor = interpFast(fsdata.mColor);
+    PhongFSData *fsdata = dynamic_cast<PhongFSData *>(f);
+
+    glm::vec3 fragmentPosition = interpFast(fsdata->mViewFragmentPosition);
+    glm::vec3 normal = interpFast(fsdata->mNormal);
+    glm::vec3 baseColor = interpFast(fsdata->mColor);
 
     normal = glm::normalize(normal);
     // from fragment to light
-    glm::vec3 lightDirection = glm::normalize(fsdata.mLightPosition - fragmentPosition);
+    glm::vec3 lightDirection = glm::normalize(fsdata->mLightPosition - fragmentPosition);
 
     float diff = glm::max(dot(normal, lightDirection), 0.0f);
 
@@ -209,74 +225,104 @@ bool ColorPhongProgram::fragment(PhongFSData &fsdata, float color[3])
     return true;
 }
 
-void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, PhongVSData vsdata[3], size_t index)
+VSDataBase * ColorPhongProgram::allocVSData()
 {
-    glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
-
-    for (int i = 0; i < 3; i++)
-    {
-        vsdata[i].mVertex = mesh.vertices[i + index];
-        vsdata[i].mTexCoord = mesh.uvs[i + index];
-        vsdata[i].mNormal = mesh.normals[i + index];
-        vsdata[i].mLightPosition = viewLightPostion;
-        vsdata[i].mTangent = mesh.tangents[i / 3];
-    }
+    return dynamic_cast<VSDataBase *>(&mVSData[mAllocIndex++]);
 }
 
-void TextureMapPhongProgram::vertex(PhongVSData &vsdata)
+FSDataBase * ColorPhongProgram::allocFSData()
 {
-    vsdata.mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mViewFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata.mVertex, 1.0f);
-    vsdata.mNormal = gMat3[MAT3_NORMAL] * vsdata.mNormal;
+    return dynamic_cast<FSDataBase *>(&mFSData);
+}
+
+void ColorPhongProgram::freeShaderData()
+{
+    mAllocIndex = 0;
+}
+
+TRProgramBase* ColorPhongProgram::clone()
+{
+    return new ColorPhongProgram();
+}
+
+void TextureMapPhongProgram::loadVertexData(TRMeshData &mesh, VSDataBase *v, size_t index)
+{
+    glm::vec3 viewLightPostion = gMat4[MAT4_VIEW] * glm::vec4(gLightPosition, 1.0f);
+    PhongVSData *vsdata = dynamic_cast<PhongVSData *>(v);
+
+    vsdata->mVertex = mesh.vertices[index];
+    vsdata->mTexCoord = mesh.uvs[index];
+    vsdata->mNormal = mesh.normals[index];
+    vsdata->mLightPosition = viewLightPostion;
+    vsdata->mTangent = mesh.tangents[index / 3];
+}
+
+void TextureMapPhongProgram::vertex(VSDataBase *v)
+{
+    PhongVSData *vsdata = dynamic_cast<PhongVSData *>(v);
+
+    vsdata->mClipV = gMat4[MAT4_MVP] * glm::vec4(vsdata->mVertex, 1.0f);
+    vsdata->mViewFragmentPosition = gMat4[MAT4_MODELVIEW] * glm::vec4(vsdata->mVertex, 1.0f);
+    vsdata->mNormal = gMat3[MAT3_NORMAL] * vsdata->mNormal;
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
-        glm::vec3 N = glm::normalize(vsdata.mNormal);
-        glm::vec3 T = glm::normalize(gMat3[MAT3_NORMAL] * vsdata.mTangent);
+        glm::vec3 N = glm::normalize(vsdata->mNormal);
+        glm::vec3 T = glm::normalize(gMat3[MAT3_NORMAL] * vsdata->mTangent);
         T = glm::normalize(T - dot(T, N) * N);
         glm::vec3 B = glm::cross(N, T);
         // Mat3 from view space to tangent space
         glm::mat3 TBN = glm::transpose(glm::mat3(T, B, N));
-        vsdata.mTangentFragmentPosition = TBN * vsdata.mViewFragmentPosition;
+        vsdata->mTangentFragmentPosition = TBN * vsdata->mViewFragmentPosition;
         // Light Position is fixed in view space, but will changed in tangent space
-        vsdata.mLightPosition = TBN * vsdata.mLightPosition;
+        vsdata->mLightPosition = TBN * vsdata->mLightPosition;
     }
 }
 
-void TextureMapPhongProgram::prepareFragmentData(PhongVSData vsdata[3], PhongFSData &fsdata)
+void TextureMapPhongProgram::prepareFragmentData(VSDataBase *v[3], FSDataBase *f)
 {
-    TRProgramBase::prepareFragmentData(vsdata, fsdata);
+    TRProgramBase::prepareFragmentData(v, f);
+
+    PhongVSData **vsdata = reinterpret_cast<PhongVSData **>(v);
+    PhongFSData *fsdata = dynamic_cast<PhongFSData *>(f);
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
-        fsdata.mTangentFragmentPosition[0] = vsdata[0].mTangentFragmentPosition;
-        fsdata.mTangentFragmentPosition[1] = vsdata[1].mTangentFragmentPosition - vsdata[0].mTangentFragmentPosition;
-        fsdata.mTangentFragmentPosition[2] = vsdata[2].mTangentFragmentPosition - vsdata[0].mTangentFragmentPosition;
+        fsdata->mTangentFragmentPosition[0] = vsdata[0]->mTangentFragmentPosition;
+        fsdata->mTangentFragmentPosition[1] = vsdata[1]->mTangentFragmentPosition - vsdata[0]->mTangentFragmentPosition;
+        fsdata->mTangentFragmentPosition[2] = vsdata[2]->mTangentFragmentPosition - vsdata[0]->mTangentFragmentPosition;
 
-        fsdata.mTangentLightPosition[0] = vsdata[0].mLightPosition;
-        fsdata.mTangentLightPosition[1] = vsdata[1].mLightPosition - vsdata[0].mLightPosition;
-        fsdata.mTangentLightPosition[2] = vsdata[2].mLightPosition - vsdata[0].mLightPosition;
+        fsdata->mTangentLightPosition[0] = vsdata[0]->mLightPosition;
+        fsdata->mTangentLightPosition[1] = vsdata[1]->mLightPosition - vsdata[0]->mLightPosition;
+        fsdata->mTangentLightPosition[2] = vsdata[2]->mLightPosition - vsdata[0]->mLightPosition;
     } else {
-        fsdata.mViewFragmentPosition[0] = vsdata[0].mViewFragmentPosition;
-        fsdata.mViewFragmentPosition[1] = vsdata[1].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
-        fsdata.mViewFragmentPosition[2] = vsdata[2].mViewFragmentPosition - vsdata[0].mViewFragmentPosition;
+        fsdata->mViewFragmentPosition[0] = vsdata[0]->mViewFragmentPosition;
+        fsdata->mViewFragmentPosition[1] = vsdata[1]->mViewFragmentPosition - vsdata[0]->mViewFragmentPosition;
+        fsdata->mViewFragmentPosition[2] = vsdata[2]->mViewFragmentPosition - vsdata[0]->mViewFragmentPosition;
 
-        fsdata.mLightPosition = vsdata[0].mLightPosition;
+        fsdata->mLightPosition = vsdata[0]->mLightPosition;
     }
 }
 
-void TextureMapPhongProgram::interpVertex(float t, PhongVSData &in1, PhongVSData &in2, PhongVSData &outV)
+void TextureMapPhongProgram::interpVertex(float t, VSDataBase *in1, VSDataBase *in2, VSDataBase *outV)
 {
     TRProgramBase::interpVertex(t, in1, in2, outV);
-    outV.mViewFragmentPosition = in2.mViewFragmentPosition + t * (in1.mViewFragmentPosition - in2.mViewFragmentPosition);
-    outV.mTangentFragmentPosition = in2.mTangentFragmentPosition + t * (in1.mTangentFragmentPosition - in2.mTangentFragmentPosition);
-    outV.mLightPosition = in2.mLightPosition + t * (in1.mLightPosition - in2.mLightPosition);
+
+    PhongVSData *nin1 = dynamic_cast<PhongVSData *>(in1);
+    PhongVSData *nin2 = dynamic_cast<PhongVSData *>(in2);
+    PhongVSData *noutV = dynamic_cast<PhongVSData *>(outV);
+
+    noutV->mViewFragmentPosition = nin2->mViewFragmentPosition + t * (nin1->mViewFragmentPosition - nin2->mViewFragmentPosition);
+    noutV->mTangentFragmentPosition = nin2->mTangentFragmentPosition + t * (nin1->mTangentFragmentPosition - nin2->mTangentFragmentPosition);
+    noutV->mLightPosition = nin2->mLightPosition + t * (nin1->mLightPosition - nin2->mLightPosition);
 }
 
-bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
+bool TextureMapPhongProgram::fragment(FSDataBase *f, float color[3])
 {
+    PhongFSData *fsdata = dynamic_cast<PhongFSData *>(f);
+
     glm::vec3 fragmentPosition;
-    glm::vec2 texCoord = interpFast(fsdata.mTexCoord);
+    glm::vec2 texCoord = interpFast(fsdata->mTexCoord);
     textureCoordWrap(texCoord);
     glm::vec3 normal;
     glm::vec3 lightPosition;
@@ -285,13 +331,13 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
 
     if (gTexture[TEXTURE_NORMAL] != nullptr)
     {
-        fragmentPosition = interpFast(fsdata.mTangentFragmentPosition);
+        fragmentPosition = interpFast(fsdata->mTangentFragmentPosition);
         normal = glm::make_vec3(gTexture[TEXTURE_NORMAL]->getColor(texCoord.x, texCoord.y)) * 2.0f - 1.0f;
-        lightPosition = interpFast(fsdata.mTangentLightPosition);
+        lightPosition = interpFast(fsdata->mTangentLightPosition);
     } else {
-        fragmentPosition = interpFast(fsdata.mViewFragmentPosition);
-        normal = interpFast(fsdata.mNormal);
-        lightPosition = fsdata.mLightPosition;
+        fragmentPosition = interpFast(fsdata->mViewFragmentPosition);
+        normal = interpFast(fsdata->mNormal);
+        lightPosition = fsdata->mLightPosition;
     }
     normal = glm::normalize(normal);
     // from fragment to light
@@ -328,59 +374,76 @@ bool TextureMapPhongProgram::fragment(PhongFSData &fsdata, float color[3])
     return true;
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::prepareFragmentData(TRVSData *vsdata, TRFSData &fsdata)
+VSDataBase * TextureMapPhongProgram::allocVSData()
 {
-    fsdata.mClipV[0] = vsdata[0].mClipV;
-    fsdata.mClipV[1] = vsdata[1].mClipV - vsdata[0].mClipV;
-    fsdata.mClipV[2] = vsdata[2].mClipV - vsdata[0].mClipV;
-
-    fsdata.mTexCoord[0] = vsdata[0].mTexCoord;
-    fsdata.mTexCoord[1] = vsdata[1].mTexCoord - vsdata[0].mTexCoord;
-    fsdata.mTexCoord[2] = vsdata[2].mTexCoord - vsdata[0].mTexCoord;
-
-    fsdata.mNormal[0] = vsdata[0].mNormal;
-    fsdata.mNormal[1] = vsdata[1].mNormal - vsdata[0].mNormal;
-    fsdata.mNormal[2] = vsdata[2].mNormal - vsdata[0].mNormal;
-
-    fsdata.mColor[0] = vsdata[0].mColor;
-    fsdata.mColor[1] = vsdata[1].mColor - vsdata[0].mColor;
-    fsdata.mColor[2] = vsdata[2].mColor - vsdata[0].mColor;
+    return dynamic_cast<VSDataBase *>(&mVSData[mAllocIndex++]);
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::interpVertex(float t, TRVSData &in1, TRVSData &in2, TRVSData &outV)
+FSDataBase * TextureMapPhongProgram::allocFSData()
 {
-    outV.mTexCoord = in2.mTexCoord + t * (in1.mTexCoord - in2.mTexCoord);
-    outV.mNormal = in2.mNormal + t * (in1.mNormal - in2.mNormal);
-    outV.mColor = in2.mColor + t * (in1.mColor - in2.mColor);
-    outV.mClipV = in2.mClipV + t * (in1.mClipV - in2.mClipV);
+    return dynamic_cast<FSDataBase *>(&mFSData);
+}
+
+void TextureMapPhongProgram::freeShaderData()
+{
+    mAllocIndex = 0;
+}
+
+TRProgramBase* TextureMapPhongProgram::clone()
+{
+    return new TextureMapPhongProgram();
+}
+
+void TRProgramBase::prepareFragmentData(VSDataBase *vsdata[3], FSDataBase *fsdata)
+{
+    fsdata->mClipV[0] = vsdata[0]->mClipV;
+    fsdata->mClipV[1] = vsdata[1]->mClipV - vsdata[0]->mClipV;
+    fsdata->mClipV[2] = vsdata[2]->mClipV - vsdata[0]->mClipV;
+
+    fsdata->mTexCoord[0] = vsdata[0]->mTexCoord;
+    fsdata->mTexCoord[1] = vsdata[1]->mTexCoord - vsdata[0]->mTexCoord;
+    fsdata->mTexCoord[2] = vsdata[2]->mTexCoord - vsdata[0]->mTexCoord;
+
+    fsdata->mNormal[0] = vsdata[0]->mNormal;
+    fsdata->mNormal[1] = vsdata[1]->mNormal - vsdata[0]->mNormal;
+    fsdata->mNormal[2] = vsdata[2]->mNormal - vsdata[0]->mNormal;
+
+    fsdata->mColor[0] = vsdata[0]->mColor;
+    fsdata->mColor[1] = vsdata[1]->mColor - vsdata[0]->mColor;
+    fsdata->mColor[2] = vsdata[2]->mColor - vsdata[0]->mColor;
+}
+
+void TRProgramBase::interpVertex(float t, VSDataBase *in1, VSDataBase *in2, VSDataBase *outV)
+{
+    outV->mTexCoord = in2->mTexCoord + t * (in1->mTexCoord - in2->mTexCoord);
+    outV->mNormal = in2->mNormal + t * (in1->mNormal - in2->mNormal);
+    outV->mColor = in2->mColor + t * (in1->mColor - in2->mColor);
+    outV->mClipV = in2->mClipV + t * (in1->mClipV - in2->mClipV);
 
 }
 #define W_NEAR (0.1f)
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::clipLineNear(TRVSData &in1, TRVSData &in2, TRVSData out[3], size_t &index)
+void TRProgramBase::clipLineNear(VSDataBase *in1, VSDataBase *in2, VSDataBase *out[3], size_t &index)
 {
     // Sutherland-Hodgeman clip
     // t = w1 / (w1 - w2)
     // V = V1 + t * (V2 - V1)
-    if (in1.mClipV.w > 0 && in2.mClipV.w > 0)
+    if (in1->mClipV.w > 0 && in2->mClipV.w > 0)
     {
         out[index++] = in2;
     }
-    else if (in1.mClipV.w > 0 && in2.mClipV.w < 0)
+    else if (in1->mClipV.w > 0 && in2->mClipV.w < 0)
     {
-        float t = (in2.mClipV.w - W_NEAR)/(in2.mClipV.w - in1.mClipV.w);
-        TRVSData outV;
+        float t = (in2->mClipV.w - W_NEAR)/(in2->mClipV.w - in1->mClipV.w);
+        VSDataBase *outV = allocVSData();
         // get interp V and put V into output
         interpVertex(t, in1, in2, outV);
         out[index++] = outV;
     }
-    else if (in1.mClipV.w < 0 && in2.mClipV.w > 0)
+    else if (in1->mClipV.w < 0 && in2->mClipV.w > 0)
     {
-        float t = (in1.mClipV.w - W_NEAR) /(in1.mClipV.w - in2.mClipV.w);
-        TRVSData outV;
+        float t = (in1->mClipV.w - W_NEAR) /(in1->mClipV.w - in2->mClipV.w);
+        VSDataBase *outV = allocVSData();
         // get interp V and put V and V2 into output
         interpVertex(t, in2, in1, outV);
         out[index++] = outV;
@@ -388,8 +451,7 @@ void TRProgramBase<TRVSData, TRFSData>::clipLineNear(TRVSData &in1, TRVSData &in
     }
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::clipNear(TRVSData in[3], TRVSData out[4], size_t &index)
+void TRProgramBase::clipNear(VSDataBase *in[3], VSDataBase *out[4], size_t &index)
 {
     index = 0;
     clipLineNear(in[0], in[1], out, index);
@@ -397,34 +459,51 @@ void TRProgramBase<TRVSData, TRFSData>::clipNear(TRVSData in[3], TRVSData out[4]
     clipLineNear(in[2], in[0], out, index);
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::drawTriangle(TRMeshData &mesh, size_t index)
+VSDataBase *TRProgramBase::allocVSData()
 {
-    TRVSData vsdata[3];
-    TRFSData fsdata;
+    return &__VSData__[mPreAllocVSIndex++];
+}
 
-    loadVertexData(mesh, vsdata, index * 3);
+FSDataBase *TRProgramBase::allocFSData()
+{
+    return &__FSData__;
+}
+
+void TRProgramBase::freeShaderData()
+{
+    mPreAllocVSIndex = 0;
+}
+
+void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
+{
+    VSDataBase *vsdata[3];
+    FSDataBase *fsdata = allocFSData();
+
     for (size_t i = 0; i < 3; i++)
+    {
+        vsdata[i] = allocVSData();
+        loadVertexData(mesh, vsdata[i], index * 3 + i);
         vertex(vsdata[i]);
+    }
 
     // Max is 4 output.
-    TRVSData out[4];
+    VSDataBase *out[4] = { nullptr };
     size_t total = 0;
     clipNear(vsdata, out, total);
 
-    for (size_t i = 0; i < total - 2; i++)
+    for (size_t i = 0; total > 2 && i < total - 2; i++)
     {
         vsdata[0] = out[0];
         vsdata[1] = out[i + 1];
         vsdata[2] = out[i + 2];
-        glm::vec4 clipV[3] = { vsdata[0].mClipV, vsdata[1].mClipV, vsdata[2].mClipV };
+        glm::vec4 clipV[3] = { vsdata[0]->mClipV, vsdata[1]->mClipV, vsdata[2]->mClipV };
         prepareFragmentData(vsdata, fsdata);
         rasterization(clipV, fsdata);
     }
+    freeShaderData();
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
+void TRProgramBase::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
 {
     size_t i = 0, j = 0;
     size_t trianglesNum = mesh.vertices.size() / 3;
@@ -435,9 +514,8 @@ void TRProgramBase<TRVSData, TRFSData>::drawTrianglesInstanced(TRBuffer *buffer,
         drawTriangle(mesh, i);
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::rasterizationPoint(
-        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, TRFSData &fsdata, bool insideCheck)
+void TRProgramBase::rasterizationPoint(
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSDataBase *fsdata, bool insideCheck)
 {
     float w0 = edge(screen_v[1], screen_v[2], point);
     float w1 = edge(screen_v[2], screen_v[0], point);
@@ -485,12 +563,10 @@ void TRProgramBase<TRVSData, TRFSData>::rasterizationPoint(
         return;
 
     mBuffer->setColor(offset, color);
-
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::rasterizationLine(
-        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, TRFSData &fsdata)
+void TRProgramBase::rasterizationLine(
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSDataBase *fsdata)
 {
     float x0 = screen_v[p1].x, x1 = screen_v[p2].x;
     float y0 = screen_v[p1].y, y1 = screen_v[p2].y;
@@ -539,8 +615,7 @@ void TRProgramBase<TRVSData, TRFSData>::rasterizationLine(
     }
 }
 
-template <class TRVSData, class TRFSData>
-void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3], TRFSData &fsdata)
+void TRProgramBase::rasterization(glm::vec4 clip_v[3], FSDataBase *fsdata)
 {
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
@@ -576,63 +651,47 @@ void TRProgramBase<TRVSData, TRFSData>::rasterization(glm::vec4 clip_v[3], TRFSD
     }
 }
 
-template<class Program>
-void trTrianglesInstanced(TRMeshData &mesh, size_t index, size_t num)
+void trTrianglesInstanced(TRMeshData &mesh, TRProgramBase *prog, size_t index, size_t num)
 {
-    Program prog;
-    prog.drawTrianglesInstanced(gRenderTarget, mesh, index, num);
+    prog->drawTrianglesInstanced(gRenderTarget, mesh, index, num);
 }
 
-template<class Program>
-void trTrianglesMT(TRMeshData &mesh)
+#define THREAD_MAX (10)
+void trTrianglesMT(TRMeshData &mesh, TRProgramBase *prog)
 {
+    TRProgramBase *progList[THREAD_MAX] = { nullptr };
     if (gThreadNum > 1)
     {
         std::vector<std::thread> thread_pool;
         size_t index_step = mesh.vertices.size() / 3 / gThreadNum + 1;
 
         for (size_t i = 0; i < gThreadNum; i++)
-            thread_pool.push_back(std::thread(trTrianglesInstanced<Program>, std::ref(mesh), i * index_step, index_step));
+        {
+            progList[i] = prog->clone();
+            thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), progList[i], i * index_step, index_step));
+        }
 
         for (auto &th : thread_pool)
             if (th.joinable())
                 th.join();
+        for (size_t i = 0; i < gThreadNum; i++)
+            delete progList[i];
+
     } else {
-        trTrianglesInstanced<Program>(mesh, 0, mesh.vertices.size() / 3);
+        trTrianglesInstanced(mesh, prog, 0, mesh.vertices.size() / 3);
     }
 }
 
-void trTriangles(TRMeshData &mesh, TRDrawType type)
+void trTriangles(TRMeshData &mesh, TRProgramBase *prog)
 {
     __compute_premultiply_mat__();
 
-    switch (type)
-    {
-        case DRAW_WITH_TEXTURE:
-            if (mesh.tangents.size() == 0)
-                mesh.computeTangent();
-            if (gEnableLighting)
-                trTrianglesMT<TextureMapPhongProgram>(mesh);
-            else
-                trTrianglesMT<TextureMapProgram>(mesh);
-            break;
-        case DRAW_WITH_COLOR:
-            if (gEnableLighting)
-                trTrianglesMT<ColorPhongProgram>(mesh);
-            else
-                trTrianglesMT<ColorProgram>(mesh);
-            break;
-    }
+    trTrianglesMT(mesh, prog);
 }
 
 void trSetRenderThreadNum(size_t num)
 {
     gThreadNum = num;
-}
-
-void trEnableLighting(bool enable)
-{
-    gEnableLighting = enable;
 }
 
 void trSetAmbientStrength(float v)
@@ -674,8 +733,6 @@ void trBindTexture(TRTexture *texture, int type)
 {
     if (type < TEXTURE_INDEX_MAX)
         gTexture[type] = texture;
-    else
-        std::cout << "Unknow texture type!\n";
 }
 
 void trClear()
