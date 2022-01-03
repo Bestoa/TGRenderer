@@ -8,6 +8,7 @@ libtrcore = shared_library('trcore',
            'tr.cpp',
            'buffer.cpp',
            'texture.cpp',
+           'program.cpp',
            'utils.cpp',
            dependencies : [
              dep_glm,

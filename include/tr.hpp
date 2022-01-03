@@ -34,6 +34,16 @@ enum TRDrawMode
     TR_LINE,
 };
 
+class LightInfo
+{
+    public:
+        float mAmbientStrength = 0.1;
+        float mSpecularStrength = 0.2;
+        int mShininess = 32;
+        glm::vec3 mColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::vec3 mPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+};
+
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
 {
     return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
@@ -130,113 +140,25 @@ class TRProgramBase
         void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSDataBase *fsdata);
 };
 
-class ColorProgram : public TRProgramBase
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-
-    TRProgramBase *clone();
-};
-
-class TextureMapProgram : public TRProgramBase
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-
-    TRProgramBase *clone();
-};
-
-class PhongVSData : public VSDataBase
-{
-    public:
-        glm::vec3 mViewFragmentPosition;
-        glm::vec3 mViewLightPosition;
-        glm::vec3 mTangentFragmentPosition;
-        glm::vec3 mTangentLightPosition;
-        glm::vec4 mLightClipV;
-};
-
-class PhongFSData : public FSDataBase
-{
-    public:
-        glm::vec3 mViewFragmentPosition[3];
-        glm::vec3 mViewLightPosition;
-        glm::vec3 mTangentFragmentPosition[3];
-        glm::vec3 mTangentLightPosition[3];
-        glm::vec4 mLightClipV[3];
-
-};
-
-class ColorPhongProgram : public TRProgramBase
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    void prepareFragmentData(VSDataBase *[3], FSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-    void interpVertex(float , VSDataBase *, VSDataBase *, VSDataBase *);
-
-    void freeShaderData();
-    VSDataBase *allocVSData();
-    FSDataBase *allocFSData();
-
-    TRProgramBase *clone();
-
-    PhongVSData mVSData[MAX_VSDATA_NUM];
-    PhongFSData mFSData;
-    int mAllocIndex = 0;
-};
-
-class TextureMapPhongProgram : public TRProgramBase
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    void prepareFragmentData(VSDataBase *[3], FSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-    void interpVertex(float , VSDataBase *, VSDataBase *, VSDataBase *);
-
-    void freeShaderData();
-    VSDataBase *allocVSData();
-    FSDataBase *allocFSData();
-
-    TRProgramBase *clone();
-
-    PhongVSData mVSData[MAX_VSDATA_NUM];
-    PhongFSData mFSData;
-    int mAllocIndex = 0;
-};
-
-class ShadowMapProgram : public TRProgramBase
-{
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-
-    TRProgramBase *clone();
-
-    public:
-        constexpr static float BIAS = 0.001f;
-        constexpr static float FACTOR = 0.2f;
-};
+#include "program.hpp"
 
 #ifndef __BLINN_PHONG__
 #define __BLINN_PHONG__ 1
 #endif
 
 void trSetRenderThreadNum(size_t num);
-void trSetAmbientStrength(float v);
-void trSetSpecularStrength(float v);
-void trSetLightColor3f(float r, float g, float b);
-void trSetLightPosition3f(float x, float y, float z);
+LightInfo &trGetLightInfo();
 void trViewport(int x, int y, int w, int h);
-void trBindTexture(TRTexture *texture, int index);
+void trBindTexture(TRTexture *texture, int type);
+TRTexture *trGetTexture(int type);
 void trClear();
 void trClearColor3f(float r, float g, float b);
 void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type);
 void trSetMat4(glm::mat4 mat, MAT_INDEX_TYPE type);
+glm::mat3 &trGetMat3(MAT_INDEX_TYPE type);
+glm::mat4 &trGetMat4(MAT_INDEX_TYPE type);
 void trTriangles(TRMeshData &mesh, TRProgramBase *prog);
 void trDrawMode(TRDrawMode mode);
-TRBuffer* trCreateRenderTarget(int w, int h);
+TRBuffer *trCreateRenderTarget(int w, int h);
 void trSetCurrentRenderTarget(TRBuffer *traget);
 #endif

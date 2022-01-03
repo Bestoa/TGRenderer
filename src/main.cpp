@@ -29,7 +29,8 @@ int main(int argc, char *argv[])
     if (!w.isRunning())
         return 1;
 
-    trSetLightPosition3f(1.0f, 1.0f, 1.0f);
+    LightInfo &light = trGetLightInfo();
+    light.mPosition = glm::vec3(1.0f, 1.0f, 1.0f);
 #if ENABLE_SHADOW
     TRBuffer *windowBuffer = w.getBuffer();
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(TWIDTH, THEIGHT);

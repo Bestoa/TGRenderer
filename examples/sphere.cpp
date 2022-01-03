@@ -147,7 +147,8 @@ int main(int argc, char *argv[])
 
     trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
 
-    trSetLightPosition3f(100.0f, 0.0f, 0.0f);
+    LightInfo &light = trGetLightInfo();
+    light.mPosition = glm::vec3(100.0f, 0.0f, 0.0f);
 
     TRTexture tex(argv[1]);
     if (!tex.isValid())
