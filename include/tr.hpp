@@ -152,17 +152,20 @@ class PhongVSData : public VSDataBase
 {
     public:
         glm::vec3 mViewFragmentPosition;
+        glm::vec3 mViewLightPosition;
         glm::vec3 mTangentFragmentPosition;
-        glm::vec3 mLightPosition;
+        glm::vec3 mTangentLightPosition;
+        glm::vec4 mLightClipV;
 };
 
 class PhongFSData : public FSDataBase
 {
     public:
         glm::vec3 mViewFragmentPosition[3];
+        glm::vec3 mViewLightPosition;
         glm::vec3 mTangentFragmentPosition[3];
-        glm::vec3 mLightPosition;
         glm::vec3 mTangentLightPosition[3];
+        glm::vec4 mLightClipV[3];
 
 };
 
@@ -202,6 +205,19 @@ class TextureMapPhongProgram : public TRProgramBase
     PhongVSData mVSData[MAX_VSDATA_NUM];
     PhongFSData mFSData;
     int mAllocIndex = 0;
+};
+
+class ShadowMapProgram : public TRProgramBase
+{
+    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
+    void vertex(VSDataBase *);
+    bool fragment(FSDataBase *, float color[3]);
+
+    TRProgramBase *clone();
+
+    public:
+        constexpr static float BIAS = 0.001f;
+        constexpr static float FACTOR = 0.2f;
 };
 
 #ifndef __BLINN_PHONG__

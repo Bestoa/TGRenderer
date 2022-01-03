@@ -133,3 +133,12 @@ bool TRObj::draw()
 
     return true;
 }
+
+bool TRObj::drawShadowMap()
+{
+    if (isValid() == false)
+        return false;
+
+    trTriangles(mMeshData, &mShadowProg);
+    return true;
+}

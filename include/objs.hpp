@@ -9,6 +9,7 @@ class TRObj
         ~TRObj();
         bool isValid();
         bool draw();
+        bool drawShadowMap();
 
         // Disable copy init.
         TRObj() = delete;
@@ -20,6 +21,7 @@ class TRObj
         TRMeshData mMeshData;
 
         TextureMapPhongProgram mProg;
+        ShadowMapProgram mShadowProg;
 
         TRTexture *mTextureDiffuse = nullptr;
         TRTexture *mTextureSpecular = nullptr;
