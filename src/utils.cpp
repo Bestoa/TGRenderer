@@ -129,3 +129,24 @@ bool truLoadObj(
     fclose(file);
     return true;
 }
+
+void truCreateFloor(TRMeshData &mesh, float height, float color[3])
+{
+    float width = 4.0;
+    float floorData[] =
+    {
+        /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
+        -width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0, width,
+        -width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0,   0.0,
+         width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
+         width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
+         width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width, width,
+        -width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0, width,
+    };
+
+    truLoadVec3(floorData, 0, 6, 0, 11, mesh.vertices);
+    truLoadVec3(floorData, 0, 6, 3, 11, mesh.colors);
+    truLoadVec3(floorData, 0, 6, 6, 11, mesh.normals);
+    truLoadVec2(floorData, 0, 6, 9, 11, mesh.uvs);
+}
+
