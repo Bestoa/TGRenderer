@@ -1,3 +1,9 @@
+need_depth_lock = get_option('depth_lock')
+cppargs = '-DDUMMY_DEFINE'
+if need_depth_lock
+  cppargs += ' -DDEPTH_LOCK'
+endif
+
 libtrcore = shared_library('trcore',
            'tr.cpp',
            'buffer.cpp',
@@ -6,7 +12,7 @@ libtrcore = shared_library('trcore',
            dependencies : [
              dep_glm,
              ],
-           cpp_args : '-O3',
+           cpp_args : cppargs,
            link_args : '-pthread',
            include_directories : include_dir,
            install : true)

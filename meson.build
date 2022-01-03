@@ -1,6 +1,6 @@
 project('TopGun Renderer', 'cpp',
   version : '0.2',
-  default_options : ['warning_level=3', 'cpp_std=c++14'])
+  default_options : ['warning_level=3', 'cpp_std=c++14', 'buildtype=release'])
 
 dep_glm = dependency('glm')
 dep_sdl2 = dependency('SDL2')

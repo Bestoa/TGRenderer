@@ -634,8 +634,10 @@ void TRProgramBase::rasterizationPoint(
     if (!fragment(fsdata, color))
         return;
 
+#ifdef DEPTH_LOCK
     /* depth test */
     std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
+#endif
     if (!mBuffer->depthTest(offset, depth))
         return;
 
