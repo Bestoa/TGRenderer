@@ -19,6 +19,8 @@ class TRTexture
 
         float* getColor(float u, float v);
         float* getBuffer();
+        int getH();
+        int getW();
 
         bool isValid();
 

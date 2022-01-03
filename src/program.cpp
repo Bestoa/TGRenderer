@@ -22,6 +22,45 @@ void textureCoordWrap(glm::vec2 &coord)
        __texture_coord_repeat__(coord);
 }
 
+float *texture2D(int type, float u, float v)
+{
+    return trGetTexture(type)->getColor(u, v);
+}
+
+float calcShadowFast(float depth, float x, float y)
+{
+    if (x <= 1.0f && x >= 0.0f && y <= 1.0f && y >= 0.0f
+            && (depth > *(texture2D(TEXTURE_SHADOWMAP, x, y)) + ShadowMapProgram::BIAS))
+        return ShadowMapProgram::FACTOR;
+    else
+        return 1.0f;
+}
+
+float calcShadow(float depth, float x, float y)
+{
+    TRTexture *st = trGetTexture(TEXTURE_SHADOWMAP);
+    float xstep = 1.f / st->getW();
+    float ystep = 1.f / st->getH();
+    float shadow = 0.f;
+
+    float uvs[] =
+    {
+        x - xstep, y - ystep,
+        x, y - ystep,
+        x + xstep, y - ystep,
+        x - xstep, y,
+        x, y,
+        x + xstep, y,
+        x - xstep, y + ystep,
+        x, y + ystep,
+        x + xstep, y + ystep,
+    };
+    for (size_t i = 0; i < 9; i++)
+        shadow += calcShadowFast(depth, uvs[i*2], uvs[i*2+1]);
+
+    return shadow / 9.0f;
+}
+
 void ColorProgram::loadVertexData(TRMeshData &mesh, VSDataBase *vsdata, size_t index)
 {
     vsdata->mVertex = mesh.vertices[index];
@@ -63,7 +102,7 @@ bool TextureMapProgram::fragment(FSDataBase *fsdata, float color[3])
     glm::vec2 texCoord = interpFast(fsdata->mTexCoord);
     textureCoordWrap(texCoord);
 
-    float *c = trGetTexture(TEXTURE_DIFFUSE)->getColor(texCoord.x, texCoord.y);
+    float *c = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
 
     color[0] = c[0];
     color[1] = c[1];
@@ -139,7 +178,7 @@ bool ColorPhongProgram::fragment(FSDataBase *f, float color[3])
 
     glm::vec3 fragmentPosition = interpFast(fsdata->mViewFragmentPosition);
     glm::vec3 normal = interpFast(fsdata->mNormal);
-    glm::vec3 baseColor = interpFast(fsdata->mColor);
+    glm::vec3 diffuseColor = interpFast(fsdata->mColor);
 
     LightInfo &light = trGetLightInfo();
 
@@ -158,19 +197,14 @@ bool ColorPhongProgram::fragment(FSDataBase *f, float color[3])
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
     float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), light.mShininess);
 #endif
-    glm::vec3 result = (light.mAmbientStrength + diff * light.mColor) * baseColor + spec * light.mSpecularStrength * light.mColor;
+    glm::vec3 result = ((light.mAmbientStrength + diff) * diffuseColor + spec * light.mSpecularStrength) * light.mColor;
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
-        float shadow = 1.0f;
         glm::vec4 lightClipV = interpFast(fsdata->mLightClipV);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        if (lightClipV.x > 1.0f || lightClipV.x < 0.0f || lightClipV.y > 1.0f || lightClipV.y < 0.0f)
-            shadow = 1.0f;
-        else if (lightClipV.z > *(trGetTexture(TEXTURE_SHADOWMAP)->getColor(lightClipV.x, lightClipV.y)) + ShadowMapProgram::BIAS)
-            shadow = ShadowMapProgram::FACTOR;
 
-        result *= shadow;
+        result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
     }
 
     color[0] = glm::min(result[0], 1.f);
@@ -289,20 +323,21 @@ bool TextureMapPhongProgram::fragment(FSDataBase *f, float color[3])
 {
     PhongFSData *fsdata = dynamic_cast<PhongFSData *>(f);
 
-    glm::vec3 fragmentPosition;
     glm::vec2 texCoord = interpFast(fsdata->mTexCoord);
     textureCoordWrap(texCoord);
+
+    glm::vec3 fragmentPosition;
     glm::vec3 normal;
     glm::vec3 lightPosition;
 
     LightInfo &light = trGetLightInfo();
 
-    glm::vec3 baseColor = glm::make_vec3(trGetTexture(TEXTURE_DIFFUSE)->getColor(texCoord.x, texCoord.y));
+    glm::vec3 diffuseColor = glm::make_vec3(texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y));
 
     if (trGetTexture(TEXTURE_NORMAL) != nullptr)
     {
         fragmentPosition = interpFast(fsdata->mTangentFragmentPosition);
-        normal = glm::make_vec3(trGetTexture(TEXTURE_NORMAL)->getColor(texCoord.x, texCoord.y)) * 2.0f - 1.0f;
+        normal = glm::make_vec3(texture2D(TEXTURE_NORMAL, texCoord.x, texCoord.y)) * 2.0f - 1.0f;
         lightPosition = interpFast(fsdata->mTangentLightPosition);
     } else {
         fragmentPosition = interpFast(fsdata->mViewFragmentPosition);
@@ -325,31 +360,25 @@ bool TextureMapPhongProgram::fragment(FSDataBase *f, float color[3])
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
     float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), light.mShininess);
 #endif
-    glm::vec3 specular = spec * light.mColor;
-
+    glm::vec3 specColor(1.0f);
     if (trGetTexture(TEXTURE_SPECULAR) != nullptr)
-        specular *= glm::make_vec3(trGetTexture(TEXTURE_SPECULAR)->getColor(texCoord.x, texCoord.y));
+        specColor = glm::make_vec3(texture2D(TEXTURE_SPECULAR, texCoord.x, texCoord.y));
     else
-        specular *= light.mSpecularStrength;
+        specColor *= light.mSpecularStrength;
 
-    glm::vec3 result = (light.mAmbientStrength + diff * light.mColor) * baseColor + specular;
+    glm::vec3 result = ((light.mAmbientStrength + diff) * diffuseColor + spec * specColor) * light.mColor;
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
-        float shadow = 1.0f;
         glm::vec4 lightClipV = interpFast(fsdata->mLightClipV);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        if (lightClipV.x > 1.0f || lightClipV.x < 0.0f || lightClipV.y > 1.0f || lightClipV.y < 0.0f)
-            shadow = 1.0f;
-        else if (lightClipV.z > *(trGetTexture(TEXTURE_SHADOWMAP)->getColor(lightClipV.x, lightClipV.y)) + ShadowMapProgram::BIAS)
-            shadow = ShadowMapProgram::FACTOR;
 
-        result *= shadow;
+        result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
     }
 
     /* glow shouldn't be affectd by shadow */
     if (trGetTexture(TEXTURE_GLOW) != nullptr)
-        result += glm::make_vec3(trGetTexture(TEXTURE_GLOW)->getColor(texCoord.x, texCoord.y));
+        result += glm::make_vec3(texture2D(TEXTURE_GLOW, texCoord.x, texCoord.y));
 
     color[0] = glm::min(result[0], 1.f);
     color[1] = glm::min(result[1], 1.f);

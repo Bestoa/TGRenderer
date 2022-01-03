@@ -16,7 +16,10 @@
 #define TWIDTH (1024)
 #define THEIGHT (1024)
 
-#define ENABLE_SHADOW 0
+#define ENABLE_SHADOW 1
+#define DRAW_FLOOR 0
+
+const int endFrame = 360;
 
 int main(int argc, char *argv[])
 {
@@ -67,17 +70,18 @@ int main(int argc, char *argv[])
 
     trSetCurrentRenderTarget(shadowBuffer);
     trClearColor3f(1, 1, 1);
+#endif
 
+#if DRAW_FLOOR
+    ColorPhongProgram prog;
     TRMeshData floorMesh;
     float floorColor[] = {0.5f, 0.5f, 0.5f};
     truCreateFloor(floorMesh, -1.0f, floorColor);
-
-    ColorPhongProgram prog;
 #endif
 
     int frame = 0;
     auto start = std::chrono::system_clock::now();
-    while (!w.shouldStop() && frame < 360) {
+    while (!w.shouldStop() && frame < endFrame) {
         frame++;
         glm::mat4 modelMat = glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f));
         trSetMat4(modelMat, MAT4_MODEL);
@@ -101,10 +105,14 @@ int main(int argc, char *argv[])
         for (auto obj : objs)
             obj->draw();
 
+#if DRAW_FLOOR
 #if ENABLE_SHADOW
-        trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
         trSetMat4(lightProjMat * lightViewMat, MAT4_LIGHT_MVP);
+#endif
+        trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
         trTriangles(floorMesh, &prog);
+#endif
+#if ENABLE_SHADOW
         trBindTexture(nullptr, TEXTURE_SHADOWMAP);
 #endif
         w.swapBuffer();

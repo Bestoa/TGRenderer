@@ -75,3 +75,13 @@ bool TRTexture::isValid()
 {
     return mValid;
 }
+
+int TRTexture::getW()
+{
+    return mW;
+}
+
+int TRTexture::getH()
+{
+    return mH;
+}
