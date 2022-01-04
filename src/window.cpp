@@ -112,13 +112,33 @@ bool TRWindow::swapBuffer()
 
 bool TRWindow::shouldStop()
 {
+    return mShouldStop;
+}
+
+void TRWindow::registerKeyEventCb(KeyEventCb func)
+{
+   mKcb = func;
+}
+
+void TRWindow::removeKeyEventCb()
+{
+   mKcb = nullptr;
+}
+
+void TRWindow::pollEvent()
+{
     SDL_Event event;
     while (SDL_PollEvent(&event) != 0)
     {
         if (event.type == SDL_QUIT)
-            return true;
+            mShouldStop = true;
+        if (event.type == SDL_KEYDOWN) {
+            if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+                mShouldStop = true;
+            if (mKcb)
+                mKcb(event.key.keysym.scancode);
+        }
     }
-    return false;
 }
 
 TRWindow::~TRWindow()

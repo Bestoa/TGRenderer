@@ -169,6 +169,7 @@ int main(int argc, char *argv[])
         trClear();
         trTriangles(sphere, &prog);
         w.swapBuffer();
+        w.pollEvent();
     }
     std::cout << "frames = " << frame << std::endl;
     return 0;

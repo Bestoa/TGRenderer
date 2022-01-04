@@ -8,6 +8,8 @@
 #include <condition_variable>
 #include "tr.hpp"
 
+typedef void (*KeyEventCb)(int scancode);
+
 class TRWindow {
     public:
         TRWindow(int w, int h, const char *name = "ToyRenderer");
@@ -18,6 +20,9 @@ class TRWindow {
         void unlock();
 
         bool isRunning();
+        void pollEvent();
+        void registerKeyEventCb(KeyEventCb func);
+        void removeKeyEventCb();
         bool shouldStop();
         bool swapBuffer();
         TRBuffer* getBuffer() { return mBuffer; };
@@ -38,7 +43,10 @@ class TRWindow {
         std::mutex mMutex;
         std::condition_variable mCV;
         std::thread mDisplayThread;
-        bool mRunning;
+        bool mRunning = false;
+        bool mShouldStop = false;
+
+        KeyEventCb mKcb = nullptr;
 
         static void __disp_func__(TRWindow *);
 };

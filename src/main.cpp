@@ -17,9 +17,119 @@
 #define THEIGHT (1024)
 
 #define ENABLE_SHADOW 1
-#define DRAW_FLOOR 0
+#define DRAW_FLOOR 1
 
-const int endFrame = 360;
+class Option
+{
+    public:
+        bool enableShadow = false;
+        bool drawFloor = false;
+        bool wireframeMode = false;
+        bool rotateModel = false;
+        bool rotateEye = false;
+        bool rotateLight = false;
+        bool zoomIn = false;
+        bool zoomOut = false;
+};
+
+Option gOption;
+
+const int endFrame = 36000;
+
+void kcb(int key)
+{
+    switch (key)
+    {
+        case SDL_SCANCODE_S:
+            gOption.enableShadow = !gOption.enableShadow;
+            break;
+        case SDL_SCANCODE_F:
+            gOption.drawFloor = !gOption.drawFloor;
+            break;
+        case SDL_SCANCODE_W:
+            gOption.wireframeMode = !gOption.wireframeMode;
+            if (gOption.wireframeMode)
+                trDrawMode(TR_LINE);
+            else
+                trDrawMode(TR_FILL);
+            break;
+        case SDL_SCANCODE_M:
+            gOption.rotateModel = !gOption.rotateModel;
+            // avoid chaos
+            gOption.rotateEye = false;
+            gOption.rotateLight = false;
+            break;
+        case SDL_SCANCODE_E:
+            gOption.rotateEye = !gOption.rotateEye;
+            gOption.rotateModel = false;
+            gOption.rotateLight = false;
+            break;
+        case SDL_SCANCODE_L:
+            gOption.rotateLight = !gOption.rotateLight;
+            gOption.rotateModel = false;
+            gOption.rotateEye = false;
+            break;
+        case SDL_SCANCODE_I:
+            gOption.zoomIn = true;
+            break;
+        case SDL_SCANCODE_O:
+            gOption.zoomOut = true;
+            break;
+    }
+}
+
+void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat, glm::mat4 &lightViewMat)
+{
+    static int rotateM = 0, rotateE = 0, rotateL = 0;
+    static float eyeStartDistance = 1.5f;
+
+    bool reCalcViewMat = false;
+    if (gOption.rotateModel)
+    {
+        rotateM++;
+        modelMat = glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * rotateM), glm::vec3(0.0f, 1.0f, 0.0f));
+    }
+
+    if (gOption.rotateEye)
+    {
+        rotateE++;
+        reCalcViewMat = true;
+    }
+
+    if (gOption.zoomIn)
+    {
+        gOption.zoomIn = false;
+        reCalcViewMat = true;
+        eyeStartDistance -= 0.1f;
+    }
+
+    if (gOption.zoomOut)
+    {
+        gOption.zoomOut = false;
+        reCalcViewMat = true;
+        eyeStartDistance += 0.1f;
+    }
+
+    if (reCalcViewMat)
+    {
+        float degree = glm::radians(1.0f * rotateE);
+        eyeViewMat = glm::lookAt(
+                glm::vec3(eyeStartDistance * glm::sin(degree), 0.75, eyeStartDistance * glm::cos(degree)),
+                glm::vec3(0,0,0),
+                glm::vec3(0,1,0));
+    }
+
+    if (gOption.rotateLight)
+    {
+        rotateL++;
+        float degree = glm::radians(1.0f * rotateL);
+        lightViewMat = glm::lookAt(
+                glm::vec3(glm::sin(degree), 1, glm::cos(degree)),
+                glm::vec3(0,0,0),
+                glm::vec3(0,1,0));
+        trGetLightInfo().mPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
+    }
+}
 
 int main(int argc, char *argv[])
 {
@@ -32,8 +142,10 @@ int main(int argc, char *argv[])
     if (!w.isRunning())
         return 1;
 
+    w.registerKeyEventCb(kcb);
+
     LightInfo &light = trGetLightInfo();
-    light.mPosition = glm::vec3(1.0f, 1.0f, 1.0f);
+    light.mPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 #if ENABLE_SHADOW
     TRBuffer *windowBuffer = w.getBuffer();
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(TWIDTH, THEIGHT);
@@ -52,8 +164,9 @@ int main(int argc, char *argv[])
     if (objs.size() == 0)
         abort();
 
+    float eyeStartDistance = 1.5f;
     glm::mat4 eyeViewMat = glm::lookAt(
-            glm::vec3(0,0.75,1.5), // Camera is at (0,0.75,1.5), in World Space
+            glm::vec3(0,0.75,eyeStartDistance), // Camera is at (0,0.75,1.5), in World Space
             glm::vec3(0,0,0), // and looks at the origin
             glm::vec3(0,1,0));  // Head is up (set to 0,-1,0 to look upside-down)
 
@@ -62,7 +175,7 @@ int main(int argc, char *argv[])
 
 #if ENABLE_SHADOW
     glm::mat4 lightViewMat = glm::lookAt(
-            glm::vec3(1,1,1),
+            glm::vec3(0,1,1),
             glm::vec3(0,0,0),
             glm::vec3(0,1,0));
 
@@ -70,6 +183,7 @@ int main(int argc, char *argv[])
 
     trSetCurrentRenderTarget(shadowBuffer);
     trClearColor3f(1, 1, 1);
+    trSetCurrentRenderTarget(windowBuffer);
 #endif
 
 #if DRAW_FLOOR
@@ -79,43 +193,54 @@ int main(int argc, char *argv[])
     truCreateFloor(floorMesh, -1.0f, floorColor);
 #endif
 
+    glm::mat4 modelMat(1.0f);
+
     int frame = 0;
     auto start = std::chrono::system_clock::now();
-    while (!w.shouldStop() && frame < endFrame) {
-        frame++;
-        glm::mat4 modelMat = glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f));
-        trSetMat4(modelMat, MAT4_MODEL);
-
+    while (!w.shouldStop() && frame++ < endFrame)
+    {
+        reCalcMat(modelMat, eyeViewMat, lightViewMat);
 #if ENABLE_SHADOW
-        trSetCurrentRenderTarget(shadowBuffer);
-        trClear();
-        trSetMat4(lightViewMat, MAT4_VIEW);
-        trSetMat4(lightProjMat, MAT4_PROJ);
-        for (auto obj : objs)
-            obj->drawShadowMap();
-        /* Skip floor in shadow map to speedup */
+        if (gOption.enableShadow)
+        {
+            trSetCurrentRenderTarget(shadowBuffer);
+            trClear();
+            trSetMat4(modelMat, MAT4_MODEL);
+            trSetMat4(lightViewMat, MAT4_VIEW);
+            trSetMat4(lightProjMat, MAT4_PROJ);
+            for (auto obj : objs)
+                obj->drawShadowMap();
+            /* Skip floor in shadow map to speedup */
 
-        trSetMat4(lightProjMat * lightViewMat * modelMat, MAT4_LIGHT_MVP);
-        trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
-        trSetCurrentRenderTarget(windowBuffer);
+            trSetMat4(lightProjMat * lightViewMat * modelMat, MAT4_LIGHT_MVP);
+            trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
+            trSetCurrentRenderTarget(windowBuffer);
+        }
 #endif
         trClear();
+        trSetMat4(modelMat, MAT4_MODEL);
         trSetMat4(eyeViewMat, MAT4_VIEW);
         trSetMat4(eyeProjMat, MAT4_PROJ);
         for (auto obj : objs)
             obj->draw();
 
 #if DRAW_FLOOR
+        if (gOption.drawFloor)
+        {
 #if ENABLE_SHADOW
-        trSetMat4(lightProjMat * lightViewMat, MAT4_LIGHT_MVP);
+            if (gOption.enableShadow)
+                trSetMat4(lightProjMat * lightViewMat, MAT4_LIGHT_MVP);
 #endif
-        trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
-        trTriangles(floorMesh, &prog);
+            trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
+            trTriangles(floorMesh, &prog);
+        }
 #endif
 #if ENABLE_SHADOW
-        trBindTexture(nullptr, TEXTURE_SHADOWMAP);
+        if (gOption.enableShadow)
+            trBindTexture(nullptr, TEXTURE_SHADOWMAP);
 #endif
         w.swapBuffer();
+        w.pollEvent();
     }
     auto end = std::chrono::system_clock::now();
     auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
