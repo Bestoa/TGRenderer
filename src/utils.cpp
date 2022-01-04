@@ -137,9 +137,9 @@ void truCreateFloor(TRMeshData &mesh, float height, float color[3])
     {
         /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
         -width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0, width,
-        -width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0,   0.0,
-         width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
-         width, height,    1.0,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
+        -width, height,  width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0,   0.0,
+         width, height,  width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
+         width, height,  width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width,   0.0,
          width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,      width, width,
         -width, height, -width,     color[0], color[1], color[2],   0.0, 1.0, 0.0,        0.0, width,
     };

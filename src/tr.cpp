@@ -278,11 +278,9 @@ void TRProgramBase::rasterizationLine(
         if (steep)
            v = glm::vec2(y, x);
         // Not good, but works well
-        if (v.x > (int)mBuffer->mW || v.y > (int)mBuffer->mH || v.x < 0 || v.y < 0)
-            continue;
-
-        // skip inside check for draw line
-        rasterizationPoint(clip_v, ndc_v, screen_v, area, v, fsdata, false);
+        if (!(v.x > (int)mBuffer->mW || v.y > (int)mBuffer->mH || v.x < 0 || v.y < 0))
+            // skip inside check for draw line
+            rasterizationPoint(clip_v, ndc_v, screen_v, area, v, fsdata, false);
 
         error += deltaerr;
         if (error >= 0.5)
