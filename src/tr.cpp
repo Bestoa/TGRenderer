@@ -29,6 +29,8 @@ size_t gThreadNum = 4;
 
 int gDrawMode = TR_FILL;
 
+int gCullFace = TR_CCW;
+
 // internal function
 void TRMeshData::computeTangent()
 {
@@ -196,8 +198,24 @@ void TRProgramBase::rasterizationPoint(
     float w0 = edge(screen_v[1], screen_v[2], point);
     float w1 = edge(screen_v[2], screen_v[0], point);
     float w2 = edge(screen_v[0], screen_v[1], point);
-    if (insideCheck && (w0 < 0 || w1 < 0 || w2 < 0))
-        return;
+    if (insideCheck)
+    {
+        switch (gCullFace)
+        {
+            case TR_CCW:
+                if (w0 < 0 || w1 < 0 || w2 < 0)
+                    return;
+                break;
+            case TR_CW:
+                if (w0 > 0 || w1 > 0 || w2 > 0)
+                    return;
+                break;
+            default:
+                if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0)))
+                    return;
+                break;
+        }
+    }
 
     int x = (int)point.x;
     int y = (int)point.y;
@@ -303,8 +321,15 @@ void TRProgramBase::rasterization(glm::vec4 clip_v[3], FSDataBase *fsdata)
     }
 
     float area = edge(screen_v[0], screen_v[1], screen_v[2]);
-    if (area <= 0)
+
+    if (gCullFace == TR_CCW && area <= 0)
         return;
+    else if (gCullFace == TR_CW && area >= 0)
+        return;
+
+    /* Special case */
+    if (area == 0)
+        area = 1e-6;
 
     if (gDrawMode == TR_LINE)
     {
@@ -441,6 +466,11 @@ glm::mat4 &trGetMat4(MAT_INDEX_TYPE type)
 void trDrawMode(TRDrawMode mode)
 {
     gDrawMode = mode;
+}
+
+void trCullFaceMode(TRCullFaceMode mode)
+{
+    gCullFace = mode;
 }
 
 TRBuffer * trCreateRenderTarget(int w, int h)

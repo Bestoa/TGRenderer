@@ -49,9 +49,13 @@ void kcb(int key)
         case SDL_SCANCODE_W:
             gOption.wireframeMode = !gOption.wireframeMode;
             if (gOption.wireframeMode)
+            {
+                trCullFaceMode(TR_NONE);
                 trDrawMode(TR_LINE);
-            else
+            } else {
+                trCullFaceMode(TR_CCW);
                 trDrawMode(TR_FILL);
+            }
             break;
         case SDL_SCANCODE_M:
             gOption.rotateModel = !gOption.rotateModel;

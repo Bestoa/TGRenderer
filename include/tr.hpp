@@ -34,6 +34,13 @@ enum TRDrawMode
     TR_LINE,
 };
 
+enum TRCullFaceMode
+{
+    TR_NONE,
+    TR_CCW,
+    TR_CW,
+};
+
 class LightInfo
 {
     public:
@@ -159,6 +166,7 @@ glm::mat3 &trGetMat3(MAT_INDEX_TYPE type);
 glm::mat4 &trGetMat4(MAT_INDEX_TYPE type);
 void trTriangles(TRMeshData &mesh, TRProgramBase *prog);
 void trDrawMode(TRDrawMode mode);
+void trCullFaceMode(TRCullFaceMode mode);
 TRBuffer *trCreateRenderTarget(int w, int h);
 void trSetCurrentRenderTarget(TRBuffer *traget);
 #endif
