@@ -9,6 +9,7 @@
 // global value
 TRBuffer *gRenderTarget = nullptr;
 TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
+void *gUniform = nullptr;
 
 glm::mat4 gMat4[MAT_INDEX_MAX] =
 {
@@ -72,56 +73,89 @@ static inline void __compute_premultiply_mat__()
     gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
 }
 
-void TRProgramBase::prepareFragmentData(VSDataBase *vsdata[3], FSDataBase *fsdata)
+VSOutData *TRProgramBase::allocVSOutData()
 {
-    fsdata->mClipV[0] = vsdata[0]->mClipV;
-    fsdata->mClipV[1] = vsdata[1]->mClipV - vsdata[0]->mClipV;
-    fsdata->mClipV[2] = vsdata[2]->mClipV - vsdata[0]->mClipV;
-
-    fsdata->mTexCoord[0] = vsdata[0]->mTexCoord;
-    fsdata->mTexCoord[1] = vsdata[1]->mTexCoord - vsdata[0]->mTexCoord;
-    fsdata->mTexCoord[2] = vsdata[2]->mTexCoord - vsdata[0]->mTexCoord;
-
-    fsdata->mNormal[0] = vsdata[0]->mNormal;
-    fsdata->mNormal[1] = vsdata[1]->mNormal - vsdata[0]->mNormal;
-    fsdata->mNormal[2] = vsdata[2]->mNormal - vsdata[0]->mNormal;
-
-    fsdata->mColor[0] = vsdata[0]->mColor;
-    fsdata->mColor[1] = vsdata[1]->mColor - vsdata[0]->mColor;
-    fsdata->mColor[2] = vsdata[2]->mColor - vsdata[0]->mColor;
+    return dynamic_cast<VSOutData *>(&mVSOutData[mAllocIndex++]);
 }
 
-void TRProgramBase::interpVertex(float t, VSDataBase *in1, VSDataBase *in2, VSDataBase *outV)
+FSInData *TRProgramBase::allocFSInData()
 {
-    outV->mTexCoord = in2->mTexCoord + t * (in1->mTexCoord - in2->mTexCoord);
-    outV->mNormal = in2->mNormal + t * (in1->mNormal - in2->mNormal);
-    outV->mColor = in2->mColor + t * (in1->mColor - in2->mColor);
-    outV->mClipV = in2->mClipV + t * (in1->mClipV - in2->mClipV);
-
+    return dynamic_cast<FSInData *>(&mFSInData);
 }
+
+void TRProgramBase::freeShaderData()
+{
+    mAllocIndex = 0;
+}
+
+void TRProgramBase::prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata)
+{
+    size_t v2n, v3n, v4n;
+    getVaryingNum(v2n, v3n, v4n);
+
+    fsdata->tr_PositionPrim[0] = vsdata[0]->tr_Position;
+    fsdata->tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
+    fsdata->tr_PositionPrim[2] = vsdata[2]->tr_Position - vsdata[0]->tr_Position;
+
+    for (size_t i = 0; i < v2n; i++)
+    {
+        fsdata->mVaryingVec2Prim[i][0] = vsdata[0]->mVaryingVec2[i];
+        fsdata->mVaryingVec2Prim[i][1] = vsdata[1]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+        fsdata->mVaryingVec2Prim[i][2] = vsdata[2]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+    }
+    for (size_t i = 0; i < v3n; i++)
+    {
+        fsdata->mVaryingVec3Prim[i][0] = vsdata[0]->mVaryingVec3[i];
+        fsdata->mVaryingVec3Prim[i][1] = vsdata[1]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+        fsdata->mVaryingVec3Prim[i][2] = vsdata[2]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+    }
+    for (size_t i = 0; i < v4n; i++)
+    {
+        fsdata->mVaryingVec4Prim[i][0] = vsdata[0]->mVaryingVec4[i];
+        fsdata->mVaryingVec4Prim[i][1] = vsdata[1]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+        fsdata->mVaryingVec4Prim[i][2] = vsdata[2]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+    }
+}
+
+void TRProgramBase::interpVertex(float t, VSOutData *in1, VSOutData *in2, VSOutData *outV)
+{
+    size_t v2n, v3n, v4n;
+    getVaryingNum(v2n, v3n, v4n);
+
+    for (size_t i = 0; i < v2n; i++)
+        outV->mVaryingVec2[i] = in2->mVaryingVec2[i] + t * (in1->mVaryingVec2[i] - in2->mVaryingVec2[i]);
+
+    for (size_t i = 0; i < v3n; i++)
+        outV->mVaryingVec3[i] = in2->mVaryingVec3[i] + t * (in1->mVaryingVec3[i] - in2->mVaryingVec3[i]);
+
+    for (size_t i = 0; i < v4n; i++)
+        outV->mVaryingVec4[i] = in2->mVaryingVec4[i] + t * (in1->mVaryingVec4[i] - in2->mVaryingVec4[i]);
+
+    outV->tr_Position = in2->tr_Position + t * (in1->tr_Position - in2->tr_Position);
+}
+
 #define W_NEAR (0.1f)
-
-void TRProgramBase::clipLineNear(VSDataBase *in1, VSDataBase *in2, VSDataBase *out[3], size_t &index)
+void TRProgramBase::clipLineNear(VSOutData *in1, VSOutData *in2, VSOutData *out[3], size_t &index)
 {
     // Sutherland-Hodgeman clip
     // t = w1 / (w1 - w2)
     // V = V1 + t * (V2 - V1)
-    if (in1->mClipV.w > 0 && in2->mClipV.w > 0)
+    if (in1->tr_Position.w > 0 && in2->tr_Position.w > 0)
     {
         out[index++] = in2;
     }
-    else if (in1->mClipV.w > 0 && in2->mClipV.w < 0)
+    else if (in1->tr_Position.w > 0 && in2->tr_Position.w < 0)
     {
-        float t = (in2->mClipV.w - W_NEAR)/(in2->mClipV.w - in1->mClipV.w);
-        VSDataBase *outV = allocVSData();
+        float t = (in2->tr_Position.w - W_NEAR)/(in2->tr_Position.w - in1->tr_Position.w);
+        VSOutData *outV = allocVSOutData();
         // get interp V and put V into output
         interpVertex(t, in1, in2, outV);
         out[index++] = outV;
     }
-    else if (in1->mClipV.w < 0 && in2->mClipV.w > 0)
+    else if (in1->tr_Position.w < 0 && in2->tr_Position.w > 0)
     {
-        float t = (in1->mClipV.w - W_NEAR) /(in1->mClipV.w - in2->mClipV.w);
-        VSDataBase *outV = allocVSData();
+        float t = (in1->tr_Position.w - W_NEAR)/(in1->tr_Position.w - in2->tr_Position.w);
+        VSOutData *outV = allocVSOutData();
         // get interp V and put V and V2 into output
         interpVertex(t, in2, in1, outV);
         out[index++] = outV;
@@ -129,7 +163,7 @@ void TRProgramBase::clipLineNear(VSDataBase *in1, VSDataBase *in2, VSDataBase *o
     }
 }
 
-void TRProgramBase::clipNear(VSDataBase *in[3], VSDataBase *out[4], size_t &index)
+void TRProgramBase::clipNear(VSOutData *in[3], VSOutData *out[4], size_t &index)
 {
     index = 0;
     clipLineNear(in[0], in[1], out, index);
@@ -137,35 +171,17 @@ void TRProgramBase::clipNear(VSDataBase *in[3], VSDataBase *out[4], size_t &inde
     clipLineNear(in[2], in[0], out, index);
 }
 
-VSDataBase *TRProgramBase::allocVSData()
-{
-    return &__VSData__[mPreAllocVSIndex++];
-}
-
-FSDataBase *TRProgramBase::allocFSData()
-{
-    return &__FSData__;
-}
-
-void TRProgramBase::freeShaderData()
-{
-    mPreAllocVSIndex = 0;
-}
-
 void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
 {
-    VSDataBase *vsdata[3];
-    FSDataBase *fsdata = allocFSData();
-
+    VSOutData *vsdata[3];
     for (size_t i = 0; i < 3; i++)
     {
-        vsdata[i] = allocVSData();
-        loadVertexData(mesh, vsdata[i], index * 3 + i);
-        vertex(vsdata[i]);
+        vsdata[i] = allocVSOutData();
+        vertex(mesh, vsdata[i], index * 3 + i);
     }
 
     // Max is 4 output.
-    VSDataBase *out[4] = { nullptr };
+    VSOutData *out[4] = { nullptr };
     size_t total = 0;
     clipNear(vsdata, out, total);
 
@@ -174,9 +190,8 @@ void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
         vsdata[0] = out[0];
         vsdata[1] = out[i + 1];
         vsdata[2] = out[i + 2];
-        glm::vec4 clipV[3] = { vsdata[0]->mClipV, vsdata[1]->mClipV, vsdata[2]->mClipV };
-        prepareFragmentData(vsdata, fsdata);
-        rasterization(clipV, fsdata);
+
+        rasterization(vsdata);
     }
     freeShaderData();
 }
@@ -193,7 +208,7 @@ void TRProgramBase::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, s
 }
 
 void TRProgramBase::rasterizationPoint(
-        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSDataBase *fsdata, bool insideCheck)
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck)
 {
     float w0 = edge(screen_v[1], screen_v[2], point);
     float w1 = edge(screen_v[2], screen_v[0], point);
@@ -262,7 +277,7 @@ void TRProgramBase::rasterizationPoint(
 }
 
 void TRProgramBase::rasterizationLine(
-        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSDataBase *fsdata)
+        glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSInData *fsdata)
 {
     float x0 = screen_v[p1].x, x1 = screen_v[p2].x;
     float y0 = screen_v[p1].y, y1 = screen_v[p2].y;
@@ -309,8 +324,9 @@ void TRProgramBase::rasterizationLine(
     }
 }
 
-void TRProgramBase::rasterization(glm::vec4 clip_v[3], FSDataBase *fsdata)
+void TRProgramBase::rasterization(VSOutData *vsdata[3])
 {
+    glm::vec4 clip_v[3] = { vsdata[0]->tr_Position, vsdata[1]->tr_Position, vsdata[2]->tr_Position };
     glm::vec4 ndc_v[3];
     glm::vec2 screen_v[3];
 
@@ -330,6 +346,9 @@ void TRProgramBase::rasterization(glm::vec4 clip_v[3], FSDataBase *fsdata)
     /* Special case */
     if (area == 0)
         area = 1e-6;
+
+    FSInData *fsdata = allocFSInData();
+    prepareFragmentData(vsdata, fsdata);
 
     if (gDrawMode == TR_LINE)
     {
@@ -381,6 +400,16 @@ void trTrianglesMT(TRMeshData &mesh, TRProgramBase *prog)
     } else {
         trTrianglesInstanced(mesh, prog, 0, mesh.vertices.size() / 3);
     }
+}
+
+void trSetUniformData(void *data)
+{
+    gUniform = data;
+}
+
+void* trGetUniformData()
+{
+    return gUniform;
 }
 
 void trTriangles(TRMeshData &mesh, TRProgramBase *prog)

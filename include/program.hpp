@@ -3,92 +3,97 @@
 
 #include "tr.hpp"
 
-class PhongVSData : public VSDataBase
+enum
 {
-    public:
-        glm::vec3 mViewFragmentPosition;
-        glm::vec3 mViewLightPosition;
-        glm::vec3 mTangentFragmentPosition;
-        glm::vec3 mTangentLightPosition;
-        glm::vec4 mLightClipV;
+    SH_TEXCOORD,
+    SH_VEC2_BASE_MAX,
 };
 
-class PhongFSData : public FSDataBase
+enum
+{
+    SH_NORMAL,
+    SH_COLOR,
+    SH_VEC3_BASE_MAX,
+};
+
+enum
+{
+    SH_VEC4_BASE_MAX,
+};
+
+enum
+{
+    SH_VIEW_FRAG_POSITION = SH_VEC3_BASE_MAX,
+    SH_TANGENT_FRAG_POSITION,
+    SH_TANGENT_LIGHT_POSITION,
+    SH_VEC3_PHONG_MAX,
+};
+
+enum
+{
+    SH_LIGHT_FRAG_POSITION = SH_VEC4_BASE_MAX,
+    SH_VEC4_PHONG_MAX,
+};
+
+class PhongUniformData
 {
     public:
-        glm::vec3 mViewFragmentPosition[3];
         glm::vec3 mViewLightPosition;
-        glm::vec3 mTangentFragmentPosition[3];
-        glm::vec3 mTangentLightPosition[3];
-        glm::vec4 mLightClipV[3];
-
 };
 
 class ColorProgram : public TRProgramBase
 {
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
+    private:
+        void vertex(TRMeshData &, VSOutData *, size_t );
+        bool fragment(FSInData *, float color[3]);
+        void getVaryingNum(size_t &, size_t &, size_t &);
 
-    TRProgramBase *clone();
+    public:
+        TRProgramBase *clone();
 };
 
 class TextureMapProgram : public TRProgramBase
 {
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
+    private:
+        void vertex(TRMeshData &, VSOutData *, size_t );
+        bool fragment(FSInData *, float color[3]);
+        void getVaryingNum(size_t &, size_t &, size_t &);
 
-    TRProgramBase *clone();
+    public:
+        TRProgramBase *clone();
 };
 
 class ColorPhongProgram : public TRProgramBase
 {
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    void prepareFragmentData(VSDataBase *[3], FSDataBase *);
-    void interpVertex(float , VSDataBase *, VSDataBase *, VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
+    private:
+        void vertex(TRMeshData &, VSOutData *, size_t);
+        bool fragment(FSInData *, float color[3]);
+        void getVaryingNum(size_t &, size_t &, size_t &);
 
-    VSDataBase *allocVSData();
-    FSDataBase *allocFSData();
-    void freeShaderData();
-
-    TRProgramBase *clone();
-
-    PhongVSData mVSData[MAX_VSDATA_NUM];
-    PhongFSData mFSData;
-    int mAllocIndex = 0;
+    public:
+        TRProgramBase *clone();
 };
 
 class TextureMapPhongProgram : public TRProgramBase
 {
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    void prepareFragmentData(VSDataBase *[3], FSDataBase *);
-    void interpVertex(float , VSDataBase *, VSDataBase *, VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
+    private:
+        void vertex(TRMeshData &, VSOutData *, size_t);
+        bool fragment(FSInData *, float color[3]);
+        void getVaryingNum(size_t &, size_t &, size_t &);
 
-    VSDataBase *allocVSData();
-    FSDataBase *allocFSData();
-    void freeShaderData();
-
-    TRProgramBase *clone();
-
-    PhongVSData mVSData[MAX_VSDATA_NUM];
-    PhongFSData mFSData;
-    int mAllocIndex = 0;
+    public:
+        TRProgramBase *clone();
 };
 
 class ShadowMapProgram : public TRProgramBase
 {
-    void loadVertexData(TRMeshData &, VSDataBase *, size_t);
-    void vertex(VSDataBase *);
-    bool fragment(FSDataBase *, float color[3]);
-
-    TRProgramBase *clone();
+    private:
+        void vertex(TRMeshData &, VSOutData *, size_t);
+        bool fragment(FSInData *, float color[3]);
+        void getVaryingNum(size_t &, size_t &, size_t &);
 
     public:
+        TRProgramBase *clone();
         constexpr static float BIAS = 0.001f;
         constexpr static float FACTOR = 0.2f;
 };

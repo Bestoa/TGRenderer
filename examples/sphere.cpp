@@ -161,6 +161,10 @@ int main(int argc, char *argv[])
     int frame = 0;
     TextureMapPhongProgram prog;
 
+    PhongUniformData unidata;
+    unidata.mViewLightPosition = trGetMat4(MAT4_VIEW) * glm::vec4(light.mPosition, 1.0f);
+    trSetUniformData(&unidata);
+
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     while (!w.shouldStop()) {
         frame++;

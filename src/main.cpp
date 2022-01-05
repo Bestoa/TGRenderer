@@ -198,12 +198,15 @@ int main(int argc, char *argv[])
 #endif
 
     glm::mat4 modelMat(1.0f);
+    PhongUniformData unidata;
 
     int frame = 0;
     auto start = std::chrono::system_clock::now();
     while (!w.shouldStop() && frame++ < endFrame)
     {
         reCalcMat(modelMat, eyeViewMat, lightViewMat);
+        unidata.mViewLightPosition = eyeViewMat * glm::vec4(light.mPosition, 1.0f);
+        trSetUniformData(&unidata);
 #if ENABLE_SHADOW
         if (gOption.enableShadow)
         {
