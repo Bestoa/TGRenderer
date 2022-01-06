@@ -138,8 +138,6 @@ bool ColorPhongProgram::fragment(FSInData *fsdata, float color[3])
     glm::vec3 normal = interpFast(fsdata->mVaryingVec3Prim[SH_NORMAL]);
     glm::vec3 diffuseColor = interpFast(fsdata->mVaryingVec3Prim[SH_COLOR]);
 
-    LightInfo &light = trGetLightInfo();
-
     normal = glm::normalize(normal);
     // from fragment to light
     glm::vec3 lightDirection = glm::normalize(unidata->mViewLightPosition - fragmentPosition);
@@ -150,12 +148,12 @@ bool ColorPhongProgram::fragment(FSInData *fsdata, float color[3])
     glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
-    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), light.mShininess * 2);
+    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
 #else
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
-    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), light.mShininess);
+    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
 #endif
-    glm::vec3 result = ((light.mAmbientStrength + diff) * diffuseColor + spec * light.mSpecularStrength) * light.mColor;
+    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * unidata->mSpecularStrength) * unidata->mLightColor;
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
@@ -221,8 +219,6 @@ bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
     glm::vec3 normal;
     glm::vec3 lightPosition;
 
-    LightInfo &light = trGetLightInfo();
-
     glm::vec3 diffuseColor = glm::make_vec3(texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y));
 
     if (trGetTexture(TEXTURE_NORMAL) != nullptr)
@@ -246,18 +242,18 @@ bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
     glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
-    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), light.mShininess * 2);
+    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
 #else
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
-    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), light.mShininess);
+    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
 #endif
     glm::vec3 specColor(1.0f);
     if (trGetTexture(TEXTURE_SPECULAR) != nullptr)
         specColor = glm::make_vec3(texture2D(TEXTURE_SPECULAR, texCoord.x, texCoord.y));
     else
-        specColor *= light.mSpecularStrength;
+        specColor *= unidata->mSpecularStrength;
 
-    glm::vec3 result = ((light.mAmbientStrength + diff) * diffuseColor + spec * specColor) * light.mColor;
+    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {

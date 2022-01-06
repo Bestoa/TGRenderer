@@ -147,9 +147,6 @@ int main(int argc, char *argv[])
 
     trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
 
-    LightInfo &light = trGetLightInfo();
-    light.mPosition = glm::vec3(100.0f, 0.0f, 0.0f);
-
     TRTexture tex(argv[1]);
     if (!tex.isValid())
     {
@@ -162,7 +159,8 @@ int main(int argc, char *argv[])
     TextureMapPhongProgram prog;
 
     PhongUniformData unidata;
-    unidata.mViewLightPosition = trGetMat4(MAT4_VIEW) * glm::vec4(light.mPosition, 1.0f);
+    unidata.mLightPosition = glm::vec3(100.0f, 0.0f, 0.0f);
+    unidata.mViewLightPosition = trGetMat4(MAT4_VIEW) * glm::vec4(unidata.mLightPosition, 1.0f);
     trSetUniformData(&unidata);
 
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));

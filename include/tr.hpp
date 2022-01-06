@@ -41,16 +41,6 @@ enum TRCullFaceMode
     TR_CW,
 };
 
-class LightInfo
-{
-    public:
-        float mAmbientStrength = 0.1;
-        float mSpecularStrength = 0.2;
-        int mShininess = 32;
-        glm::vec3 mColor = glm::vec3(1.0f, 1.0f, 1.0f);
-        glm::vec3 mPosition = glm::vec3(0.0f, 0.0f, 0.0f);
-};
-
 static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
 {
     return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
@@ -138,7 +128,6 @@ class TRProgramBase
 #endif
 
 void trSetRenderThreadNum(size_t num);
-LightInfo &trGetLightInfo();
 void trViewport(int x, int y, int w, int h);
 void trBindTexture(TRTexture *texture, int type);
 TRTexture *trGetTexture(int type);

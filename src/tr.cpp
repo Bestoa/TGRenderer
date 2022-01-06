@@ -24,8 +24,6 @@ glm::mat3 gMat3[MAT_INDEX_MAX] =
     glm::mat3(1.0f), // normal mat
 };
 
-LightInfo gLightInfo;
-
 size_t gThreadNum = 4;
 
 int gDrawMode = TR_FILL;
@@ -425,11 +423,6 @@ void trTriangles(TRMeshData &mesh, TRProgramBase *prog)
 void trSetRenderThreadNum(size_t num)
 {
     gThreadNum = num;
-}
-
-LightInfo &trGetLightInfo()
-{
-    return gLightInfo;
 }
 
 void trViewport(int x, int y, int w, int h)

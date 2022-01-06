@@ -19,6 +19,8 @@
 #define ENABLE_SHADOW 1
 #define DRAW_FLOOR 1
 
+PhongUniformData unidata;
+
 class Option
 {
     public:
@@ -131,7 +133,7 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat, glm::mat4 &lightViewM
                 glm::vec3(glm::sin(degree), 1, glm::cos(degree)),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0));
-        trGetLightInfo().mPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
+        unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
     }
 }
 
@@ -148,8 +150,6 @@ int main(int argc, char *argv[])
 
     w.registerKeyEventCb(kcb);
 
-    LightInfo &light = trGetLightInfo();
-    light.mPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 #if ENABLE_SHADOW
     TRBuffer *windowBuffer = w.getBuffer();
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(TWIDTH, THEIGHT);
@@ -198,14 +198,14 @@ int main(int argc, char *argv[])
 #endif
 
     glm::mat4 modelMat(1.0f);
-    PhongUniformData unidata;
+    unidata.mLightPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 
     int frame = 0;
     auto start = std::chrono::system_clock::now();
     while (!w.shouldStop() && frame++ < endFrame)
     {
         reCalcMat(modelMat, eyeViewMat, lightViewMat);
-        unidata.mViewLightPosition = eyeViewMat * glm::vec4(light.mPosition, 1.0f);
+        unidata.mViewLightPosition = eyeViewMat * glm::vec4(unidata.mLightPosition, 1.0f);
         trSetUniformData(&unidata);
 #if ENABLE_SHADOW
         if (gOption.enableShadow)

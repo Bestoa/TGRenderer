@@ -38,7 +38,12 @@ enum
 class PhongUniformData
 {
     public:
-        glm::vec3 mViewLightPosition;
+        float mAmbientStrength = 0.1;
+        float mSpecularStrength = 0.2;
+        int mShininess = 32;
+        glm::vec3 mLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        glm::vec3 mLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+        glm::vec3 mViewLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 };
 
 class ColorProgram : public TRProgramBase
