@@ -20,6 +20,7 @@
 #define DRAW_FLOOR 1
 
 PhongUniformData unidata;
+int ProgramId = 3;
 
 class Option
 {
@@ -80,6 +81,11 @@ void kcb(int key)
             break;
         case SDL_SCANCODE_O:
             gOption.zoomOut = true;
+            break;
+        case SDL_SCANCODE_C:
+            ProgramId++;
+            if (ProgramId == 4)
+                ProgramId = 0;
             break;
     }
 }
@@ -229,7 +235,7 @@ int main(int argc, char *argv[])
         trSetMat4(eyeViewMat, MAT4_VIEW);
         trSetMat4(eyeProjMat, MAT4_PROJ);
         for (auto obj : objs)
-            obj->draw();
+            obj->draw(ProgramId);
 
 #if DRAW_FLOOR
         if (gOption.drawFloor)

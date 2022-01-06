@@ -110,7 +110,7 @@ TRObj::TRObj(const char *config)
     mValid = true;
 }
 
-bool TRObj::draw()
+bool TRObj::draw(int id)
 {
     if (isValid() == false)
         return false;
@@ -129,7 +129,7 @@ bool TRObj::draw()
     if (mTextureNormal && mTextureNormal->isValid())
         trBindTexture(mTextureNormal, TEXTURE_NORMAL);
 
-    trTriangles(mMeshData, &mProg);
+    trTriangles(mMeshData, mProg[id]);
 
     return true;
 }

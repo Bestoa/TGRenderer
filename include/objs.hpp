@@ -8,7 +8,7 @@ class TRObj
         TRObj(const char *confg);
         ~TRObj();
         bool isValid();
-        bool draw();
+        bool draw(int id = 3);
         bool drawShadowMap();
 
         // Disable copy init.
@@ -20,13 +20,19 @@ class TRObj
 
         TRMeshData mMeshData;
 
-        TextureMapPhongProgram mProg;
+        ColorProgram mCProg;
+        TextureMapProgram mTMProg;
+        ColorPhongProgram mCPProg;
+        TextureMapPhongProgram mTMPProg;
+
         ShadowMapProgram mShadowProg;
 
         TRTexture *mTextureDiffuse = nullptr;
         TRTexture *mTextureSpecular = nullptr;
         TRTexture *mTextureGlow = nullptr;
         TRTexture *mTextureNormal = nullptr;
+
+        TRProgramBase *mProg[4] = { &mCProg, &mTMProg, &mCPProg, &mTMPProg };
 
         bool mValid = false;
 };
