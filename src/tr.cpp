@@ -117,10 +117,14 @@ void TRProgramBase::prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata)
     }
 }
 
-void TRProgramBase::interpVertex(float t, VSOutData *in1, VSOutData *in2, VSOutData *outV)
+constexpr float W_CLIPPING_PLANE = 0.1f;
+
+void TRProgramBase::getIntersectionVertex(VSOutData *in1, VSOutData *in2, VSOutData *outV)
 {
     size_t v2n, v3n, v4n;
     getVaryingNum(v2n, v3n, v4n);
+
+    float t = (in2->tr_Position.w - W_CLIPPING_PLANE)/(in2->tr_Position.w - in1->tr_Position.w);
 
     for (size_t i = 0; i < v2n; i++)
         outV->mVaryingVec2[i] = in2->mVaryingVec2[i] + t * (in1->mVaryingVec2[i] - in2->mVaryingVec2[i]);
@@ -134,41 +138,38 @@ void TRProgramBase::interpVertex(float t, VSOutData *in1, VSOutData *in2, VSOutD
     outV->tr_Position = in2->tr_Position + t * (in1->tr_Position - in2->tr_Position);
 }
 
-#define W_NEAR (0.1f)
-void TRProgramBase::clipLineNear(VSOutData *in1, VSOutData *in2, VSOutData *out[3], size_t &index)
+void TRProgramBase::clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[3], size_t &index)
 {
     // Sutherland-Hodgeman clip
     // t = w1 / (w1 - w2)
     // V = V1 + t * (V2 - V1)
-    if (in1->tr_Position.w > 0 && in2->tr_Position.w > 0)
+    if (in1->tr_Position.w > W_CLIPPING_PLANE && in2->tr_Position.w > W_CLIPPING_PLANE)
     {
         out[index++] = in2;
     }
-    else if (in1->tr_Position.w > 0 && in2->tr_Position.w < 0)
+    else if (in1->tr_Position.w > W_CLIPPING_PLANE && in2->tr_Position.w < W_CLIPPING_PLANE)
     {
-        float t = (in2->tr_Position.w - W_NEAR)/(in2->tr_Position.w - in1->tr_Position.w);
         VSOutData *outV = allocVSOutData();
         // get interp V and put V into output
-        interpVertex(t, in1, in2, outV);
+        getIntersectionVertex(in1, in2, outV);
         out[index++] = outV;
     }
-    else if (in1->tr_Position.w < 0 && in2->tr_Position.w > 0)
+    else if (in1->tr_Position.w < W_CLIPPING_PLANE && in2->tr_Position.w > W_CLIPPING_PLANE)
     {
-        float t = (in1->tr_Position.w - W_NEAR)/(in1->tr_Position.w - in2->tr_Position.w);
         VSOutData *outV = allocVSOutData();
         // get interp V and put V and V2 into output
-        interpVertex(t, in2, in1, outV);
+        getIntersectionVertex(in2, in1, outV);
         out[index++] = outV;
         out[index++] = in2;
     }
 }
 
-void TRProgramBase::clipNear(VSOutData *in[3], VSOutData *out[4], size_t &index)
+void TRProgramBase::clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index)
 {
     index = 0;
-    clipLineNear(in[0], in[1], out, index);
-    clipLineNear(in[1], in[2], out, index);
-    clipLineNear(in[2], in[0], out, index);
+    clipLineOnWAxis(in[0], in[1], out, index);
+    clipLineOnWAxis(in[1], in[2], out, index);
+    clipLineOnWAxis(in[2], in[0], out, index);
 }
 
 void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
@@ -183,7 +184,7 @@ void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
     // Max is 4 output.
     VSOutData *out[4] = { nullptr };
     size_t total = 0;
-    clipNear(vsdata, out, total);
+    clipOnWAxis(vsdata, out, total);
 
     for (size_t i = 0; total > 2 && i < total - 2; i++)
     {
@@ -252,9 +253,12 @@ void TRProgramBase::rasterizationPoint(
     w1 /= clip_v[1].w;
     w2 /= clip_v[2].w;
 
-    float areaPC =  1 / (w0 + w1 + w2);
-    mUPC = w1 * areaPC;
-    mVPC = w2 * areaPC;
+    float areaPC = (w0 + w1 + w2);
+    /* One more special case... */
+    if (!insideCheck && areaPC == 0)
+        areaPC = 1e-6;
+    mUPC = w1 / areaPC;
+    mVPC = w2 / areaPC;
 
     size_t offset = mBuffer->getOffset(x, y);
     /* easy-z */
@@ -342,9 +346,8 @@ void TRProgramBase::rasterization(VSOutData *vsdata[3])
         return;
     else if (gCullFace == TR_CW && area >= 0)
         return;
-
-    /* Special case */
-    if (area == 0)
+    else if (area == 0)
+        /* Special case */
         area = 1e-6;
 
     FSInData *fsdata = allocFSInData();

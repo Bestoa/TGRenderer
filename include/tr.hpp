@@ -119,11 +119,11 @@ class TRProgramBase
         /* Prepare fragment data for interpolation. Put { V0.AAA, V1.AAA - V0.AAA, V2.AAA - V0.AAA } into FSInData. */
         void prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata);
 
-        /* Add a new vertex if needed when clipping near plane. Formula: new V.AAA = in2.AAA + t * (in1.AAA -in2.AAA) */
-        void interpVertex(float t, VSOutData *in1, VSOutData *in2, VSOutData *outV);
+        /* Add a new vertex if needed when clipping on W axis. Formula: new V.AAA = in2.AAA + t * (in1.AAA -in2.AAA) */
+        void getIntersectionVertex(VSOutData *in1, VSOutData *in2, VSOutData *outV);
 
-        void clipLineNear(VSOutData *in1, VSOutData *in2, VSOutData *out[4], size_t &index);
-        void clipNear(VSOutData *in[3], VSOutData *out[4], size_t &index);
+        void clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[4], size_t &index);
+        void clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index);
 
         void drawTriangle(TRMeshData &mesh, size_t index);
         void rasterization(VSOutData *vsdata[3]);
