@@ -33,7 +33,7 @@ int main()
 
     ColorProgram prog;
 
-    trClear();
+    trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
     mesh.fillSpriteColor();
     trTriangles(mesh, &prog);
     truSavePPM("01_sprite_color.ppm", buffer->mData, buffer->mW, buffer->mH);
@@ -41,7 +41,7 @@ int main()
     mesh.colors.clear();
     truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);
 
-    trClear();
+    trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
     trTriangles(mesh, &prog);
     truSavePPM("01_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 

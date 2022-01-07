@@ -220,7 +220,7 @@ int main(int argc, char *argv[])
         if (gOption.enableShadow)
         {
             trSetCurrentRenderTarget(shadowBuffer);
-            trClear();
+            trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
             trSetMat4(modelMat, MAT4_MODEL);
             trSetMat4(lightViewMat, MAT4_VIEW);
             trSetMat4(lightProjMat, MAT4_PROJ);
@@ -233,7 +233,7 @@ int main(int argc, char *argv[])
             trSetCurrentRenderTarget(windowBuffer);
         }
 #endif
-        trClear();
+        trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
         trSetMat4(modelMat, MAT4_MODEL);
         trSetMat4(eyeViewMat, MAT4_VIEW);
         trSetMat4(eyeProjMat, MAT4_PROJ);

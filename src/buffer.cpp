@@ -49,6 +49,12 @@ namespace TGRenderer
             mDepth[i] = 1.0f;
     }
 
+    void TRBuffer::clearStencil()
+    {
+        for (size_t i = 0; i < mW * mH; i++)
+            mStencil[i] = 0;
+    }
+
     size_t TRBuffer::getOffset(int x, int y)
     {
         return y * mW + x;
@@ -72,6 +78,16 @@ namespace TGRenderer
         return true;
     }
 
+    void TRBuffer::stencilFunc(size_t offset)
+    {
+        /* simple stencil func */
+        mStencil[offset]++;
+    }
+
+    bool TRBuffer::stencilTest(size_t offset)
+    {
+        return mStencil[offset] == 0;
+    }
 
     void TRBuffer::setExtBuffer(void *addr)
     {
@@ -89,19 +105,26 @@ namespace TGRenderer
         if (mAlloc && mData == nullptr)
             return;
         mDepth = new float[w * h];
-        if (mDepth == nullptr)
-        {
-            if (mData)
-                delete mData;
-            return;
-        }
+        mStencil = new uint8_t[w * h];
+        if (mDepth == nullptr || mStencil == nullptr)
+            goto error;
         mW = mVW = w;
         mH = mVH = h;
         if (mAlloc)
             clearColor();
         clearDepth();
+        clearStencil();
 
         mValid = true;
+
+        return;
+error:
+        if (mData)
+            delete mData;
+        if (mDepth)
+            delete mDepth;
+        if (mStencil)
+            delete mStencil;
     }
 
     TRBuffer::~TRBuffer()
@@ -113,6 +136,8 @@ namespace TGRenderer
             delete mData;
         if (mDepth)
             delete mDepth;
+        if (mStencil)
+            delete mStencil;
     }
 
     bool TRBuffer::isValid()

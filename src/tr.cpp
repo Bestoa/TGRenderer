@@ -27,10 +27,11 @@ namespace TGRenderer
     };
 
     size_t gThreadNum = 4;
-
     int gDrawMode = TR_FILL;
-
     int gCullFace = TR_CCW;
+    bool gEnableDepthTest = true;
+    bool gEnableStencilTest = false;
+    bool gEnableStencilWrite = false;
 
     // internal function
     void TRMeshData::computeTangent()
@@ -272,7 +273,7 @@ namespace TGRenderer
         size_t offset = mBuffer->getOffset(x, y);
         /* easy-z */
         /* Do not use mutex here to speed up */
-        if (!mBuffer->depthTest(offset, depth))
+        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
             return;
 
         float color[3];
@@ -283,7 +284,13 @@ namespace TGRenderer
 #ifdef DEPTH_LOCK
         std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
 #endif
-        if (!mBuffer->depthTest(offset, depth))
+        if (gEnableStencilTest && !mBuffer->stencilTest(offset))
+            return;
+
+        if (gEnableStencilWrite)
+            mBuffer->stencilFunc(offset);
+
+        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
             return;
 
         mBuffer->setColor(offset, color);
@@ -452,7 +459,7 @@ namespace TGRenderer
             gTexture[type] = texture;
     }
 
-    TRTexture * trGetTexture(int type)
+    TRTexture *trGetTexture(int type)
     {
         if (type < TEXTURE_INDEX_MAX)
             return gTexture[type];
@@ -460,10 +467,29 @@ namespace TGRenderer
             return nullptr;
     }
 
-    void trClear()
+    void trEnableStencilTest(bool enable)
     {
-        gRenderTarget->clearColor();
-        gRenderTarget->clearDepth();
+        gEnableStencilTest = enable;
+    }
+
+    void trEnableStencilWrite(bool enable)
+    {
+        gEnableStencilWrite = enable;
+    }
+
+    void trEnableDepthTest(bool enable)
+    {
+        gEnableDepthTest = enable;
+    }
+
+    void trClear(int mode)
+    {
+        if (mode & TR_CLEAR_COLOR_BIT)
+            gRenderTarget->clearColor();
+        if (mode & TR_CLEAR_DEPTH_BIT)
+            gRenderTarget->clearDepth();
+        if (mode & TR_CLEAR_STENCIL_BIT)
+            gRenderTarget->clearStencil();
     }
 
     void trClearColor3f(float r, float g, float b)

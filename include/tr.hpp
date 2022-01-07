@@ -46,6 +46,13 @@ namespace TGRenderer
         TR_CW,
     };
 
+    enum TRClearBit
+    {
+        TR_CLEAR_COLOR_BIT = 1,
+        TR_CLEAR_DEPTH_BIT = 2,
+        TR_CLEAR_STENCIL_BIT = 4,
+    };
+
     static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
     {
         return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
@@ -130,7 +137,10 @@ namespace TGRenderer
     void trViewport(int x, int y, int w, int h);
     void trBindTexture(TRTexture *texture, int type);
     TRTexture *trGetTexture(int type);
-    void trClear();
+    void trEnableStencilWrite(bool enable);
+    void trEnableStencilTest(bool enable);
+    void trEnableDepthTest(bool enable);
+    void trClear(int mode);
     void trClearColor3f(float r, float g, float b);
     void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type);
     void trSetMat4(glm::mat4 mat, MAT_INDEX_TYPE type);

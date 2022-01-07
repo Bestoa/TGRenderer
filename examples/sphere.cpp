@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
         frame++;
         trSetMat4(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)), MAT4_MODEL);
 
-        trClear();
+        trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
         trTriangles(sphere, &prog);
         w.swapBuffer();
         w.pollEvent();

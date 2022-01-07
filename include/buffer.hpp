@@ -21,10 +21,13 @@ namespace TGRenderer
             void setBgColor(float r, float g, float b);
             virtual void clearColor();
             void clearDepth();
+            void clearStencil();
 
             size_t getOffset(int x, int y);
             virtual void setColor(size_t offset, float c[BUFFER_CHANNEL]);
             bool depthTest(size_t offset, float depth);
+            void stencilFunc(size_t offset);
+            bool stencilTest(size_t offset);
 
             void setExtBuffer(void *addr);
 
@@ -44,6 +47,7 @@ namespace TGRenderer
 
         private:
             float *mDepth = nullptr;
+            uint8_t *mStencil = nullptr;
 
             uint32_t mVX = 0;
             uint32_t mVY = 0;
