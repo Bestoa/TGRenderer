@@ -9,6 +9,7 @@
 #include "window.hpp"
 #include "objs.hpp"
 #include "utils.hpp"
+#include "program.hpp"
 
 #define WIDTH (1280)
 #define HEIGHT (720)
@@ -18,6 +19,8 @@
 
 #define ENABLE_SHADOW 1
 #define DRAW_FLOOR 1
+
+using namespace TGRenderer;
 
 PhongUniformData unidata;
 int ProgramId = 3;

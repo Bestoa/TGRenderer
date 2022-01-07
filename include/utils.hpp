@@ -13,5 +13,5 @@ bool truLoadObj(
         std::vector<glm::vec2> & out_uvs,
         std::vector<glm::vec3> & out_normals
         );
-void truCreateFloor(TRMeshData &mesh, float height, float color[3]);
+void truCreateFloor(TGRenderer::TRMeshData &mesh, float height, float color[3]);
 #endif

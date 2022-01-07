@@ -4,10 +4,13 @@
 #include <glm/glm.hpp>
 
 #include "tr.hpp"
+#include "program.hpp"
 #include "utils.hpp"
 
 #define WIDTH (600)
 #define HEIGHT (600)
+
+using namespace TGRenderer;
 
 int main()
 {

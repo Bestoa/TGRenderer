@@ -1,6 +1,7 @@
 #ifndef __TR_OBJS__
 #define __TR_OBJS__
 #include "tr.hpp"
+#include "program.hpp"
 
 class TRObj
 {
@@ -18,7 +19,7 @@ class TRObj
 
     private:
 
-        TRMeshData mMeshData;
+        TGRenderer::TRMeshData mMeshData;
 
         ColorProgram mCProg;
         TextureMapProgram mTMProg;
@@ -27,12 +28,12 @@ class TRObj
 
         ShadowMapProgram mShadowProg;
 
-        TRTexture *mTextureDiffuse = nullptr;
-        TRTexture *mTextureSpecular = nullptr;
-        TRTexture *mTextureGlow = nullptr;
-        TRTexture *mTextureNormal = nullptr;
+        TGRenderer::TRTexture *mTextureDiffuse = nullptr;
+        TGRenderer::TRTexture *mTextureSpecular = nullptr;
+        TGRenderer::TRTexture *mTextureGlow = nullptr;
+        TGRenderer::TRTexture *mTextureNormal = nullptr;
 
-        TRProgramBase *mProg[4] = { &mCProg, &mTMProg, &mCPProg, &mTMPProg };
+        TGRenderer::Program *mProg[4] = { &mCProg, &mTMProg, &mCPProg, &mTMPProg };
 
         bool mValid = false;
 };

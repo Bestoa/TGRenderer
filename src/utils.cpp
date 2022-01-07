@@ -130,7 +130,7 @@ bool truLoadObj(
     return true;
 }
 
-void truCreateFloor(TRMeshData &mesh, float height, float color[3])
+void truCreateFloor(TGRenderer::TRMeshData &mesh, float height, float color[3])
 {
     float width = 4.0;
     float floorData[] =

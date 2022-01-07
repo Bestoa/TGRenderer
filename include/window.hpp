@@ -25,7 +25,7 @@ class TRWindow {
         void removeKeyEventCb();
         bool shouldStop();
         bool swapBuffer();
-        TRBuffer* getBuffer() { return mBuffer; };
+        TGRenderer::TRBuffer* getBuffer() { return mBuffer; };
 
         // Disable copy init.
         TRWindow(const TRWindow &) = delete;
@@ -34,7 +34,7 @@ class TRWindow {
     private:
         TRWindow() = delete;
 
-        TRBuffer *mBuffer = nullptr;
+        TGRenderer::TRBuffer *mBuffer = nullptr;
         int mWidth = 0;
         int mHeight = 0;
         SDL_Window *mWindow = nullptr;

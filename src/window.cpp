@@ -5,6 +5,7 @@
 #include "window.hpp"
 
 using namespace std;
+using namespace TGRenderer;
 
 void TRWindow::__disp_func__(TRWindow *w)
 {

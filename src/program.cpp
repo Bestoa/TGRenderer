@@ -3,6 +3,9 @@
 #include <glm/ext.hpp>
 
 #include "tr.hpp"
+#include "program.hpp"
+
+using namespace TGRenderer;
 
 void __texture_coord_repeat__(glm::vec2 &coord)
 {
@@ -83,7 +86,7 @@ void ColorProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
     v4 = SH_VEC4_BASE_MAX;
 }
 
-TRProgramBase* ColorProgram::clone()
+Program* ColorProgram::clone()
 {
     return new ColorProgram();
 }
@@ -114,7 +117,7 @@ void TextureMapProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
     v4 = SH_VEC4_BASE_MAX;
 }
 
-TRProgramBase* TextureMapProgram::clone()
+Program* TextureMapProgram::clone()
 {
     return new TextureMapProgram();
 }
@@ -177,7 +180,7 @@ void ColorPhongProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
     v4 = SH_VEC4_PHONG_MAX;
 }
 
-TRProgramBase* ColorPhongProgram::clone()
+Program* ColorPhongProgram::clone()
 {
     return new ColorPhongProgram();
 }
@@ -281,7 +284,7 @@ void TextureMapPhongProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
     v4 = SH_VEC4_PHONG_MAX;
 }
 
-TRProgramBase* TextureMapPhongProgram::clone()
+Program* TextureMapPhongProgram::clone()
 {
     return new TextureMapPhongProgram();
 }
@@ -309,7 +312,7 @@ void ShadowMapProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
     v4 = SH_VEC4_BASE_MAX;
 }
 
-TRProgramBase* ShadowMapProgram::clone()
+Program* ShadowMapProgram::clone()
 {
     return new ShadowMapProgram();
 }

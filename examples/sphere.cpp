@@ -7,11 +7,14 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "tr.hpp"
+#include "program.hpp"
 #include "window.hpp"
 
 #define WIDTH (800)
 #define HEIGHT (800)
 #define PI (3.1415926)
+
+using namespace TGRenderer;
 
 glm::vec3 get_point(float u, float v)
 {

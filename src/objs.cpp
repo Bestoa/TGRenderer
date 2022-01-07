@@ -7,6 +7,7 @@
 #include "objs.hpp"
 
 using namespace std;
+using namespace TGRenderer;
 
 TRObj::~TRObj()
 {
