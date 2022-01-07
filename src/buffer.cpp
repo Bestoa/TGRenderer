@@ -89,6 +89,13 @@ namespace TGRenderer
         return mStencil[offset] == 0;
     }
 
+#if __NEED_BUFFER_LOCK__
+    std::mutex & TRBuffer::getMutex(size_t offset)
+    {
+        return mMutex[offset >> MUTEX_PIXEL_SHIT];
+    }
+#endif
+
     void TRBuffer::setExtBuffer(void *addr)
     {
         if (mValid && !mAlloc)
@@ -108,6 +115,11 @@ namespace TGRenderer
         mStencil = new uint8_t[w * h];
         if (mDepth == nullptr || mStencil == nullptr)
             goto error;
+#if __NEED_BUFFER_LOCK__
+        mMutex = new std::mutex[((w * h) >> MUTEX_PIXEL_SHIT) + 1];
+        if (mMutex == nullptr)
+            goto error;
+#endif
         mW = mVW = w;
         mH = mVH = h;
         if (mAlloc)
@@ -138,6 +150,10 @@ error:
             delete mDepth;
         if (mStencil)
             delete mStencil;
+#if __NEED_BUFFER_LOCK__
+        if (mMutex)
+            delete [] mMutex;
+#endif
     }
 
     bool TRBuffer::isValid()

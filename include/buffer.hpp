@@ -4,6 +4,8 @@
 #include <glm/glm.hpp>
 #include <mutex>
 
+#define __NEED_BUFFER_LOCK__ (1)
+
 namespace TGRenderer
 {
     constexpr int BUFFER_CHANNEL = 3;
@@ -13,8 +15,6 @@ namespace TGRenderer
             uint8_t *mData = nullptr;
             uint32_t mW = 0;
             uint32_t mH = 0;
-
-            std::mutex mDepthMutex;
 
             void setViewport(int x, int y, int w, int h);
             void viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v);
@@ -28,7 +28,9 @@ namespace TGRenderer
             bool depthTest(size_t offset, float depth);
             void stencilFunc(size_t offset);
             bool stencilTest(size_t offset);
-
+#if __NEED_BUFFER_LOCK__
+            std::mutex & getMutex(size_t offset);
+#endif
             void setExtBuffer(void *addr);
 
             TRBuffer() = delete;
@@ -57,6 +59,11 @@ namespace TGRenderer
             // data was allocated by us.
             bool mAlloc = true;
             unsigned int mId = 0;
+#if __NEED_BUFFER_LOCK__
+            // 1024 pixels share one mutex
+            constexpr static int MUTEX_PIXEL_SHIT = 10;
+            std::mutex *mMutex = nullptr;
+#endif
     };
 }
 #endif

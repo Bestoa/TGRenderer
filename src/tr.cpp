@@ -280,9 +280,8 @@ namespace TGRenderer
         if (!fragment(fsdata, color))
             return;
 
-        /* depth test */
-#ifdef DEPTH_LOCK
-        std::lock_guard<std::mutex> lck(mBuffer->mDepthMutex);
+#if __NEED_BUFFER_LOCK__
+        std::lock_guard<std::mutex> lck(mBuffer->getMutex(offset));
 #endif
         if (gEnableStencilTest && !mBuffer->stencilTest(offset))
             return;
@@ -290,6 +289,7 @@ namespace TGRenderer
         if (gEnableStencilWrite)
             mBuffer->stencilFunc(offset);
 
+        /* depth test */
         if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
             return;
 
