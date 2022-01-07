@@ -1,8 +1,6 @@
 #ifndef __TOPGUN_RENDERER__
 #define __TOPGUN_RENDERER__
 
-#include <iostream>
-#include <string>
 #include <vector>
 #include <glm/glm.hpp>
 
@@ -133,25 +131,33 @@ namespace TGRenderer
             void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSInData *fsdata);
     };
 
-    void trSetRenderThreadNum(size_t num);
-    void trViewport(int x, int y, int w, int h);
-    void trBindTexture(TRTexture *texture, int type);
-    TRTexture *trGetTexture(int type);
-    void trEnableStencilWrite(bool enable);
-    void trEnableStencilTest(bool enable);
-    void trEnableDepthTest(bool enable);
-    void trClear(int mode);
-    void trClearColor3f(float r, float g, float b);
+    // Matrix related API
     void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type);
     void trSetMat4(glm::mat4 mat, MAT_INDEX_TYPE type);
     glm::mat3 &trGetMat3(MAT_INDEX_TYPE type);
     glm::mat4 &trGetMat4(MAT_INDEX_TYPE type);
-    void trSetUniformData(void *data);
-    void* trGetUniformData();
+    void trResetMat3(MAT_INDEX_TYPE type);
+    void trResetMat4(MAT_INDEX_TYPE type);
+    // Draw related API
     void trTriangles(TRMeshData &mesh, Program *prog);
+    // Core state related API
+    void trSetRenderThreadNum(size_t num);
+    void trEnableStencilWrite(bool enable);
+    void trEnableStencilTest(bool enable);
+    void trEnableDepthTest(bool enable);
     void trDrawMode(TRDrawMode mode);
     void trCullFaceMode(TRCullFaceMode mode);
+    // Buffer related API
     TRBuffer *trCreateRenderTarget(int w, int h);
     void trSetCurrentRenderTarget(TRBuffer *traget);
+    void trViewport(int x, int y, int w, int h);
+    void trClear(int mode);
+    void trClearColor3f(float r, float g, float b);
+    // Texture related API
+    void trBindTexture(TRTexture *texture, int type);
+    TRTexture *trGetTexture(int type);
+    // Uniform data related API
+    void trSetUniformData(void *data);
+    void *trGetUniformData();
 }
 #endif

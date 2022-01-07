@@ -13,7 +13,7 @@ namespace TGRenderer
     TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
     void *gUniform = nullptr;
 
-    glm::mat4 gMat4[MAT_INDEX_MAX] =
+    glm::mat4 gDefaultMat4[MAT_INDEX_MAX] =
     {
         glm::mat4(1.0f), // model mat
         glm::mat4(1.0f), // view mat
@@ -21,9 +21,21 @@ namespace TGRenderer
         glm::mat4({1.0f, 0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f, 0.0f}, {0.0f, 0.0f, -1.0f, 0.0f}, {0.0f, 0.0f, 0.0f, 1.0f}), // proj mat
     };
 
-    glm::mat3 gMat3[MAT_INDEX_MAX] =
+    glm::mat4 gMat4[MAT_INDEX_MAX] =
+    {
+        gDefaultMat4[MAT4_MODEL],
+        gDefaultMat4[MAT4_VIEW],
+        gDefaultMat4[MAT4_PROJ],
+    };
+
+    glm::mat3 gDefaultMat3[MAT_INDEX_MAX] =
     {
         glm::mat3(1.0f), // normal mat
+    };
+
+    glm::mat3 gMat3[MAT_INDEX_MAX] =
+    {
+        gDefaultMat3[MAT3_NORMAL],
     };
 
     size_t gThreadNum = 4;
@@ -523,6 +535,18 @@ namespace TGRenderer
             return gMat4[type];
         else
             return gMat4[0];
+    }
+
+    void trResetMat3(MAT_INDEX_TYPE type)
+    {
+        if (type < MAT_INDEX_MAX)
+            gMat3[type] = gDefaultMat3[type];
+    }
+
+    void trResetMat4(MAT_INDEX_TYPE type)
+    {
+        if (type < MAT_INDEX_MAX)
+            gMat4[type] = gDefaultMat4[type];
     }
 
     void trDrawMode(TRDrawMode mode)
