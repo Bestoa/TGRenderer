@@ -150,3 +150,22 @@ void truCreateFloor(TGRenderer::TRMeshData &mesh, float height, float color[3])
     truLoadVec2(floorData, 0, 6, 9, 11, mesh.uvs);
 }
 
+void truCreateQuadPlane(TGRenderer::TRMeshData &mesh, float color[3])
+{
+    float planeData[] =
+    {
+        /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
+        -1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   1.0,
+        -1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   0.0,
+         1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   0.0,
+         1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   0.0,
+         1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   1.0,
+        -1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   1.0,
+    };
+
+    truLoadVec3(planeData, 0, 6, 0, 11, mesh.vertices);
+    truLoadVec3(planeData, 0, 6, 3, 11, mesh.colors);
+    truLoadVec3(planeData, 0, 6, 6, 11, mesh.normals);
+    truLoadVec2(planeData, 0, 6, 9, 11, mesh.uvs);
+}
+

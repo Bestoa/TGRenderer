@@ -9,8 +9,9 @@
 #include "tr.hpp"
 #include "program.hpp"
 #include "window.hpp"
+#include "utils.hpp"
 
-#define WIDTH (800)
+#define WIDTH (1280)
 #define HEIGHT (800)
 #define PI (3.1415926)
 
@@ -125,14 +126,8 @@ void create_sphere(std::vector<glm::vec3> &vs, std::vector<glm::vec2> &uvs, std:
     }
 }
 
-int main(int argc, char *argv[])
+int main()
 {
-    if (argc < 2)
-    {
-        std::cout << "Usage: " << argv[0] << " texture_file" << std::endl;
-        abort();
-    }
-
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
     if (!w.isRunning())
         return 1;
@@ -142,21 +137,19 @@ int main(int argc, char *argv[])
     sphere.fillSpriteColor();
     sphere.computeTangent();
 
-    trSetMat4(glm::lookAt(
+    glm::mat4 viewMat = glm::lookAt(
                 glm::vec3(2,1,2),
                 glm::vec3(0,0,0),
-                glm::vec3(0,1,0)
-                ), MAT4_VIEW);
+                glm::vec3(0,1,0));
 
-    trSetMat4(glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f), MAT4_PROJ);
+    glm::mat4 projMat = glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
 
-    TRTexture tex(argv[1]);
-    if (!tex.isValid())
+    TRTexture earthTex("examples/res/earth.tga");
+    if (!earthTex.isValid())
     {
-        std::cout << "Load texture failed." << std::endl;
+        std::cout << "Load earthTexture failed." << std::endl;
         abort();
     }
-    trBindTexture(&tex, TEXTURE_DIFFUSE);
 
     int frame = 0;
     TextureMapPhongProgram prog;
@@ -166,13 +159,40 @@ int main(int argc, char *argv[])
     unidata.mViewLightPosition = trGetMat4(MAT4_VIEW) * glm::vec4(unidata.mLightPosition, 1.0f);
     trSetUniformData(&unidata);
 
+    TRMeshData BGPlane;
+    float white[] = { 1.0f, 1.0f, 1.0f };
+    truCreateQuadPlane(BGPlane, white);
+    TextureMapProgram texProg;
+    TRTexture bgTex("examples/res/stars.tga");
+    if (!bgTex.isValid())
+    {
+        std::cout << "Load background texture failed." << std::endl;
+        abort();
+    }
+
     glm::mat4 self = glm::rotate(glm::mat4(1.0f), glm::radians(-23.5f), glm::vec3(0.0f, 0.0f, 1.0f));
     while (!w.shouldStop()) {
         frame++;
         trSetMat4(glm::rotate(self, glm::radians(1.0f * frame), glm::vec3(0.0f, 1.0f, 0.0f)), MAT4_MODEL);
+        trSetMat4(viewMat, MAT4_VIEW);
+        trSetMat4(projMat, MAT4_PROJ);
 
-        trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
+        trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT | TR_CLEAR_STENCIL_BIT);
+        trEnableStencilWrite(true);
+        trBindTexture(&earthTex, TEXTURE_DIFFUSE);
         trTriangles(sphere, &prog);
+
+        trEnableDepthTest(false);
+        trEnableStencilTest(true);
+        trEnableStencilWrite(false);
+        trResetMat4(MAT4_MODEL);
+        trResetMat4(MAT4_VIEW);
+        trResetMat4(MAT4_PROJ);
+        trBindTexture(&bgTex, TEXTURE_DIFFUSE);
+        trTriangles(BGPlane, &texProg);
+        trEnableDepthTest(true);
+        trEnableStencilTest(false);
+
         w.swapBuffer();
         w.pollEvent();
     }
