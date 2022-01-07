@@ -179,6 +179,15 @@ void TRProgramBase::drawTriangle(TRMeshData &mesh, size_t index)
         vertex(mesh, vsdata[i], index * 3 + i);
     }
 
+    if (vsdata[0]->tr_Position.w >= W_CLIPPING_PLANE
+            && vsdata[1]->tr_Position.w >= W_CLIPPING_PLANE
+            && vsdata[2]->tr_Position.w >= W_CLIPPING_PLANE)
+    {
+        rasterization(vsdata);
+        freeShaderData();
+        return;
+    }
+
     // Max is 4 output.
     VSOutData *out[4] = { nullptr };
     size_t total = 0;
