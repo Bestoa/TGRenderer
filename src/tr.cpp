@@ -298,12 +298,13 @@ namespace TGRenderer
         if (gEnableStencilTest && !mBuffer->stencilTest(offset))
             return;
 
-        if (gEnableStencilWrite)
-            mBuffer->stencilFunc(offset);
-
         /* depth test */
         if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
             return;
+
+        /* Write stencil buffer need to pass depth test */
+        if (gEnableStencilWrite)
+            mBuffer->stencilFunc(offset);
 
         mBuffer->setColor(offset, color);
     }
