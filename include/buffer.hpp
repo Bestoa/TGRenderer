@@ -24,7 +24,7 @@ namespace TGRenderer
             void clearStencil();
 
             size_t getOffset(int x, int y);
-            virtual void setColor(size_t offset, float c[BUFFER_CHANNEL]);
+            virtual void setColor(size_t offset, float color[]);
             bool depthTest(size_t offset, float depth);
             void stencilFunc(size_t offset);
             bool stencilTest(size_t offset);

@@ -45,7 +45,7 @@ namespace TGRenderer
             ~TRTextureBuffer();
 
             void clearColor();
-            void setColor(size_t offset, float c[BUFFER_CHANNEL]);
+            void setColor(size_t offset, float color[]);
             TRTexture *getTexture();
 
         private:

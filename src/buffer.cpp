@@ -60,12 +60,12 @@ namespace TGRenderer
         return y * mW + x;
     }
 
-    void TRBuffer::setColor(size_t offset, float c[BUFFER_CHANNEL])
+    void TRBuffer::setColor(size_t offset, float color[])
     {
         uint8_t *base = mData + offset * BUFFER_CHANNEL;
-        base[0] = uint8_t(c[0] * 255 + 0.5);
-        base[1] = uint8_t(c[1] * 255 + 0.5);
-        base[2] = uint8_t(c[2] * 255 + 0.5);
+        base[0] = uint8_t(color[0] * 255 + 0.5);
+        base[1] = uint8_t(color[1] * 255 + 0.5);
+        base[2] = uint8_t(color[2] * 255 + 0.5);
     }
 
     bool TRBuffer::depthTest(size_t offset, float depth)
@@ -179,7 +179,7 @@ error:
     void TRTextureBuffer::clearColor()
     {
         float *base = mTexture->getBuffer();
-        for (size_t i = 0; i < mW * mH * BUFFER_CHANNEL; i += 3)
+        for (size_t i = 0; i < mW * mH * TEXTURE_CHANNEL; i += 3)
         {
             base[i + 0] = mBgColor3f[0];
             base[i + 1] = mBgColor3f[1];
@@ -187,9 +187,9 @@ error:
         }
     }
 
-    void TRTextureBuffer::setColor(size_t offset, float color[BUFFER_CHANNEL])
+    void TRTextureBuffer::setColor(size_t offset, float color[])
     {
-        float *base = mTexture->getBuffer() + offset * BUFFER_CHANNEL;
+        float *base = mTexture->getBuffer() + offset * TEXTURE_CHANNEL;
         base[0] = color[0];
         base[1] = color[1];
         base[2] = color[2];

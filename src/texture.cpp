@@ -64,7 +64,7 @@ free_image:
         int x = int(u * (mW - 1) + 0.5);
         // inverse y here
         int y = int(mH - 1 - v * (mH - 1) + 0.5);
-        // Only support RGB texture
+        // Only support RGB texture now, but it should work for RGBA texture.
         return mData + y * mStride + x * TEXTURE_CHANNEL;
     }
 
