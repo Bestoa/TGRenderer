@@ -12,6 +12,8 @@
 #define __BLINN_PHONG__ 1
 #endif
 
+#define __DEBUG_FINISH_CB__ 0
+
 namespace TGRenderer
 {
     class TRMeshData
@@ -81,6 +83,10 @@ namespace TGRenderer
 
     constexpr int MAX_VSDATA_NUM = 10;
 
+#if __DEBUG_FINISH_CB__
+    typedef void (*fcb)(void *);
+#endif
+
     class Program
     {
         public:
@@ -127,8 +133,8 @@ namespace TGRenderer
             void clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index);
 
             void drawTriangle(TRMeshData &mesh, size_t index);
-            void rasterization(VSOutData *vsdata[3]);
-            void rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck);
+            bool rasterization(VSOutData *vsdata[3]);
+            bool rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck);
             void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSInData *fsdata);
     };
 
@@ -143,8 +149,8 @@ namespace TGRenderer
     void trTriangles(TRMeshData &mesh, Program *prog);
     // Core state related API
     void trSetRenderThreadNum(size_t num);
-    void trEnableStencilWrite(bool enable);
     void trEnableStencilTest(bool enable);
+    void trEnableStencilWrite(bool enable);
     void trEnableDepthTest(bool enable);
     void trDrawMode(TRDrawMode mode);
     void trCullFaceMode(TRCullFaceMode mode);
@@ -160,5 +166,9 @@ namespace TGRenderer
     // Uniform data related API
     void trSetUniformData(void *data);
     void *trGetUniformData();
+#if __DEBUG_FINISH_CB__
+    // Debug related API
+    void trSetFinishCB(fcb func, void *data);
+#endif
 }
 #endif

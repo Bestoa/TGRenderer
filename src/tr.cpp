@@ -44,6 +44,10 @@ namespace TGRenderer
     bool gEnableDepthTest = true;
     bool gEnableStencilTest = false;
     bool gEnableStencilWrite = false;
+#if __DEBUG_FINISH_CB__
+    fcb gFCB = nullptr;
+    void *gFCBData = nullptr;
+#endif
 
     // internal function
     void TRMeshData::computeTangent()
@@ -194,18 +198,20 @@ namespace TGRenderer
             vertex(mesh, vsdata[i], index * 3 + i);
         }
 
+        // Max is 4 output.
+        VSOutData *out[4] = { nullptr };
+        size_t total = 0;
+        int drawSth = 0;
+
+        // No need to clip on W
         if (vsdata[0]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[1]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[2]->tr_Position.w >= W_CLIPPING_PLANE)
         {
-            rasterization(vsdata);
-            freeShaderData();
-            return;
+            drawSth += rasterization(vsdata);
+            goto finish;
         }
 
-        // Max is 4 output.
-        VSOutData *out[4] = { nullptr };
-        size_t total = 0;
         clipOnWAxis(vsdata, out, total);
 
         for (size_t i = 0; total > 2 && i < total - 2; i++)
@@ -214,9 +220,14 @@ namespace TGRenderer
             vsdata[1] = out[i + 1];
             vsdata[2] = out[i + 2];
 
-            rasterization(vsdata);
+            drawSth += rasterization(vsdata);
         }
+finish:
         freeShaderData();
+#if __DEBUG_FINISH_CB__
+        if (gFCB != nullptr && drawSth)
+            gFCB(gFCBData);
+#endif
     }
 
     void Program::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
@@ -230,7 +241,7 @@ namespace TGRenderer
             drawTriangle(mesh, i);
     }
 
-    void Program::rasterizationPoint(
+    bool Program::rasterizationPoint(
             glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck)
     {
         float w0 = edge(screen_v[1], screen_v[2], point);
@@ -242,15 +253,15 @@ namespace TGRenderer
             {
                 case TR_CCW:
                     if (w0 < 0 || w1 < 0 || w2 < 0)
-                        return;
+                        return false;
                     break;
                 case TR_CW:
                     if (w0 > 0 || w1 > 0 || w2 > 0)
-                        return;
+                        return false;
                     break;
                 default:
                     if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0)))
-                        return;
+                        return false;
                     break;
             }
         }
@@ -268,7 +279,7 @@ namespace TGRenderer
         depth = depth / 2.0f + 0.5f;
         /* z in ndc of opengl should between 0.0f to 1.0f */
         if (depth < 0.0f)
-            return;
+            return false;
 
         /* Perspective-Correct */
         w0 /= clip_v[0].w;
@@ -286,27 +297,29 @@ namespace TGRenderer
         /* easy-z */
         /* Do not use mutex here to speed up */
         if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
-            return;
+            return false;
 
         float color[3];
         if (!fragment(fsdata, color))
-            return;
+            return false;
 
 #if __NEED_BUFFER_LOCK__
         std::lock_guard<std::mutex> lck(mBuffer->getMutex(offset));
 #endif
         if (gEnableStencilTest && !mBuffer->stencilTest(offset))
-            return;
+            return false;
 
         /* depth test */
         if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
-            return;
+            return false;
 
         /* Write stencil buffer need to pass depth test */
         if (gEnableStencilWrite)
             mBuffer->stencilFunc(offset);
 
         mBuffer->setColor(offset, color);
+
+        return true;
     }
 
     void Program::rasterizationLine(
@@ -357,7 +370,7 @@ namespace TGRenderer
         }
     }
 
-    void Program::rasterization(VSOutData *vsdata[3])
+    bool Program::rasterization(VSOutData *vsdata[3])
     {
         glm::vec4 clip_v[3] = { vsdata[0]->tr_Position, vsdata[1]->tr_Position, vsdata[2]->tr_Position };
         glm::vec4 ndc_v[3];
@@ -372,9 +385,9 @@ namespace TGRenderer
         float area = edge(screen_v[0], screen_v[1], screen_v[2]);
 
         if (gCullFace == TR_CCW && area <= 0)
-            return;
+            return false;
         else if (gCullFace == TR_CW && area >= 0)
-            return;
+            return false;
         else if (area == 0)
             /* Special case */
             area = 1e-6;
@@ -387,7 +400,7 @@ namespace TGRenderer
             rasterizationLine(clip_v, ndc_v, screen_v, area, 0, 1, fsdata);
             rasterizationLine(clip_v, ndc_v, screen_v, area, 1, 2, fsdata);
             rasterizationLine(clip_v, ndc_v, screen_v, area, 2, 0, fsdata);
-            return;
+            return true;
         }
 
         int xStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
@@ -395,12 +408,14 @@ namespace TGRenderer
         int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
         int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
 
+        int drawSth = 0;
         for (int y = yStart; y < yEnd; y++) {
             for (int x = xStart; x < xEnd; x++) {
                 glm::vec2 point(x, y);
-                rasterizationPoint(clip_v, ndc_v, screen_v, area, point, fsdata, true);
+                drawSth += rasterizationPoint(clip_v, ndc_v, screen_v, area, point, fsdata, true);
             }
         }
+        return drawSth;
     }
 
     void trTrianglesInstanced(TRMeshData &mesh, Program *prog, size_t index, size_t num)
@@ -442,84 +457,7 @@ namespace TGRenderer
         }
     }
 
-    void trSetUniformData(void *data)
-    {
-        gUniform = data;
-    }
-
-    void* trGetUniformData()
-    {
-        return gUniform;
-    }
-
-    void trTriangles(TRMeshData &mesh, Program *prog)
-    {
-        __compute_premultiply_mat__();
-
-        trTrianglesMT(mesh, prog);
-    }
-
-    void trSetRenderThreadNum(size_t num)
-    {
-        gThreadNum = num;
-        if (gThreadNum > THREAD_MAX)
-            gThreadNum = THREAD_MAX;
-    }
-
-    void trViewport(int x, int y, int w, int h)
-    {
-        gRenderTarget->setViewport(x, y, w, h);
-    }
-
-    void trMakeCurrent(TRBuffer *buffer)
-    {
-        gRenderTarget = buffer;
-    }
-
-    void trBindTexture(TRTexture *texture, int type)
-    {
-        if (type < TEXTURE_INDEX_MAX)
-            gTexture[type] = texture;
-    }
-
-    TRTexture *trGetTexture(int type)
-    {
-        if (type < TEXTURE_INDEX_MAX)
-            return gTexture[type];
-        else
-            return nullptr;
-    }
-
-    void trEnableStencilTest(bool enable)
-    {
-        gEnableStencilTest = enable;
-    }
-
-    void trEnableStencilWrite(bool enable)
-    {
-        gEnableStencilWrite = enable;
-    }
-
-    void trEnableDepthTest(bool enable)
-    {
-        gEnableDepthTest = enable;
-    }
-
-    void trClear(int mode)
-    {
-        if (mode & TR_CLEAR_COLOR_BIT)
-            gRenderTarget->clearColor();
-        if (mode & TR_CLEAR_DEPTH_BIT)
-            gRenderTarget->clearDepth();
-        if (mode & TR_CLEAR_STENCIL_BIT)
-            gRenderTarget->clearStencil();
-    }
-
-    void trClearColor3f(float r, float g, float b)
-    {
-        gRenderTarget->setBgColor(r, g, b);
-    }
-
+    // Matrix related API
     void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type)
     {
         if (type < MAT_INDEX_MAX)
@@ -560,6 +498,37 @@ namespace TGRenderer
             gMat4[type] = gDefaultMat4[type];
     }
 
+    // Draw related API
+    void trTriangles(TRMeshData &mesh, Program *prog)
+    {
+        __compute_premultiply_mat__();
+
+        trTrianglesMT(mesh, prog);
+    }
+
+    // Core state related API
+    void trSetRenderThreadNum(size_t num)
+    {
+        gThreadNum = num;
+        if (gThreadNum > THREAD_MAX)
+            gThreadNum = THREAD_MAX;
+    }
+
+    void trEnableStencilTest(bool enable)
+    {
+        gEnableStencilTest = enable;
+    }
+
+    void trEnableStencilWrite(bool enable)
+    {
+        gEnableStencilWrite = enable;
+    }
+
+    void trEnableDepthTest(bool enable)
+    {
+        gEnableDepthTest = enable;
+    }
+
     void trDrawMode(TRDrawMode mode)
     {
         gDrawMode = mode;
@@ -570,6 +539,7 @@ namespace TGRenderer
         gCullFace = mode;
     }
 
+    // Buffer related API
     TRBuffer * trCreateRenderTarget(int w, int h)
     {
         return new TRBuffer(w, h, true);
@@ -579,4 +549,59 @@ namespace TGRenderer
     {
         gRenderTarget = buffer;
     }
+
+    void trViewport(int x, int y, int w, int h)
+    {
+        gRenderTarget->setViewport(x, y, w, h);
+    }
+
+    void trClear(int mode)
+    {
+        if (mode & TR_CLEAR_COLOR_BIT)
+            gRenderTarget->clearColor();
+        if (mode & TR_CLEAR_DEPTH_BIT)
+            gRenderTarget->clearDepth();
+        if (mode & TR_CLEAR_STENCIL_BIT)
+            gRenderTarget->clearStencil();
+    }
+
+    void trClearColor3f(float r, float g, float b)
+    {
+        gRenderTarget->setBgColor(r, g, b);
+    }
+
+    // Texture related API
+    void trBindTexture(TRTexture *texture, int type)
+    {
+        if (type < TEXTURE_INDEX_MAX)
+            gTexture[type] = texture;
+    }
+
+    TRTexture *trGetTexture(int type)
+    {
+        if (type < TEXTURE_INDEX_MAX)
+            return gTexture[type];
+        else
+            return nullptr;
+    }
+
+    // Uniform data related API
+    void trSetUniformData(void *data)
+    {
+        gUniform = data;
+    }
+
+    void* trGetUniformData()
+    {
+        return gUniform;
+    }
+
+#if __DEBUG_FINISH_CB__
+    // Debug related API
+    void trSetFinishCB(fcb func, void *data)
+    {
+        gFCB = func;
+        gFCBData = data;
+    }
+#endif
 }
