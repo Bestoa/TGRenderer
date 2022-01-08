@@ -408,19 +408,27 @@ namespace TGRenderer
         prog->drawTrianglesInstanced(gRenderTarget, mesh, index, num);
     }
 
-#define THREAD_MAX (10)
     void trTrianglesMT(TRMeshData &mesh, Program *prog)
     {
         Program *progList[THREAD_MAX] = { nullptr };
+        size_t trianglesNum = mesh.vertices.size() / 3;
         if (gThreadNum > 1)
         {
             std::vector<std::thread> thread_pool;
-            size_t index_step = mesh.vertices.size() / 3 / gThreadNum + 1;
+            size_t index_step = trianglesNum / gThreadNum;
+            if (!index_step)
+                index_step = 1;
 
             for (size_t i = 0; i < gThreadNum; i++)
             {
+                size_t start = i * index_step;
+                if (start > trianglesNum - 1)
+                    break;
+                if (i == gThreadNum - 1)
+                    index_step = trianglesNum - start;
+
                 progList[i] = prog->clone();
-                thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), progList[i], i * index_step, index_step));
+                thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), progList[i], start, index_step));
             }
 
             for (auto &th : thread_pool)
@@ -430,7 +438,7 @@ namespace TGRenderer
                 delete progList[i];
 
         } else {
-            trTrianglesInstanced(mesh, prog, 0, mesh.vertices.size() / 3);
+            trTrianglesInstanced(mesh, prog, 0, trianglesNum);
         }
     }
 
@@ -454,6 +462,8 @@ namespace TGRenderer
     void trSetRenderThreadNum(size_t num)
     {
         gThreadNum = num;
+        if (gThreadNum > THREAD_MAX)
+            gThreadNum = THREAD_MAX;
     }
 
     void trViewport(int x, int y, int w, int h)

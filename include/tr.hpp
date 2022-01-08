@@ -57,6 +57,7 @@ namespace TGRenderer
     }
 
     constexpr int SHADER_VARYING_NUM_MAX = 16;
+    constexpr int THREAD_MAX = 10;
 
     class VSOutData
     {
