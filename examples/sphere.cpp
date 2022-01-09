@@ -11,11 +11,33 @@
 #include "window.hpp"
 #include "utils.hpp"
 
-#define WIDTH (1280)
-#define HEIGHT (800)
-#define PI (3.1415926)
+constexpr int WIDTH = 1280;
+constexpr int HEIGHT = 800;
+constexpr float PI = 3.1415926;
 
 using namespace TGRenderer;
+
+class TextureMapExProg : public TextureMapProgram
+{
+    private:
+        bool fragment(FSInData *fsdata, float color[])
+        {
+            int frame = *reinterpret_cast<int *>(trGetUniformData());
+            glm::vec2 texCoord = interpFast(fsdata->mVaryingVec2Prim[SH_TEXCOORD]);
+            texCoord.x -= frame * 0.001f;
+            textureCoordWrap(texCoord);
+            float *c = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
+            color[0] = c[0];
+            color[1] = c[1];
+            color[2] = c[2];
+            return true;
+        }
+    public:
+        Program *clone()
+        {
+            return new TextureMapExProg();
+        }
+};
 
 glm::vec3 get_point(float u, float v)
 {
@@ -157,12 +179,11 @@ int main()
     PhongUniformData unidata;
     unidata.mLightPosition = glm::vec3(100.0f, 0.0f, 0.0f);
     unidata.mViewLightPosition = trGetMat4(MAT4_VIEW) * glm::vec4(unidata.mLightPosition, 1.0f);
-    trSetUniformData(&unidata);
 
     TRMeshData BGPlane;
     float white[] = { 1.0f, 1.0f, 1.0f };
     truCreateQuadPlane(BGPlane, white);
-    TextureMapProgram texProg;
+    TextureMapExProg texProg;
     TRTexture bgTex("examples/res/stars.tga");
     if (!bgTex.isValid())
     {
@@ -180,6 +201,7 @@ int main()
         trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT | TR_CLEAR_STENCIL_BIT);
         trEnableStencilWrite(true);
         trBindTexture(&earthTex, TEXTURE_DIFFUSE);
+        trSetUniformData(&unidata);
         trTriangles(sphere, &prog);
 
         trEnableDepthTest(false);
@@ -189,6 +211,7 @@ int main()
         trResetMat4(MAT4_VIEW);
         trResetMat4(MAT4_PROJ);
         trBindTexture(&bgTex, TEXTURE_DIFFUSE);
+        trSetUniformData(&frame);
         trTriangles(BGPlane, &texProg);
         trEnableDepthTest(true);
         trEnableStencilTest(false);

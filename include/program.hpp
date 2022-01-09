@@ -35,6 +35,9 @@ enum
     SH_VEC4_PHONG_MAX,
 };
 
+void textureCoordWrap(glm::vec2 &coord);
+float *texture2D(int type, float u, float v);
+
 class PhongUniformData
 {
     public:
