@@ -26,7 +26,6 @@ executable('TGRenderer',
            dependencies : [
              dep_glm,
              dep_sdl2,
-             dep_sdl2_image,
              ],
            include_directories : include_dir,
            link_args : '-pthread',
