@@ -129,7 +129,7 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat, glm::mat4 &lightViewM
     {
         float degree = glm::radians(1.0f * rotateE);
         eyeViewMat = glm::lookAt(
-                glm::vec3(eyeStartDistance * glm::sin(degree), 0.75, eyeStartDistance * glm::cos(degree)),
+                glm::vec3(eyeStartDistance * glm::sin(degree), eyeStartDistance / 2, eyeStartDistance * glm::cos(degree)),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0));
     }
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
 
     float eyeStartDistance = 1.5f;
     glm::mat4 eyeViewMat = glm::lookAt(
-            glm::vec3(0,0.75,eyeStartDistance), // Camera is at (0,0.75,1.5), in World Space
+            glm::vec3(0,eyeStartDistance / 2 ,eyeStartDistance), // Camera is at (0,0.75,1.5), in World Space
             glm::vec3(0,0,0), // and looks at the origin
             glm::vec3(0,1,0));  // Head is up (set to 0,-1,0 to look upside-down)
 
