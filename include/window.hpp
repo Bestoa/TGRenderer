@@ -15,10 +15,6 @@ class TRWindow {
         TRWindow(int w, int h, const char *name = "ToyRenderer");
         ~TRWindow();
 
-        // Old style method for swap buffer
-        bool lock(void **addr);
-        void unlock();
-
         bool isRunning();
         void pollEvent();
         void registerKeyEventCb(KeyEventCb func);
@@ -39,10 +35,11 @@ class TRWindow {
         int mHeight = 0;
         SDL_Window *mWindow = nullptr;
         SDL_Renderer *mRenderer = nullptr;
-        SDL_Texture *mTexture = nullptr;
+        SDL_Texture *mDrawTexture = nullptr;
+        SDL_Texture *mDispTexture = nullptr;
         std::mutex mMutex;
         std::condition_variable mCV;
-        std::thread mDisplayThread;
+        std::thread *mDisplayThread = nullptr;
         bool mRunning = false;
         bool mShouldStop = false;
 

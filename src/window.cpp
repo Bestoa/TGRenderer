@@ -10,13 +10,13 @@ using namespace TGRenderer;
 void TRWindow::__disp_func__(TRWindow *w)
 {
     cout << "[TRWindow]: Start display thread." << endl;
-    unique_lock<mutex> lcx(w->mMutex);
+    unique_lock<mutex> lck(w->mMutex);
     while (true)
     {
-        w->mCV.wait(lcx);
+        w->mCV.wait(lck);
         if (!w->mRunning)
             break;
-        if (!SDL_RenderCopy(w->mRenderer, w->mTexture, nullptr, nullptr))
+        if (!SDL_RenderCopy(w->mRenderer, w->mDispTexture, nullptr, nullptr))
             SDL_RenderPresent(w->mRenderer);
     }
     cout << "[TRWindow]: Stop display thread." << endl;
@@ -26,10 +26,6 @@ TRWindow::TRWindow(int w, int h, const char *name)
 {
     mWidth = w;
     mHeight = h;
-
-    mWindow = nullptr;
-    mRenderer = nullptr;
-    mTexture = nullptr;
 
     if (SDL_Init(SDL_INIT_VIDEO))
         goto error;
@@ -42,8 +38,12 @@ TRWindow::TRWindow(int w, int h, const char *name)
     if (mRenderer == nullptr)
         goto error;
 
-    mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
-    if (mTexture == nullptr)
+    mDispTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    if (mDispTexture == nullptr)
+        goto error;
+
+    mDrawTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    if (mDispTexture == nullptr)
         goto error;
 
     mBuffer = new TRBuffer(mWidth, mHeight, false);
@@ -51,15 +51,14 @@ TRWindow::TRWindow(int w, int h, const char *name)
         goto error;
 
     void *addr;
-    if (!lock(&addr))
-        goto error;
-
+    int pitch;
+    if (SDL_LockTexture(mDrawTexture, nullptr, &addr, &pitch))
+        return;
     mBuffer->setExtBuffer(addr);
-
     trSetCurrentRenderTarget(mBuffer);
 
-    mDisplayThread = thread(__disp_func__, this);
-    if (!mDisplayThread.joinable())
+    mDisplayThread = new thread(__disp_func__, this);
+    if (!mDisplayThread || !mDisplayThread->joinable())
         goto error;
 
     mRunning = true;
@@ -69,8 +68,10 @@ TRWindow::TRWindow(int w, int h, const char *name)
 error:
     if (mBuffer)
         delete mBuffer;
-    if (mTexture)
-        SDL_DestroyTexture(mTexture);
+    if (mDispTexture)
+        SDL_DestroyTexture(mDispTexture);
+    if (mDrawTexture)
+        SDL_DestroyTexture(mDrawTexture);
     if (mRenderer)
         SDL_DestroyRenderer(mRenderer);
     if (mWindow)
@@ -87,28 +88,20 @@ bool TRWindow::isRunning()
     return mRunning;
 }
 
-bool TRWindow::lock(void **addr)
-{
-    int pitch;
-    unique_lock<mutex> lck(mMutex);
-    return !SDL_LockTexture(mTexture, nullptr, addr, &pitch);
-}
-
-void TRWindow::unlock()
-{
-    unique_lock<mutex> lck(mMutex);
-    SDL_UnlockTexture(mTexture);
-    mCV.notify_all();
-}
 
 bool TRWindow::swapBuffer()
 {
-    unlock();
+    unique_lock<mutex> lck(mMutex);
+    SDL_UnlockTexture(mDrawTexture);
+    std::swap(mDrawTexture, mDispTexture);
+    mCV.notify_one();
+    lck.unlock();
+
     void *addr;
-    if (lock(&addr))
-        return false;
+    int pitch, ret;
+    ret = SDL_LockTexture(mDrawTexture, nullptr, &addr, &pitch);
     mBuffer->setExtBuffer(addr);
-    return true;
+    return ret;
 };
 
 bool TRWindow::shouldStop()
@@ -144,20 +137,21 @@ void TRWindow::pollEvent()
 
 TRWindow::~TRWindow()
 {
-    if (mDisplayThread.joinable())
+    if (mDisplayThread && mDisplayThread->joinable())
     {
         unique_lock<mutex> lck(mMutex);
         mRunning = false;
+        mCV.notify_one();
         // must unlock it manullay before join
         lck.unlock();
-        mCV.notify_all();
-        mDisplayThread.join();
+        mDisplayThread->join();
         cout << "[TRWindow]: Display thread exit." << endl;
-
-        delete mBuffer;
-        SDL_DestroyTexture(mTexture);
-        SDL_DestroyRenderer(mRenderer);
-        SDL_DestroyWindow(mWindow);
-        SDL_Quit();
+        delete mDisplayThread;
     }
+    delete mBuffer;
+    SDL_DestroyTexture(mDispTexture);
+    SDL_DestroyTexture(mDrawTexture);
+    SDL_DestroyRenderer(mRenderer);
+    SDL_DestroyWindow(mWindow);
+    SDL_Quit();
 }
