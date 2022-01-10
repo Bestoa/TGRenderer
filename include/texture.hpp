@@ -29,7 +29,7 @@ namespace TGRenderer
         private:
             bool mValid = false;
             float *mData = nullptr;
-            int mStride = 0;
+            int mPitch = 0;
             int mW = 0;
             int mH = 0;
     };
@@ -45,7 +45,7 @@ namespace TGRenderer
             ~TRTextureBuffer();
 
             void clearColor();
-            void setColor(size_t offset, float color[]);
+            void drawPixel(int x, int y, float color[]);
             TRTexture *getTexture();
 
         private:

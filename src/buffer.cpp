@@ -18,8 +18,7 @@ namespace TGRenderer
     void TRBuffer::viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v)
     {
         screen_v.x = mVX + (mW - 1) * (ndc_v.x / 2 + 0.5);
-        // inverse y here
-        screen_v.y = mVY + (mH - 1) - (mH - 1) * (ndc_v.y / 2 + 0.5);
+        screen_v.y = mVY + (mH - 1) * (ndc_v.y / 2 + 0.5);
     }
 
     void TRBuffer::setBgColor(float r, float g, float b)
@@ -55,14 +54,20 @@ namespace TGRenderer
             mStencil[i] = 0;
     }
 
+    size_t TRBuffer::getStride()
+    {
+        return mW;
+    }
+
     size_t TRBuffer::getOffset(int x, int y)
     {
         return y * mW + x;
     }
 
-    void TRBuffer::setColor(size_t offset, float color[])
+    void TRBuffer::drawPixel(int x, int y, float color[])
     {
-        uint8_t *base = mData + offset * BUFFER_CHANNEL;
+        // flip Y here
+        uint8_t *base = mData + ((mH - 1 - y) * mW + x) * BUFFER_CHANNEL;
         base[0] = uint8_t(color[0] * 255 + 0.5);
         base[1] = uint8_t(color[1] * 255 + 0.5);
         base[2] = uint8_t(color[2] * 255 + 0.5);
@@ -187,9 +192,9 @@ error:
         }
     }
 
-    void TRTextureBuffer::setColor(size_t offset, float color[])
+    void TRTextureBuffer::drawPixel(int x, int y, float color[])
     {
-        float *base = mTexture->getBuffer() + offset * TEXTURE_CHANNEL;
+        float *base = mTexture->getBuffer() + (y * mW + x)* TEXTURE_CHANNEL;
         base[0] = color[0];
         base[1] = color[1];
         base[2] = color[2];

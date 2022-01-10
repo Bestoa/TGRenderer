@@ -23,8 +23,10 @@ namespace TGRenderer
             void clearDepth();
             void clearStencil();
 
+            // offset for depth buffer and stencil, pre-calculate for performance.
             size_t getOffset(int x, int y);
-            virtual void setColor(size_t offset, float color[]);
+            virtual size_t getStride();
+            virtual void drawPixel(int x, int y, float color[]);
             bool depthTest(size_t offset, float depth);
             void stencilFunc(size_t offset);
             bool stencilTest(size_t offset);

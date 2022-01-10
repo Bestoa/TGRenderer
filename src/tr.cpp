@@ -251,11 +251,11 @@ finish:
         {
             switch (gCullFace)
             {
-                case TR_CCW:
+                case TR_CW:
                     if (w0 < 0 || w1 < 0 || w2 < 0)
                         return false;
                     break;
-                case TR_CW:
+                case TR_CCW:
                     if (w0 > 0 || w1 > 0 || w2 > 0)
                         return false;
                     break;
@@ -289,7 +289,7 @@ finish:
         float areaPC = (w0 + w1 + w2);
         /* One more special case... */
         if (!insideCheck && areaPC == 0)
-            areaPC = 1e-6;
+            return false;
         mUPC = w1 / areaPC;
         mVPC = w2 / areaPC;
 
@@ -317,7 +317,7 @@ finish:
         if (gEnableStencilWrite)
             mBuffer->stencilFunc(offset);
 
-        mBuffer->setColor(offset, color);
+        mBuffer->drawPixel(x, y, color);
 
         return true;
     }
@@ -357,7 +357,7 @@ finish:
             if (steep)
                 v = glm::vec2(y, x);
             // Not good, but works well
-            if (!(v.x > (int)mBuffer->mW || v.y > (int)mBuffer->mH || v.x < 0 || v.y < 0))
+            if (!(v.x > (int)mBuffer->mW - 1 || v.y > (int)mBuffer->mH - 1|| v.x < 0 || v.y < 0))
                 // skip inside check for draw line
                 rasterizationPoint(clip_v, ndc_v, screen_v, area, v, fsdata, false);
 
@@ -384,13 +384,13 @@ finish:
 
         float area = edge(screen_v[0], screen_v[1], screen_v[2]);
 
-        if (gCullFace == TR_CCW && area <= 0)
+        if (gCullFace == TR_CCW && area >= 0)
             return false;
-        else if (gCullFace == TR_CW && area >= 0)
+        else if (gCullFace == TR_CW && area <= 0)
             return false;
         else if (area == 0)
             /* Special case */
-            area = 1e-6;
+            return false;
 
         FSInData *fsdata = allocFSInData();
         prepareFragmentData(vsdata, fsdata);

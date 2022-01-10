@@ -1,5 +1,5 @@
 #include <iostream>
-#include "tr.hpp"
+#include "texture.hpp"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -10,6 +10,7 @@ namespace TGRenderer
     {
         int width, height, nrChannels;
         stbi_ldr_to_hdr_gamma(1.0f);
+        stbi_set_flip_vertically_on_load(true);
         float *texSrcData = stbi_loadf(name, &width, &height, &nrChannels, TEXTURE_CHANNEL);
         if (!texSrcData)
         {
@@ -18,8 +19,8 @@ namespace TGRenderer
         }
         mW = width;
         mH = height;
-        mStride = mW * TEXTURE_CHANNEL;
-        mData = new float[mStride * mH];
+        mPitch = mW * TEXTURE_CHANNEL;
+        mData = new float[mPitch * mH];
         if (!mData)
             goto free_image;
 
@@ -27,8 +28,8 @@ namespace TGRenderer
 
         for (int i = 0; i < mH; i++)
         {
-            float *src = texSrcData + i * mStride;
-            float *dst = mData + i * mStride;
+            float *src = texSrcData + i * mPitch;
+            float *dst = mData + i * mPitch;
             for (int j = 0; j < mW; j++)
             {
                 dst[j * TEXTURE_CHANNEL + 0] = src[j * TEXTURE_CHANNEL + 0];
@@ -47,8 +48,8 @@ free_image:
     {
         mW = w;
         mH = h;
-        mStride = mW * TEXTURE_CHANNEL;
-        mData = new float[mStride * mH];
+        mPitch = mW * TEXTURE_CHANNEL;
+        mData = new float[mPitch * mH];
         if (mData)
             mValid = true;
     }
@@ -62,10 +63,9 @@ free_image:
     float* TRTexture::getColor(float u, float v)
     {
         int x = int(u * (mW - 1) + 0.5);
-        // inverse y here
-        int y = int(mH - 1 - v * (mH - 1) + 0.5);
+        int y = int(v * (mH - 1) + 0.5);
         // Only support RGB texture now, but it should work for RGBA texture.
-        return mData + y * mStride + x * TEXTURE_CHANNEL;
+        return mData + y * mPitch + x * TEXTURE_CHANNEL;
     }
 
     float* TRTexture::getBuffer()

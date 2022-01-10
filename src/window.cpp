@@ -54,6 +54,7 @@ TRWindow::TRWindow(int w, int h, const char *name)
     int pitch;
     if (SDL_LockTexture(mDrawTexture, nullptr, &addr, &pitch))
         return;
+    assert(pitch == int(mBuffer->getStride() * BUFFER_CHANNEL));
     mBuffer->setExtBuffer(addr);
     trSetCurrentRenderTarget(mBuffer);
 
