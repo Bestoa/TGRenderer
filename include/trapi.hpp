@@ -53,11 +53,6 @@ namespace TGRenderer
         TR_CLEAR_STENCIL_BIT = 4,
     };
 
-    static inline float edge(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
-    {
-        return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
-    }
-
     constexpr int SHADER_VARYING_NUM_MAX = 16;
     constexpr int THREAD_MAX = 10;
 
@@ -79,64 +74,45 @@ namespace TGRenderer
             glm::vec2 mVaryingVec2Prim[SHADER_VARYING_NUM_MAX][3];
             glm::vec3 mVaryingVec3Prim[SHADER_VARYING_NUM_MAX][3];
             glm::vec4 mVaryingVec4Prim[SHADER_VARYING_NUM_MAX][3];
-    };
-
-    constexpr int MAX_VSDATA_NUM = 10;
-
-#if __DEBUG_FINISH_CB__
-    typedef void (*fcb)(void *);
-#endif
-
-    class Program
-    {
-        public:
-            virtual ~Program() = default;
-            virtual Program* clone() = 0;
-            void drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num);
-
-        protected:
-            /* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
-            template <class T> inline T interpFast(T v[3])
-            {
-                return v[0] + v[1] * mUPC + v[2] * mVPC;
-            }
-
-        private:
-            TRBuffer *mBuffer = nullptr;
-
-            VSOutData mVSOutData[MAX_VSDATA_NUM];
-            FSInData mFSInData;
-            int mAllocIndex = 0;
 
             float mUPC = 0.f;
             float mVPC = 0.f;
 
+            inline glm::vec4 getPosition()
+            {
+                return tr_PositionPrim[0] + tr_PositionPrim[1] * mUPC + tr_PositionPrim[2] * mVPC;
+            }
+
+            /* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
+            inline glm::vec2 getVec2(int index)
+            {
+                return mVaryingVec2Prim[index][0] + mVaryingVec2Prim[index][1] * mUPC + mVaryingVec2Prim[index][2] * mVPC;
+            }
+
+            inline glm::vec3 getVec3(int index)
+            {
+                return mVaryingVec3Prim[index][0] + mVaryingVec3Prim[index][1] * mUPC + mVaryingVec3Prim[index][2] * mVPC;
+            }
+
+            inline glm::vec4 getVec4(int index)
+            {
+                return mVaryingVec4Prim[index][0] + mVaryingVec4Prim[index][1] * mUPC + mVaryingVec4Prim[index][2] * mVPC;
+            }
+    };
+
+    class Shader
+    {
+        public:
+            virtual ~Shader() = default;
+
             virtual void vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index) = 0;
             virtual bool fragment(FSInData *fsdata, float color[3]/* Out */) = 0;
             virtual void getVaryingNum(size_t &v2, size_t &v3, size_t &v4) = 0;
-
-            VSOutData *allocVSOutData();
-            FSInData *allocFSInData();
-            /* Free vsdata/fsdata which were allocated by us.
-             * Suggest to use pre-allocated mode, just need to reset the index.
-             * Otherwise you need to record all the vsdata/fsdata pointer and
-             * free them. */
-            void freeShaderData();
-
-            /* Prepare fragment data for interpolation. Put { V0.AAA, V1.AAA - V0.AAA, V2.AAA - V0.AAA } into FSInData. */
-            void prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata);
-
-            /* Add a new vertex if needed when clipping on W axis. Formula: new V.AAA = in2.AAA + t * (in1.AAA -in2.AAA) */
-            void getIntersectionVertex(VSOutData *in1, VSOutData *in2, VSOutData *outV);
-
-            void clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[4], size_t &index);
-            void clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index);
-
-            void drawTriangle(TRMeshData &mesh, size_t index);
-            bool rasterization(VSOutData *vsdata[3]);
-            bool rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck);
-            void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSInData *fsdata);
     };
+
+#if __DEBUG_FINISH_CB__
+    typedef void (*fcb)(void *);
+#endif
 
     // Matrix related API
     void trSetMat3(glm::mat3 mat, MAT_INDEX_TYPE type);
@@ -146,7 +122,7 @@ namespace TGRenderer
     void trResetMat3(MAT_INDEX_TYPE type);
     void trResetMat4(MAT_INDEX_TYPE type);
     // Draw related API
-    void trTriangles(TRMeshData &mesh, Program *prog);
+    void trTriangles(TRMeshData &mesh, Shader *shader);
     // Core state related API
     void trSetRenderThreadNum(size_t num);
     void trEnableStencilTest(bool enable);

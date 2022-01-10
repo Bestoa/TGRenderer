@@ -6,7 +6,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-#include "tr.hpp"
+#include "trapi.hpp"
 
 typedef void (*KeyEventCb)(int scancode);
 

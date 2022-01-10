@@ -1,7 +1,7 @@
 #ifndef __TR_UTILS__
 #define __TR_UTILS__
 #include <cstring>
-#include "tr.hpp"
+#include "trapi.hpp"
 
 void truSavePPM(const char *name, uint8_t *buffer, int width, int height);
 void truLoadVec2(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out);

@@ -1,7 +1,7 @@
 #ifndef __TOPGUN_PROGRAM__
 #define __TOPGUN_PROGRAM__
 
-#include "tr.hpp"
+#include "trapi.hpp"
 
 enum
 {
@@ -49,29 +49,35 @@ class PhongUniformData
         glm::vec3 mViewLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
 };
 
-class ColorProgram : public TGRenderer::Program
+class ColorShader : public TGRenderer::Shader
 {
-    private:
-        void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
-        bool fragment(TGRenderer::FSInData *, float color[3]);
-        void getVaryingNum(size_t &, size_t &, size_t &);
-
-    public:
-        TGRenderer::Program *clone();
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
+    bool fragment(TGRenderer::FSInData *, float color[3]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
-class TextureMapProgram : public TGRenderer::Program
+class TextureMapShader : public TGRenderer::Shader
 {
-    private:
-        void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
-        bool fragment(TGRenderer::FSInData *, float color[3]);
-        void getVaryingNum(size_t &, size_t &, size_t &);
-
-    public:
-        TGRenderer::Program *clone();
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
+    bool fragment(TGRenderer::FSInData *, float color[3]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
-class ColorPhongProgram : public TGRenderer::Program
+class ColorPhongShader : public TGRenderer::Shader
+{
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
+    bool fragment(TGRenderer::FSInData *, float color[3]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
+};
+
+class TextureMapPhongShader : public TGRenderer::Shader
+{
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
+    bool fragment(TGRenderer::FSInData *, float color[3]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
+};
+
+class ShadowMapShader : public TGRenderer::Shader
 {
     private:
         void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
@@ -79,29 +85,6 @@ class ColorPhongProgram : public TGRenderer::Program
         void getVaryingNum(size_t &, size_t &, size_t &);
 
     public:
-        TGRenderer::Program *clone();
-};
-
-class TextureMapPhongProgram : public TGRenderer::Program
-{
-    private:
-        void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
-        bool fragment(TGRenderer::FSInData *, float color[3]);
-        void getVaryingNum(size_t &, size_t &, size_t &);
-
-    public:
-        TGRenderer::Program *clone();
-};
-
-class ShadowMapProgram : public TGRenderer::Program
-{
-    private:
-        void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
-        bool fragment(TGRenderer::FSInData *, float color[3]);
-        void getVaryingNum(size_t &, size_t &, size_t &);
-
-    public:
-        TGRenderer::Program *clone();
         constexpr static float BIAS = 0.001f;
         constexpr static float FACTOR = 0.2f;
 };

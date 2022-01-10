@@ -3,7 +3,7 @@
 #include <vector>
 #include <glm/ext.hpp>
 
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "utils.hpp"
 
 void truSavePPM(const char *name, uint8_t *buffer, int width, int height)

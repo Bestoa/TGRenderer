@@ -1,5 +1,5 @@
 libtrcore = shared_library('trcore',
-           'tr.cpp',
+           'trcore.cpp',
            'buffer.cpp',
            'texture.cpp',
            'program.cpp',

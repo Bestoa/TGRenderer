@@ -1,6 +1,6 @@
 #ifndef __TR_OBJS__
 #define __TR_OBJS__
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "program.hpp"
 
 class TRObj
@@ -21,19 +21,19 @@ class TRObj
 
         TGRenderer::TRMeshData mMeshData;
 
-        ColorProgram mCProg;
-        TextureMapProgram mTMProg;
-        ColorPhongProgram mCPProg;
-        TextureMapPhongProgram mTMPProg;
+        ColorShader mColorShader;
+        TextureMapShader mTextureMapShader;
+        ColorPhongShader mColorPhongShader;
+        TextureMapPhongShader mTextureMapPhongShader;
 
-        ShadowMapProgram mShadowProg;
+        ShadowMapShader mShadowProg;
 
         TGRenderer::TRTexture *mTextureDiffuse = nullptr;
         TGRenderer::TRTexture *mTextureSpecular = nullptr;
         TGRenderer::TRTexture *mTextureGlow = nullptr;
         TGRenderer::TRTexture *mTextureNormal = nullptr;
 
-        TGRenderer::Program *mProg[4] = { &mCProg, &mTMProg, &mCPProg, &mTMPProg };
+        TGRenderer::Shader *mProg[4] = { &mColorShader, &mTextureMapShader, &mColorPhongShader, &mTextureMapPhongShader };
 
         bool mValid = false;
 };

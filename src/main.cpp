@@ -5,7 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <chrono>
 
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "window.hpp"
 #include "objs.hpp"
 #include "utils.hpp"
@@ -200,7 +200,7 @@ int main(int argc, char *argv[])
 #endif
 
 #if DRAW_FLOOR
-    ColorPhongProgram prog;
+    ColorPhongShader CPShader;
     TRMeshData floorMesh;
     float floorColor[] = {0.5f, 0.5f, 0.5f};
     truCreateFloor(floorMesh, -1.0f, floorColor);
@@ -248,7 +248,7 @@ int main(int argc, char *argv[])
                 trSetMat4(lightProjMat * lightViewMat, MAT4_LIGHT_MVP);
 #endif
             trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
-            trTriangles(floorMesh, &prog);
+            trTriangles(floorMesh, &CPShader);
         }
 #endif
 #if ENABLE_SHADOW

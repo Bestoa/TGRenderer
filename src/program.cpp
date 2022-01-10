@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <glm/ext.hpp>
 
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "program.hpp"
 
 using namespace TGRenderer;
@@ -33,8 +33,8 @@ float *texture2D(int type, float u, float v)
 float calcShadowFast(float depth, float x, float y)
 {
     if (x <= 1.0f && x >= 0.0f && y <= 1.0f && y >= 0.0f
-            && (depth > *(texture2D(TEXTURE_SHADOWMAP, x, y)) + ShadowMapProgram::BIAS))
-        return ShadowMapProgram::FACTOR;
+            && (depth > *(texture2D(TEXTURE_SHADOWMAP, x, y)) + ShadowMapShader::BIAS))
+        return ShadowMapShader::FACTOR;
     else
         return 1.0f;
 }
@@ -64,42 +64,37 @@ float calcShadow(float depth, float x, float y)
     return shadow / 9.0f;
 }
 
-void ColorProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
+void ColorShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_COLOR] = mesh.colors[index];
 }
 
-bool ColorProgram::fragment(FSInData *fsdata, float color[3])
+bool ColorShader::fragment(FSInData *fsdata, float color[3])
 {
-    glm::vec3 C = interpFast(fsdata->mVaryingVec3Prim[SH_COLOR]);
+    glm::vec3 C = fsdata->getVec3(SH_COLOR);
     color[0] = C[0];
     color[1] = C[1];
     color[2] = C[2];
     return true;
 }
 
-void ColorProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
+void ColorShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
     v3 = SH_VEC3_BASE_MAX;
     v4 = SH_VEC4_BASE_MAX;
 }
 
-Program* ColorProgram::clone()
-{
-    return new ColorProgram();
-}
-
-void TextureMapProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
+void TextureMapShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.uvs[index];
 }
 
-bool TextureMapProgram::fragment(FSInData *fsdata, float color[3])
+bool TextureMapShader::fragment(FSInData *fsdata, float color[3])
 {
-    glm::vec2 texCoord = interpFast(fsdata->mVaryingVec2Prim[SH_TEXCOORD]);
+    glm::vec2 texCoord = fsdata->getVec2(SH_TEXCOORD);
     textureCoordWrap(texCoord);
 
     float *c = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
@@ -110,19 +105,14 @@ bool TextureMapProgram::fragment(FSInData *fsdata, float color[3])
     return true;
 }
 
-void TextureMapProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
+void TextureMapShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
     v3 = SH_VEC3_BASE_MAX;
     v4 = SH_VEC4_BASE_MAX;
 }
 
-Program* TextureMapProgram::clone()
-{
-    return new TextureMapProgram();
-}
-
-void ColorPhongProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
+void ColorPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_VIEW_FRAG_POSITION] = trGetMat4(MAT4_MODELVIEW) * glm::vec4(mesh.vertices[index], 1.0f);
@@ -133,13 +123,13 @@ void ColorPhongProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index
         vsdata->mVaryingVec4[SH_LIGHT_FRAG_POSITION] = trGetMat4(MAT4_LIGHT_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool ColorPhongProgram::fragment(FSInData *fsdata, float color[3])
+bool ColorPhongShader::fragment(FSInData *fsdata, float color[3])
 {
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
 
-    glm::vec3 fragmentPosition = interpFast(fsdata->mVaryingVec3Prim[SH_VIEW_FRAG_POSITION]);
-    glm::vec3 normal = interpFast(fsdata->mVaryingVec3Prim[SH_NORMAL]);
-    glm::vec3 diffuseColor = interpFast(fsdata->mVaryingVec3Prim[SH_COLOR]);
+    glm::vec3 fragmentPosition = fsdata->getVec3(SH_VIEW_FRAG_POSITION);
+    glm::vec3 normal = fsdata->getVec3(SH_NORMAL);
+    glm::vec3 diffuseColor = fsdata->getVec3(SH_COLOR);
 
     normal = glm::normalize(normal);
     // from fragment to light
@@ -160,7 +150,7 @@ bool ColorPhongProgram::fragment(FSInData *fsdata, float color[3])
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
-        glm::vec4 lightClipV = interpFast(fsdata->mVaryingVec4Prim[SH_LIGHT_FRAG_POSITION]);
+        glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
 
         result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
@@ -173,19 +163,14 @@ bool ColorPhongProgram::fragment(FSInData *fsdata, float color[3])
     return true;
 }
 
-void ColorPhongProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
+void ColorPhongShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
     v3 = SH_VEC3_PHONG_MAX;
     v4 = SH_VEC4_PHONG_MAX;
 }
 
-Program* ColorPhongProgram::clone()
-{
-    return new ColorPhongProgram();
-}
-
-void TextureMapPhongProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
+void TextureMapPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_VIEW_FRAG_POSITION] = trGetMat4(MAT4_MODELVIEW) * glm::vec4(mesh.vertices[index], 1.0f);
@@ -211,11 +196,11 @@ void TextureMapPhongProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t 
         vsdata->mVaryingVec4[SH_LIGHT_FRAG_POSITION] = trGetMat4(MAT4_LIGHT_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
+bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[3])
 {
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
 
-    glm::vec2 texCoord = interpFast(fsdata->mVaryingVec2Prim[SH_TEXCOORD]);
+    glm::vec2 texCoord = fsdata->getVec2(SH_TEXCOORD);
     textureCoordWrap(texCoord);
 
     glm::vec3 fragmentPosition;
@@ -226,12 +211,12 @@ bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
 
     if (trGetTexture(TEXTURE_NORMAL) != nullptr)
     {
-        fragmentPosition = interpFast(fsdata->mVaryingVec3Prim[SH_TANGENT_FRAG_POSITION]);
+        fragmentPosition = fsdata->getVec3(SH_TANGENT_FRAG_POSITION);
         normal = glm::make_vec3(texture2D(TEXTURE_NORMAL, texCoord.x, texCoord.y)) * 2.0f - 1.0f;
-        lightPosition = interpFast(fsdata->mVaryingVec3Prim[SH_TANGENT_LIGHT_POSITION]);
+        lightPosition = fsdata->getVec3(SH_TANGENT_LIGHT_POSITION);
     } else {
-        fragmentPosition = interpFast(fsdata->mVaryingVec3Prim[SH_VIEW_FRAG_POSITION]);
-        normal = interpFast(fsdata->mVaryingVec3Prim[SH_NORMAL]);
+        fragmentPosition = fsdata->getVec3(SH_VIEW_FRAG_POSITION);
+        normal = fsdata->getVec3(SH_NORMAL);
         lightPosition = unidata->mViewLightPosition;
     }
     normal = glm::normalize(normal);
@@ -260,7 +245,7 @@ bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
 
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
-        glm::vec4 lightClipV = interpFast(fsdata->mVaryingVec4Prim[SH_LIGHT_FRAG_POSITION]);
+        glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
 
         result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
@@ -277,26 +262,21 @@ bool TextureMapPhongProgram::fragment(FSInData *fsdata, float color[3])
     return true;
 }
 
-void TextureMapPhongProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
+void TextureMapPhongShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
     v3 = SH_VEC3_PHONG_MAX;
     v4 = SH_VEC4_PHONG_MAX;
 }
 
-Program* TextureMapPhongProgram::clone()
-{
-    return new TextureMapPhongProgram();
-}
-
-void ShadowMapProgram::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
+void ShadowMapShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool ShadowMapProgram::fragment(FSInData *fsdata, float color[3])
+bool ShadowMapShader::fragment(FSInData *fsdata, float color[3])
 {
-    glm::vec4 clipV = interpFast(fsdata->tr_PositionPrim);
+    glm::vec4 clipV = fsdata->getPosition();
     float depth = glm::clamp((clipV.z / clipV.w) * 0.5f + 0.5f, 0.0f, 1.0f);
     color[0] = depth;
     color[1] = depth;
@@ -305,15 +285,9 @@ bool ShadowMapProgram::fragment(FSInData *fsdata, float color[3])
     return true;
 }
 
-void ShadowMapProgram::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
+void ShadowMapShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
     v3 = SH_VEC3_BASE_MAX;
     v4 = SH_VEC4_BASE_MAX;
 }
-
-Program* ShadowMapProgram::clone()
-{
-    return new ShadowMapProgram();
-}
-

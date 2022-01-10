@@ -4,7 +4,7 @@
 #include <mutex>
 #include <glm/ext.hpp>
 
-#include "tr.hpp"
+#include "trcore.hpp"
 
 namespace TGRenderer
 {
@@ -38,6 +38,8 @@ namespace TGRenderer
         gDefaultMat3[MAT3_NORMAL],
     };
 
+    thread_local Program gProgram(nullptr);
+
     size_t gThreadNum = 4;
     int gDrawMode = TR_FILL;
     int gCullFace = TR_CCW;
@@ -50,6 +52,18 @@ namespace TGRenderer
 #endif
 
     // internal function
+    static inline void __compute_premultiply_mat__()
+    {
+        gMat4[MAT4_MODELVIEW] =  gMat4[MAT4_VIEW] * gMat4[MAT4_MODEL];
+        gMat4[MAT4_MVP] = gMat4[MAT4_PROJ] * gMat4[MAT4_MODELVIEW];
+        gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
+    }
+
+    static inline float __edge__(glm::vec2 &a, glm::vec2 &b, glm::vec2 &c)
+    {
+        return (c.x - a.x)*(b.y - a.y) - (c.y - a.y)*(b.x - a.x);
+    }
+
     void TRMeshData::computeTangent()
     {
         if (tangents.size() != 0)
@@ -83,11 +97,14 @@ namespace TGRenderer
             colors.push_back(color[i % 3]);
     }
 
-    static inline void __compute_premultiply_mat__()
+    Program::Program(Shader *shader)
     {
-        gMat4[MAT4_MODELVIEW] =  gMat4[MAT4_VIEW] * gMat4[MAT4_MODEL];
-        gMat4[MAT4_MVP] = gMat4[MAT4_PROJ] * gMat4[MAT4_MODELVIEW];
-        gMat3[MAT3_NORMAL] = glm::transpose(glm::inverse(gMat4[MAT4_MODELVIEW]));
+        mShader = shader;
+    }
+
+    void Program::setShader(Shader *shader)
+    {
+        mShader = shader;
     }
 
     VSOutData *Program::allocVSOutData()
@@ -100,7 +117,7 @@ namespace TGRenderer
         return dynamic_cast<FSInData *>(&mFSInData);
     }
 
-    void Program::freeShaderData()
+    void Program::reset()
     {
         mAllocIndex = 0;
     }
@@ -108,7 +125,7 @@ namespace TGRenderer
     void Program::prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata)
     {
         size_t v2n, v3n, v4n;
-        getVaryingNum(v2n, v3n, v4n);
+        mShader->getVaryingNum(v2n, v3n, v4n);
 
         fsdata->tr_PositionPrim[0] = vsdata[0]->tr_Position;
         fsdata->tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
@@ -139,7 +156,7 @@ namespace TGRenderer
     void Program::getIntersectionVertex(VSOutData *in1, VSOutData *in2, VSOutData *outV)
     {
         size_t v2n, v3n, v4n;
-        getVaryingNum(v2n, v3n, v4n);
+        mShader->getVaryingNum(v2n, v3n, v4n);
 
         float t = (in2->tr_Position.w - W_CLIPPING_PLANE)/(in2->tr_Position.w - in1->tr_Position.w);
 
@@ -191,11 +208,13 @@ namespace TGRenderer
 
     void Program::drawTriangle(TRMeshData &mesh, size_t index)
     {
+        assert(mShader != nullptr);
+        reset();
         VSOutData *vsdata[3];
         for (size_t i = 0; i < 3; i++)
         {
             vsdata[i] = allocVSOutData();
-            vertex(mesh, vsdata[i], index * 3 + i);
+            mShader->vertex(mesh, vsdata[i], index * 3 + i);
         }
 
         // Max is 4 output.
@@ -223,7 +242,7 @@ namespace TGRenderer
             drawSth += rasterization(vsdata);
         }
 finish:
-        freeShaderData();
+        reset();
 #if __DEBUG_FINISH_CB__
         if (gFCB != nullptr && drawSth)
             gFCB(gFCBData);
@@ -244,9 +263,9 @@ finish:
     bool Program::rasterizationPoint(
             glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck)
     {
-        float w0 = edge(screen_v[1], screen_v[2], point);
-        float w1 = edge(screen_v[2], screen_v[0], point);
-        float w2 = edge(screen_v[0], screen_v[1], point);
+        float w0 = __edge__(screen_v[1], screen_v[2], point);
+        float w1 = __edge__(screen_v[2], screen_v[0], point);
+        float w2 = __edge__(screen_v[0], screen_v[1], point);
         if (insideCheck)
         {
             switch (gCullFace)
@@ -290,8 +309,8 @@ finish:
         /* One more special case... */
         if (!insideCheck && areaPC == 0)
             return false;
-        mUPC = w1 / areaPC;
-        mVPC = w2 / areaPC;
+        fsdata->mUPC = w1 / areaPC;
+        fsdata->mVPC = w2 / areaPC;
 
         size_t offset = mBuffer->getOffset(x, y);
         /* easy-z */
@@ -300,7 +319,7 @@ finish:
             return false;
 
         float color[3];
-        if (!fragment(fsdata, color))
+        if (!mShader->fragment(fsdata, color))
             return false;
 
 #if __NEED_BUFFER_LOCK__
@@ -382,7 +401,7 @@ finish:
             mBuffer->viewport(screen_v[i], ndc_v[i]);
         }
 
-        float area = edge(screen_v[0], screen_v[1], screen_v[2]);
+        float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
 
         if (gCullFace == TR_CCW && area >= 0)
             return false;
@@ -418,14 +437,14 @@ finish:
         return drawSth;
     }
 
-    void trTrianglesInstanced(TRMeshData &mesh, Program *prog, size_t index, size_t num)
+    void trTrianglesInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num)
     {
-        prog->drawTrianglesInstanced(gRenderTarget, mesh, index, num);
+        gProgram.setShader(shader);
+        gProgram.drawTrianglesInstanced(gRenderTarget, mesh, index, num);
     }
 
-    void trTrianglesMT(TRMeshData &mesh, Program *prog)
+    void trTrianglesMT(TRMeshData &mesh, Shader *shader)
     {
-        Program *progList[THREAD_MAX] = { nullptr };
         size_t trianglesNum = mesh.vertices.size() / 3;
         if (gThreadNum > 1)
         {
@@ -442,18 +461,15 @@ finish:
                 if (i == gThreadNum - 1)
                     index_step = trianglesNum - start;
 
-                progList[i] = prog->clone();
-                thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), progList[i], start, index_step));
+                thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), shader, start, index_step));
             }
 
             for (auto &th : thread_pool)
                 if (th.joinable())
                     th.join();
-            for (size_t i = 0; i < gThreadNum; i++)
-                delete progList[i];
 
         } else {
-            trTrianglesInstanced(mesh, prog, 0, trianglesNum);
+            trTrianglesInstanced(mesh, shader, 0, trianglesNum);
         }
     }
 
@@ -499,11 +515,11 @@ finish:
     }
 
     // Draw related API
-    void trTriangles(TRMeshData &mesh, Program *prog)
+    void trTriangles(TRMeshData &mesh, Shader *shader)
     {
         __compute_premultiply_mat__();
 
-        trTrianglesMT(mesh, prog);
+        trTrianglesMT(mesh, shader);
     }
 
     // Core state related API

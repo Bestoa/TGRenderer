@@ -3,7 +3,7 @@
 #include <memory>
 #include <glm/glm.hpp>
 
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "program.hpp"
 #include "utils.hpp"
 
@@ -31,18 +31,18 @@ int main()
     TRMeshData mesh;
     truLoadVec3(vertex, 0, 3, 0, 6, mesh.vertices);
 
-    ColorProgram prog;
+    ColorShader shader;
 
     trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
     mesh.fillSpriteColor();
-    trTriangles(mesh, &prog);
+    trTriangles(mesh, &shader);
     truSavePPM("01_sprite_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     mesh.colors.clear();
     truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);
 
     trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
-    trTriangles(mesh, &prog);
+    trTriangles(mesh, &shader);
     truSavePPM("01_color.ppm", buffer->mData, buffer->mW, buffer->mH);
 
     delete buffer;

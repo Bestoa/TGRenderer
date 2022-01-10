@@ -6,7 +6,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-#include "tr.hpp"
+#include "trapi.hpp"
 #include "program.hpp"
 #include "window.hpp"
 #include "utils.hpp"
@@ -17,13 +17,13 @@ constexpr float PI = 3.1415926;
 
 using namespace TGRenderer;
 
-class TextureMapExProg : public TextureMapProgram
+class TextureMapExShader : public TextureMapShader
 {
     private:
         bool fragment(FSInData *fsdata, float color[])
         {
             int frame = *reinterpret_cast<int *>(trGetUniformData());
-            glm::vec2 texCoord = interpFast(fsdata->mVaryingVec2Prim[SH_TEXCOORD]);
+            glm::vec2 texCoord = fsdata->getVec2(SH_TEXCOORD);
             texCoord.x -= frame * 0.001f;
             textureCoordWrap(texCoord);
             float *c = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
@@ -31,11 +31,6 @@ class TextureMapExProg : public TextureMapProgram
             color[1] = c[1];
             color[2] = c[2];
             return true;
-        }
-    public:
-        Program *clone()
-        {
-            return new TextureMapExProg();
         }
 };
 
@@ -174,7 +169,7 @@ int main()
     }
 
     int frame = 0;
-    TextureMapPhongProgram prog;
+    TextureMapPhongShader shader;
 
     PhongUniformData unidata;
     unidata.mLightPosition = glm::vec3(100.0f, 0.0f, 0.0f);
@@ -183,7 +178,7 @@ int main()
     TRMeshData BGPlane;
     float white[] = { 1.0f, 1.0f, 1.0f };
     truCreateQuadPlane(BGPlane, white);
-    TextureMapExProg texProg;
+    TextureMapExShader texShader;
     TRTexture bgTex("examples/res/stars.tga");
     if (!bgTex.isValid())
     {
@@ -202,7 +197,7 @@ int main()
         trEnableStencilWrite(true);
         trBindTexture(&earthTex, TEXTURE_DIFFUSE);
         trSetUniformData(&unidata);
-        trTriangles(sphere, &prog);
+        trTriangles(sphere, &shader);
 
         trEnableDepthTest(false);
         trEnableStencilTest(true);
@@ -212,7 +207,7 @@ int main()
         trResetMat4(MAT4_PROJ);
         trBindTexture(&bgTex, TEXTURE_DIFFUSE);
         trSetUniformData(&frame);
-        trTriangles(BGPlane, &texProg);
+        trTriangles(BGPlane, &texShader);
         trEnableDepthTest(true);
         trEnableStencilTest(false);
 
