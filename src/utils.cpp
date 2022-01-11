@@ -3,17 +3,15 @@
 #include <vector>
 #include <glm/ext.hpp>
 
+#define STB_IMAGE_WRITE_IMPLEMENTATION
+#include "stb_image_write.h"
+
 #include "trapi.hpp"
 #include "utils.hpp"
 
-void truSavePPM(const char *name, uint8_t *buffer, int width, int height)
+bool truSavePNG(const char *name, TGRenderer::TRBuffer *buffer)
 {
-    FILE *fp = fopen(name, "wb");
-    if (!fp)
-        abort();
-    fprintf(fp, "P6\n%d %d\n255\n", width, height);
-    fwrite(buffer, 1, width * height * 3, fp);
-    fclose(fp);
+    return stbi_write_png(name, buffer->mW, buffer->mH, TGRenderer::BUFFER_CHANNEL, buffer->mData, buffer->mW * TGRenderer::BUFFER_CHANNEL);
 }
 
 void truLoadVec4(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec4> &out)

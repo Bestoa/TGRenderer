@@ -8,7 +8,7 @@
 
 namespace TGRenderer
 {
-    constexpr int BUFFER_CHANNEL = 3;
+    constexpr int BUFFER_CHANNEL = 4;
     class TRBuffer
     {
         public:

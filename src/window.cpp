@@ -38,11 +38,11 @@ TRWindow::TRWindow(int w, int h, const char *name)
     if (mRenderer == nullptr)
         goto error;
 
-    mDispTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    mDispTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
     if (mDispTexture == nullptr)
         goto error;
 
-    mDrawTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGB24, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    mDrawTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
     if (mDispTexture == nullptr)
         goto error;
 

@@ -34,11 +34,13 @@ namespace TGRenderer
 
     void TRBuffer::clearColor()
     {
-        for (size_t i = 0; i < mW * mH * BUFFER_CHANNEL; i += 3)
+        for (size_t i = 0; i < mW * mH * BUFFER_CHANNEL; i += BUFFER_CHANNEL)
         {
             mData[i + 0] = mBgColor3i[0];
             mData[i + 1] = mBgColor3i[1];
             mData[i + 2] = mBgColor3i[2];
+            if (BUFFER_CHANNEL == 4)
+                mData[i + 3] = 255;
         }
     }
 
@@ -184,17 +186,19 @@ error:
     void TRTextureBuffer::clearColor()
     {
         float *base = mTexture->getBuffer();
-        for (size_t i = 0; i < mW * mH * TEXTURE_CHANNEL; i += 3)
+        for (size_t i = 0; i < mW * mH * TEXTURE_CHANNEL; i += TEXTURE_CHANNEL)
         {
             base[i + 0] = mBgColor3f[0];
             base[i + 1] = mBgColor3f[1];
             base[i + 2] = mBgColor3f[2];
+            if (TEXTURE_CHANNEL == 4)
+                base[i + 3] = 1.0f;
         }
     }
 
     void TRTextureBuffer::drawPixel(int x, int y, float color[])
     {
-        float *base = mTexture->getBuffer() + (y * mW + x)* TEXTURE_CHANNEL;
+        float *base = mTexture->getBuffer() + (y * mW + x) * TEXTURE_CHANNEL;
         base[0] = color[0];
         base[1] = color[1];
         base[2] = color[2];
