@@ -138,6 +138,7 @@ namespace TGRenderer
     void trClearColor3f(float r, float g, float b);
     // Texture related API
     void trBindTexture(TRTexture *texture, int type);
+    void trUnbindTextureAll();
     TRTexture *trGetTexture(int type);
     // Uniform data related API
     void trSetUniformData(void *data);

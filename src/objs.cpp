@@ -117,9 +117,9 @@ bool TRObj::draw(int id)
         return false;
 
     trBindTexture(mTextureDiffuse, TEXTURE_DIFFUSE);
-    trBindTexture(NULL, TEXTURE_SPECULAR);
-    trBindTexture(NULL, TEXTURE_GLOW);
-    trBindTexture(NULL, TEXTURE_NORMAL);
+    trBindTexture(nullptr, TEXTURE_SPECULAR);
+    trBindTexture(nullptr, TEXTURE_GLOW);
+    trBindTexture(nullptr, TEXTURE_NORMAL);
 
     if (mTextureSpecular && mTextureSpecular->isValid())
         trBindTexture(mTextureSpecular, TEXTURE_SPECULAR);

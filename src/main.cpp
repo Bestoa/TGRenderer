@@ -200,10 +200,13 @@ int main(int argc, char *argv[])
 #endif
 
 #if DRAW_FLOOR
-    ColorPhongShader CPShader;
+    TextureMapPhongShader floorShader;
     TRMeshData floorMesh;
     float floorColor[] = {0.5f, 0.5f, 0.5f};
     truCreateFloor(floorMesh, -1.0f, floorColor);
+    TRTexture floorTex("res/tex/floor_diffuse.tga");
+    if (!floorTex.isValid())
+        abort();
 #endif
 
     glm::mat4 modelMat(1.0f);
@@ -243,12 +246,17 @@ int main(int argc, char *argv[])
 #if DRAW_FLOOR
         if (gOption.drawFloor)
         {
+            trUnbindTextureAll();
 #if ENABLE_SHADOW
             if (gOption.enableShadow)
+            {
                 trSetMat4(lightProjMat * lightViewMat, MAT4_LIGHT_MVP);
+                trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
+            }
 #endif
             trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
-            trTriangles(floorMesh, &CPShader);
+            trBindTexture(&floorTex, TEXTURE_DIFFUSE);
+            trTriangles(floorMesh, &floorShader);
         }
 #endif
 #if ENABLE_SHADOW

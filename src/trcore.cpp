@@ -593,6 +593,12 @@ finish:
             gTexture[type] = texture;
     }
 
+    void trUnbindTextureAll()
+    {
+        for (int i = 0; i < TEXTURE_INDEX_MAX; i++)
+            gTexture[i] = nullptr;
+    }
+
     TRTexture *trGetTexture(int type)
     {
         if (type < TEXTURE_INDEX_MAX)
