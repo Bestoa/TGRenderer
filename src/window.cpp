@@ -30,20 +30,13 @@ TRWindow::TRWindow(int w, int h, const char *name)
     if (SDL_Init(SDL_INIT_VIDEO))
         goto error;
 
-    mWindow = SDL_CreateWindow(name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, mWidth, mHeight, 0);
-    if (mWindow == nullptr)
+    if (SDL_CreateWindowAndRenderer(mWidth, mHeight, 0, &mWindow, &mRenderer))
         goto error;
-
-    mRenderer = SDL_CreateRenderer(mWindow, -1, SDL_RENDERER_SOFTWARE);
-    if (mRenderer == nullptr)
-        goto error;
+    SDL_SetWindowTitle(mWindow, name);
 
     mDispTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
-    if (mDispTexture == nullptr)
-        goto error;
-
     mDrawTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
-    if (mDispTexture == nullptr)
+    if (mDispTexture == nullptr || mDispTexture == nullptr)
         goto error;
 
     mBuffer = new TRBuffer(mWidth, mHeight, false);
@@ -53,7 +46,7 @@ TRWindow::TRWindow(int w, int h, const char *name)
     void *addr;
     int pitch;
     if (SDL_LockTexture(mDrawTexture, nullptr, &addr, &pitch))
-        return;
+        goto error;
     assert(pitch == int(mBuffer->getStride() * BUFFER_CHANNEL));
     mBuffer->setExtBuffer(addr);
     trSetCurrentRenderTarget(mBuffer);

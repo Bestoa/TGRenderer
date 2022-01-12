@@ -12,7 +12,7 @@ typedef void (*KeyEventCb)(int scancode);
 
 class TRWindow {
     public:
-        TRWindow(int w, int h, const char *name = "ToyRenderer");
+        TRWindow(int w, int h, const char *name = "TopGun Renderer");
         ~TRWindow();
 
         bool isRunning();
