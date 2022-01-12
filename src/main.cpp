@@ -1,9 +1,7 @@
-#include <string>
 #include <vector>
-#include <memory>
+#include <iostream>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
-#include <chrono>
 
 #include "trapi.hpp"
 #include "window.hpp"
@@ -213,7 +211,7 @@ int main(int argc, char *argv[])
     unidata.mLightPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 
     int frame = 0;
-    auto start = std::chrono::system_clock::now();
+    truTimerBegin();
     while (!w.shouldStop() && frame++ < endFrame)
     {
         reCalcMat(modelMat, eyeViewMat, lightViewMat);
@@ -265,11 +263,15 @@ int main(int argc, char *argv[])
 #endif
         w.swapBuffer();
         w.pollEvent();
+        if (frame % 100 == 0)
+        {
+            double fps = 100 / truTimerGetSecondsFromClick();
+            std::cout << "Current fps: " << fps << std::endl;
+            truTimerClick();
+        }
     }
-    auto end = std::chrono::system_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
-    double fps = double(frame) / (double(duration.count()) * std::chrono::microseconds::period::num / std::chrono::microseconds::period::den);
-    printf("fps = %lf\n", fps);
+    double fps = frame / truTimerGetSecondsFromBegin();
+    std::cout << "Fps: " << fps << std::endl;
 
 #if ENABLE_SHADOW
     delete shadowBuffer;

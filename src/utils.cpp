@@ -1,6 +1,7 @@
 #include <cstdio>
 #include <string>
 #include <vector>
+#include <chrono>
 #include <glm/ext.hpp>
 
 #define STB_IMAGE_WRITE_IMPLEMENTATION
@@ -8,6 +9,8 @@
 
 #include "trapi.hpp"
 #include "utils.hpp"
+
+using namespace std::chrono;
 
 bool truSavePNG(const char *name, TGRenderer::TRBuffer *buffer)
 {
@@ -30,6 +33,36 @@ void truLoadVec2(float *data, size_t start, size_t len, size_t offset, size_t st
 {
     for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
         out.push_back(glm::make_vec2(&data[i]));
+}
+
+thread_local system_clock::time_point gTimerBegin;
+thread_local system_clock::time_point gTimerLastClick;
+
+void truTimerBegin()
+{
+    gTimerBegin = system_clock::now();
+    gTimerLastClick = gTimerBegin;
+}
+
+void truTimerClick()
+{
+    gTimerLastClick = system_clock::now();
+}
+
+double __getSeconds__(system_clock::time_point t1, system_clock::time_point t2)
+{
+    auto duration = duration_cast<std::chrono::microseconds>(t2 - t1);
+    return (double(duration.count()) * microseconds::period::num / microseconds::period::den);
+}
+
+double truTimerGetSecondsFromClick()
+{
+    return __getSeconds__(gTimerLastClick, system_clock::now());
+}
+
+double truTimerGetSecondsFromBegin()
+{
+    return __getSeconds__(gTimerBegin, system_clock::now());
 }
 
 bool truLoadObj(
