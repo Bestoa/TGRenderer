@@ -68,7 +68,7 @@ double truTimerGetSecondsFromBegin()
 bool truLoadObj(
         const char * path,
         std::vector<glm::vec3> & out_vertices,
-        std::vector<glm::vec2> & out_uvs,
+        std::vector<glm::vec2> & out_texcoords,
         std::vector<glm::vec3> & out_normals
         )
 {
@@ -76,7 +76,7 @@ bool truLoadObj(
 
     std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
     std::vector<glm::vec3> temp_vertices;
-    std::vector<glm::vec2> temp_uvs;
+    std::vector<glm::vec2> temp_texcoords;
     std::vector<glm::vec3> temp_normals;
     int faces = 0;
 
@@ -105,7 +105,7 @@ bool truLoadObj(
             glm::vec2 uv;
             fscanf(file, "%f %f\n", &uv.x, &uv.y );
             uv.y = uv.y;
-            temp_uvs.push_back(uv);
+            temp_texcoords.push_back(uv);
         }else if ( strcmp( lineHeader, "vn" ) == 0 ){
             glm::vec3 normal;
             fscanf(file, "%f %f %f\n", &normal.x, &normal.y, &normal.z );
@@ -148,12 +148,12 @@ bool truLoadObj(
 
         // Get the attributes thanks to the index
         glm::vec3 vertex = temp_vertices[ vertexIndex-1 ];
-        glm::vec2 uv = temp_uvs[ uvIndex-1 ];
+        glm::vec2 uv = temp_texcoords[ uvIndex-1 ];
         glm::vec3 normal = temp_normals[ normalIndex-1 ];
 
         // Put the attributes in buffers
         out_vertices.push_back(vertex);
-        out_uvs     .push_back(uv);
+        out_texcoords     .push_back(uv);
         out_normals .push_back(normal);
 
     }
@@ -187,35 +187,33 @@ void truCreateFloor(TGRenderer::TRMeshData &mesh, float height, float color[3])
     truLoadVec3(floorData, 0, 12, 0, 11, mesh.vertices);
     truLoadVec3(floorData, 0, 12, 3, 11, mesh.colors);
     truLoadVec3(floorData, 0, 12, 6, 11, mesh.normals);
-    truLoadVec2(floorData, 0, 12, 9, 11, mesh.uvs);
+    truLoadVec2(floorData, 0, 12, 9, 11, mesh.texcoords);
     mesh.computeTangent();
 }
 
-void truCreateQuadPlane(TGRenderer::TRMeshData &mesh, float color[3])
+void truCreateQuadPlane(TGRenderer::TRMeshData &mesh)
 {
     float planeData[] =
     {
-        /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
-        -1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   1.0,
-        -1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   0.0,
-         0.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   0.0,
+        /* x, y, z, uv.x, uv.y */
+        -1.0f,  1.0f, 0.0f,     0.0,   1.0,
+        -1.0f, -1.0f, 0.0f,     0.0,   0.0,
+         0.0f, -1.0f, 0.0f,     0.5,   0.0,
 
-         0.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   0.0,
-         0.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   1.0,
-        -1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.0,   1.0,
+         0.0f, -1.0f, 0.0f,     0.5,   0.0,
+         0.0f,  1.0f, 0.0f,     0.5,   1.0,
+        -1.0f,  1.0f, 0.0f,     0.0,   1.0,
 
-         0.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   1.0,
-         0.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   0.0,
-         1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   0.0,
+         0.0f,  1.0f, 0.0f,     0.5,   1.0,
+         0.0f, -1.0f, 0.0f,     0.5,   0.0,
+         1.0f, -1.0f, 0.0f,     1.0,   0.0,
 
-         1.0f, -1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   0.0,
-         1.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        1.0,   1.0,
-         0.0f,  1.0f, 0.0f,     color[0], color[1], color[2],   0.0, 0.0, 1.0,        0.5,   1.0,
+         1.0f, -1.0f, 0.0f,     1.0,   0.0,
+         1.0f,  1.0f, 0.0f,     1.0,   1.0,
+         0.0f,  1.0f, 0.0f,     0.5,   1.0,
     };
 
-    truLoadVec3(planeData, 0, 12, 0, 11, mesh.vertices);
-    truLoadVec3(planeData, 0, 12, 3, 11, mesh.colors);
-    truLoadVec3(planeData, 0, 12, 6, 11, mesh.normals);
-    truLoadVec2(planeData, 0, 12, 9, 11, mesh.uvs);
+    truLoadVec3(planeData, 0, 12, 0, 5, mesh.vertices);
+    truLoadVec2(planeData, 0, 12, 3, 5, mesh.texcoords);
 }
 

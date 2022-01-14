@@ -76,8 +76,8 @@ namespace TGRenderer
             glm::vec3 deltaPos2 = vertices[i+2] - vertices[i];
 
             // UV delta
-            glm::vec2 deltaUV1 = uvs[i+1]-uvs[i];
-            glm::vec2 deltaUV2 = uvs[i+2]-uvs[i];
+            glm::vec2 deltaUV1 = texcoords[i+1]-texcoords[i];
+            glm::vec2 deltaUV2 = texcoords[i+2]-texcoords[i];
 
             float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
 

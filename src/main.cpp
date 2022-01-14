@@ -201,7 +201,14 @@ int main(int argc, char *argv[])
     TextureMapPhongShader floorShader;
     TRMeshData floorMesh;
     float floorColor[] = {0.5f, 0.5f, 0.5f};
-    truCreateFloor(floorMesh, -1.0f, floorColor);
+    float floorHeight = 10.0f;
+    for (auto obj : objs)
+    {
+        float currentFloorHeight = obj->getFloorYAxis();
+        if (currentFloorHeight < floorHeight)
+            floorHeight = currentFloorHeight;
+    }
+    truCreateFloor(floorMesh, floorHeight, floorColor);
     TRTexture floorTex("res/tex/floor_diffuse.tga");
     if (!floorTex.isValid())
         abort();

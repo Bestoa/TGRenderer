@@ -12,6 +12,8 @@ class TRObj
         bool draw(int id = 3);
         bool drawShadowMap();
 
+        float getFloorYAxis();
+
         // Disable copy init.
         TRObj() = delete;
         TRObj(const TRObj &) = delete;

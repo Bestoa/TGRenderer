@@ -46,7 +46,7 @@ float calcShadow(float depth, float x, float y)
     float ystep = 1.f / st->getH();
     float shadow = 0.f;
 
-    float uvs[] =
+    float texcoords[] =
     {
         x - xstep, y - ystep,
         x, y - ystep,
@@ -59,7 +59,7 @@ float calcShadow(float depth, float x, float y)
         x + xstep, y + ystep,
     };
     for (size_t i = 0; i < 9; i++)
-        shadow += calcShadowFast(depth, uvs[i*2], uvs[i*2+1]);
+        shadow += calcShadowFast(depth, texcoords[i*2], texcoords[i*2+1]);
 
     return shadow / 9.0f;
 }
@@ -89,7 +89,7 @@ void ColorShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 void TextureMapShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
 {
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
-    vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.uvs[index];
+    vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.texcoords[index];
 }
 
 bool TextureMapShader::fragment(FSInData *fsdata, float color[3])
@@ -175,7 +175,7 @@ void TextureMapPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t i
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_VIEW_FRAG_POSITION] = trGetMat4(MAT4_MODELVIEW) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_NORMAL] = trGetMat3(MAT3_NORMAL) * mesh.normals[index];
-    vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.uvs[index];
+    vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.texcoords[index];
 
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
 

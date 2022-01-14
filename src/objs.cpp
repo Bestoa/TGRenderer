@@ -25,13 +25,15 @@ TRObj::~TRObj()
 bool TRObj::isValid()
 {
     return mValid;
-    if (mMeshData.vertices.size() != mMeshData.uvs.size()
-            || mMeshData.vertices.size() != mMeshData.normals.size()
-            || mMeshData.vertices.size() % 3 != 0
-            || !mTextureDiffuse->isValid())
-        return false;
-    else
-        return true;
+}
+
+float TRObj::getFloorYAxis()
+{
+    float floorY = 100.f;
+    for (auto &v3 : mMeshData.vertices)
+        if (v3.y < floorY)
+            floorY = v3.y;
+    return floorY;
 }
 
 
@@ -50,13 +52,13 @@ TRObj::TRObj(const char *config)
 
     cout << "Loading OBJ..." << endl;
     getline(in, line);
-    if (!line.length() || !truLoadObj(line.c_str(), mMeshData.vertices, mMeshData.uvs, mMeshData.normals))
+    if (!line.length() || !truLoadObj(line.c_str(), mMeshData.vertices, mMeshData.texcoords, mMeshData.normals))
     {
         cout << "Load OBJ file error!" << endl;
         return;
     }
 
-    if (mMeshData.vertices.size() != mMeshData.uvs.size()
+    if (mMeshData.vertices.size() != mMeshData.texcoords.size()
             || mMeshData.vertices.size() != mMeshData.normals.size()
             || mMeshData.vertices.size() % 3 != 0)
     {
