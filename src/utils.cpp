@@ -161,9 +161,8 @@ bool truLoadObj(
     return true;
 }
 
-void truCreateFloor(TGRenderer::TRMeshData &mesh, float height, float color[3])
+void truCreateFloorPlane(TGRenderer::TRMeshData &mesh, float height, float width, const float *color)
 {
-    float width = 4.0;
     float floorData[] =
     {
         /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
@@ -215,5 +214,117 @@ void truCreateQuadPlane(TGRenderer::TRMeshData &mesh)
 
     truLoadVec3(planeData, 0, 12, 0, 5, mesh.vertices);
     truLoadVec2(planeData, 0, 12, 3, 5, mesh.texcoords);
+}
+
+glm::vec3 get_point(float u, float v)
+{
+    constexpr float PI = 3.1415926;
+    float a1 = PI * v, a2 = PI * u * 2;
+    float x = sin(a1) * cos(a2);
+    float y = cos(a1);
+    float z = sin(a1) * sin(a2);
+    return glm::vec3(x, y, z);
+}
+
+void truCreateSphere(TGRenderer::TRMeshData &mesh, int uStepNum, int vStepNum)
+{
+
+    float ustep = 1/(float)uStepNum, vstep = 1/(float)vStepNum;
+    float u = 0, v = 0;
+    std::vector<glm::vec3> points;
+
+    for (int i = 0; i < uStepNum; i++)
+    {
+        glm::vec3 p1 = get_point(0, 0);
+        glm::vec3 p2 = get_point(u + ustep, vstep);
+        glm::vec3 p3 = get_point(u, vstep);
+        // counter-clockwise
+        mesh.vertices.push_back(p1);
+        mesh.vertices.push_back(p2);
+        mesh.vertices.push_back(p3);
+
+        mesh.texcoords.push_back(glm::vec2(1, 1));
+        mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - vstep));
+        mesh.texcoords.push_back(glm::vec2(1 - u, 1 - vstep));
+
+        mesh.normals.push_back(p1);
+        mesh.normals.push_back(p2);
+        mesh.normals.push_back(p3);
+        u += ustep;
+    };
+
+    u = 0;
+    v = vstep;
+    for (int i = 1; i < vStepNum - 1; i++)
+    {
+        u = 0;
+        for (int j = 0; j < uStepNum; j++)
+        {
+            // counter-clockwise
+            /*
+             *   p4---p1
+             *   |   / |
+             *   |  /  |
+             *   | /   |
+             *   p2---p3
+             */
+            glm::vec3 p1 = get_point(u, v);
+            glm::vec3 p2 = get_point(u + ustep, v + vstep);
+            glm::vec3 p3 = get_point(u, v + vstep);
+            glm::vec3 p4 = get_point(u + ustep, v);
+
+            mesh.vertices.push_back(p1);
+            mesh.vertices.push_back(p4);
+            mesh.vertices.push_back(p2);
+
+            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - v));
+            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 -v));
+            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - (v + vstep)));
+
+            mesh.normals.push_back(p1);
+            mesh.normals.push_back(p4);
+            mesh.normals.push_back(p2);
+
+            mesh.vertices.push_back(p1);
+            mesh.vertices.push_back(p2);
+            mesh.vertices.push_back(p3);
+
+            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - v));
+            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - (v + vstep)));
+            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - (v + vstep)));
+
+            mesh.normals.push_back(p1);
+            mesh.normals.push_back(p2);
+            mesh.normals.push_back(p3);
+
+            u += ustep;
+        }
+        v += vstep;
+    }
+
+    u = 0;
+    for (int i = 0; i < uStepNum; i++)
+    {
+        glm::vec3 p1 = get_point(0, 1);
+        glm::vec3 p2 = get_point(u, 1 - vstep);
+        glm::vec3 p3 = get_point(u + ustep, 1 - vstep);
+
+        // counter-clockwise
+        mesh.vertices.push_back(p1);
+        mesh.vertices.push_back(p2);
+        mesh.vertices.push_back(p3);
+
+        mesh.texcoords.push_back(glm::vec2(1, 0));
+        mesh.texcoords.push_back(glm::vec2(1 - u, vstep));
+        mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), vstep));
+
+        mesh.normals.push_back(p1);
+        mesh.normals.push_back(p2);
+        mesh.normals.push_back(p3);
+
+        u += ustep;
+    }
+    mesh.fillSpriteColor();
+    mesh.computeTangent();
 }
 

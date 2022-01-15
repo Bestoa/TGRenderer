@@ -13,7 +13,6 @@
 
 constexpr int WIDTH = 1280;
 constexpr int HEIGHT = 800;
-constexpr float PI = 3.1415926;
 
 using namespace TGRenderer;
 
@@ -34,117 +33,6 @@ class TextureMapExShader : public TextureMapShader
         }
 };
 
-glm::vec3 get_point(float u, float v)
-{
-    float a1 = PI * v, a2 = PI * u * 2;
-    float x = sin(a1) * cos(a2);
-    float y = cos(a1);
-    float z = sin(a1) * sin(a2);
-    return glm::vec3(x, y, z);
-}
-
-void create_sphere(TRMeshData &mesh, int uStepNum, int vStepNum)
-{
-
-    float ustep = 1/(float)uStepNum, vstep = 1/(float)vStepNum;
-    float u = 0, v = 0;
-    std::vector<glm::vec3> points;
-
-    for (int i = 0; i < uStepNum; i++)
-    {
-        glm::vec3 p1 = get_point(0, 0);
-        glm::vec3 p2 = get_point(u + ustep, vstep);
-        glm::vec3 p3 = get_point(u, vstep);
-        // counter-clockwise
-        mesh.vertices.push_back(p1);
-        mesh.vertices.push_back(p2);
-        mesh.vertices.push_back(p3);
-
-        mesh.texcoords.push_back(glm::vec2(1, 1));
-        mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - vstep));
-        mesh.texcoords.push_back(glm::vec2(1 - u, 1 - vstep));
-
-        mesh.normals.push_back(p1);
-        mesh.normals.push_back(p2);
-        mesh.normals.push_back(p3);
-        u += ustep;
-    };
-
-    u = 0;
-    v = vstep;
-    for (int i = 1; i < vStepNum - 1; i++)
-    {
-        u = 0;
-        for (int j = 0; j < uStepNum; j++)
-        {
-            // counter-clockwise
-            /*
-             *   p4---p1
-             *   |   / |
-             *   |  /  |
-             *   | /   |
-             *   p2---p3
-             */
-            glm::vec3 p1 = get_point(u, v);
-            glm::vec3 p2 = get_point(u + ustep, v + vstep);
-            glm::vec3 p3 = get_point(u, v + vstep);
-            glm::vec3 p4 = get_point(u + ustep, v);
-
-            mesh.vertices.push_back(p1);
-            mesh.vertices.push_back(p4);
-            mesh.vertices.push_back(p2);
-
-            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - v));
-            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 -v));
-            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - (v + vstep)));
-
-            mesh.normals.push_back(p1);
-            mesh.normals.push_back(p4);
-            mesh.normals.push_back(p2);
-
-            mesh.vertices.push_back(p1);
-            mesh.vertices.push_back(p2);
-            mesh.vertices.push_back(p3);
-
-            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - v));
-            mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), 1 - (v + vstep)));
-            mesh.texcoords.push_back(glm::vec2(1 - u, 1 - (v + vstep)));
-
-            mesh.normals.push_back(p1);
-            mesh.normals.push_back(p2);
-            mesh.normals.push_back(p3);
-
-            u += ustep;
-        }
-        v += vstep;
-    }
-
-    u = 0;
-    for (int i = 0; i < uStepNum; i++)
-    {
-        glm::vec3 p1 = get_point(0, 1);
-        glm::vec3 p2 = get_point(u, 1 - vstep);
-        glm::vec3 p3 = get_point(u + ustep, 1 - vstep);
-
-        // counter-clockwise
-        mesh.vertices.push_back(p1);
-        mesh.vertices.push_back(p2);
-        mesh.vertices.push_back(p3);
-
-        mesh.texcoords.push_back(glm::vec2(1, 0));
-        mesh.texcoords.push_back(glm::vec2(1 - u, vstep));
-        mesh.texcoords.push_back(glm::vec2(1 - (u + ustep), vstep));
-
-        mesh.normals.push_back(p1);
-        mesh.normals.push_back(p2);
-        mesh.normals.push_back(p3);
-
-        u += ustep;
-    }
-    mesh.fillSpriteColor();
-    mesh.computeTangent();
-}
-
 int main()
 {
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
@@ -152,7 +40,7 @@ int main()
         return 1;
 
     TRMeshData sphere;
-    create_sphere(sphere, 30, 30);
+    truCreateSphere(sphere, 30, 30);
 
     glm::mat4 viewMat = glm::lookAt(
                 glm::vec3(2,1,2),
