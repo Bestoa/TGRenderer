@@ -28,14 +28,14 @@ class TRObj
         ColorPhongShader mColorPhongShader;
         TextureMapPhongShader mTextureMapPhongShader;
 
-        ShadowMapShader mShadowProg;
+        ShadowMapShader mShadowShader;
 
         TGRenderer::TRTexture *mTextureDiffuse = nullptr;
         TGRenderer::TRTexture *mTextureSpecular = nullptr;
         TGRenderer::TRTexture *mTextureGlow = nullptr;
         TGRenderer::TRTexture *mTextureNormal = nullptr;
 
-        TGRenderer::Shader *mProg[4] = { &mColorShader, &mTextureMapShader, &mColorPhongShader, &mTextureMapPhongShader };
+        TGRenderer::Shader *mShaders[4] = { &mColorShader, &mTextureMapShader, &mColorPhongShader, &mTextureMapPhongShader };
 
         bool mValid = false;
 };

@@ -38,10 +38,11 @@ namespace TGRenderer
         gDefaultMat3[MAT3_NORMAL],
     };
 
-    thread_local Program gProgram(nullptr);
+    thread_local Program gProgram;
 
     size_t gThreadNum = 4;
-    int gDrawMode = TR_FILL;
+    int gPolygonMode = TR_FILL;
+    int gDrawMode = TR_TRIANGLES;
     int gCullFace = TR_CCW;
     bool gEnableDepthTest = true;
     bool gEnableStencilTest = false;
@@ -97,9 +98,9 @@ namespace TGRenderer
             colors.push_back(color[i % 3]);
     }
 
-    Program::Program(Shader *shader)
+    void Program::setBuffer(TRBuffer *buffer)
     {
-        mShader = shader;
+        mBuffer = buffer;
     }
 
     void Program::setShader(Shader *shader)
@@ -109,45 +110,57 @@ namespace TGRenderer
 
     VSOutData *Program::allocVSOutData()
     {
-        return dynamic_cast<VSOutData *>(&mVSOutData[mAllocIndex++]);
+        return &mVSOutData[mAllocIndex++];
     }
 
-    FSInData *Program::allocFSInData()
-    {
-        return dynamic_cast<FSInData *>(&mFSInData);
-    }
-
-    void Program::reset()
+    void Program::freeShaderData()
     {
         mAllocIndex = 0;
     }
 
-    void Program::prepareFragmentData(VSOutData *vsdata[3], FSInData *fsdata)
+    void Program::preDraw()
+    {
+        assert(mBuffer != nullptr);
+        assert(mShader != nullptr);
+        mDrawSth = false;
+        freeShaderData();
+    }
+
+    void Program::postDraw()
+    {
+        freeShaderData();
+#if __DEBUG_FINISH_CB__
+        if (gFCB != nullptr && mDrawSth)
+            gFCB(gFCBData);
+#endif
+    }
+
+    void Program::prepareFragmentData(VSOutData *vsdata[3])
     {
         size_t v2n, v3n, v4n;
         mShader->getVaryingNum(v2n, v3n, v4n);
 
-        fsdata->tr_PositionPrim[0] = vsdata[0]->tr_Position;
-        fsdata->tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
-        fsdata->tr_PositionPrim[2] = vsdata[2]->tr_Position - vsdata[0]->tr_Position;
+        mFSInData.tr_PositionPrim[0] = vsdata[0]->tr_Position;
+        mFSInData.tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
+        mFSInData.tr_PositionPrim[2] = vsdata[2]->tr_Position - vsdata[0]->tr_Position;
 
         for (size_t i = 0; i < v2n; i++)
         {
-            fsdata->mVaryingVec2Prim[i][0] = vsdata[0]->mVaryingVec2[i];
-            fsdata->mVaryingVec2Prim[i][1] = vsdata[1]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
-            fsdata->mVaryingVec2Prim[i][2] = vsdata[2]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+            mFSInData.mVaryingVec2Prim[i][0] = vsdata[0]->mVaryingVec2[i];
+            mFSInData.mVaryingVec2Prim[i][1] = vsdata[1]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+            mFSInData.mVaryingVec2Prim[i][2] = vsdata[2]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
         }
         for (size_t i = 0; i < v3n; i++)
         {
-            fsdata->mVaryingVec3Prim[i][0] = vsdata[0]->mVaryingVec3[i];
-            fsdata->mVaryingVec3Prim[i][1] = vsdata[1]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
-            fsdata->mVaryingVec3Prim[i][2] = vsdata[2]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+            mFSInData.mVaryingVec3Prim[i][0] = vsdata[0]->mVaryingVec3[i];
+            mFSInData.mVaryingVec3Prim[i][1] = vsdata[1]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+            mFSInData.mVaryingVec3Prim[i][2] = vsdata[2]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
         }
         for (size_t i = 0; i < v4n; i++)
         {
-            fsdata->mVaryingVec4Prim[i][0] = vsdata[0]->mVaryingVec4[i];
-            fsdata->mVaryingVec4Prim[i][1] = vsdata[1]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
-            fsdata->mVaryingVec4Prim[i][2] = vsdata[2]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+            mFSInData.mVaryingVec4Prim[i][0] = vsdata[0]->mVaryingVec4[i];
+            mFSInData.mVaryingVec4Prim[i][1] = vsdata[1]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+            mFSInData.mVaryingVec4Prim[i][2] = vsdata[2]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
         }
     }
 
@@ -172,7 +185,7 @@ namespace TGRenderer
         outV->tr_Position = in2->tr_Position + t * (in1->tr_Position - in2->tr_Position);
     }
 
-    void Program::clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[3], size_t &index)
+    void Program::clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[], size_t &index)
     {
         // Sutherland-Hodgeman clip
         // t = w1 / (w1 - w2)
@@ -198,7 +211,7 @@ namespace TGRenderer
         }
     }
 
-    void Program::clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index)
+    void Program::clipOnWAxis(VSOutData *in[3], VSOutData *out[], size_t &index)
     {
         index = 0;
         clipLineOnWAxis(in[0], in[1], out, index);
@@ -208,8 +221,7 @@ namespace TGRenderer
 
     void Program::drawTriangle(TRMeshData &mesh, size_t index)
     {
-        assert(mShader != nullptr);
-        reset();
+        preDraw();
         VSOutData *vsdata[3];
         for (size_t i = 0; i < 3; i++)
         {
@@ -220,33 +232,26 @@ namespace TGRenderer
         // Max is 4 output.
         VSOutData *out[4] = { nullptr };
         size_t total = 0;
-        int drawSth = 0;
 
-        // No need to clip on W
         if (vsdata[0]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[1]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[2]->tr_Position.w >= W_CLIPPING_PLANE)
         {
-            drawSth += rasterization(vsdata);
-            goto finish;
+            // No need to clip on W
+            rasterization(vsdata);
         }
-
-        clipOnWAxis(vsdata, out, total);
-
-        for (size_t i = 0; total > 2 && i < total - 2; i++)
+        else
         {
-            vsdata[0] = out[0];
-            vsdata[1] = out[i + 1];
-            vsdata[2] = out[i + 2];
-
-            drawSth += rasterization(vsdata);
+            clipOnWAxis(vsdata, out, total);
+            for (size_t i = 0; total > 2 && i < total - 2; i++)
+            {
+                vsdata[0] = out[0];
+                vsdata[1] = out[i + 1];
+                vsdata[2] = out[i + 2];
+                rasterization(vsdata);
+            }
         }
-finish:
-        reset();
-#if __DEBUG_FINISH_CB__
-        if (gFCB != nullptr && drawSth)
-            gFCB(gFCBData);
-#endif
+        postDraw();
     }
 
     void Program::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
@@ -260,8 +265,38 @@ finish:
             drawTriangle(mesh, i);
     }
 
-    bool Program::rasterizationPoint(
-            glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, FSInData *fsdata, bool insideCheck)
+    void Program::drawPixel(int x, int y, float depth)
+    {
+        size_t offset = mBuffer->getOffset(x, y);
+        /* easy-z */
+        /* Do not use mutex here to speed up */
+        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
+            return;
+
+        float color[3];
+        if (!mShader->fragment(&mFSInData, color))
+            return;
+
+#if __NEED_BUFFER_LOCK__
+        std::lock_guard<std::mutex> lck(mBuffer->getMutex(offset));
+#endif
+        if (gEnableStencilTest && !mBuffer->stencilTest(offset))
+            return;
+
+        /* depth test */
+        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
+            return;
+
+        /* Write stencil buffer need to pass depth test */
+        if (gEnableStencilWrite)
+            mBuffer->stencilFunc(offset);
+
+        mBuffer->drawPixel(x, y, color);
+        mDrawSth = true;
+    }
+
+    void Program::rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3],
+            float area, glm::vec2 &point, bool insideCheck)
     {
         float w0 = __edge__(screen_v[1], screen_v[2], point);
         float w1 = __edge__(screen_v[2], screen_v[0], point);
@@ -270,18 +305,9 @@ finish:
         {
             switch (gCullFace)
             {
-                case TR_CW:
-                    if (w0 < 0 || w1 < 0 || w2 < 0)
-                        return false;
-                    break;
-                case TR_CCW:
-                    if (w0 > 0 || w1 > 0 || w2 > 0)
-                        return false;
-                    break;
-                default:
-                    if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0)))
-                        return false;
-                    break;
+                case TR_CW: if (w0 < 0 || w1 < 0 || w2 < 0) return; break;
+                case TR_CCW: if (w0 > 0 || w1 > 0 || w2 > 0) return; break;
+                default: if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0))) return; break;
             }
         }
 
@@ -298,51 +324,23 @@ finish:
         depth = depth / 2.0f + 0.5f;
         /* z in ndc of opengl should between 0.0f to 1.0f */
         if (depth < 0.0f)
-            return false;
+            return;
 
         /* Perspective-Correct */
         w0 /= clip_v[0].w;
         w1 /= clip_v[1].w;
         w2 /= clip_v[2].w;
-
         float areaPC = (w0 + w1 + w2);
         /* One more special case... */
         if (!insideCheck && areaPC == 0)
-            return false;
-        fsdata->mUPC = w1 / areaPC;
-        fsdata->mVPC = w2 / areaPC;
-
-        size_t offset = mBuffer->getOffset(x, y);
-        /* easy-z */
-        /* Do not use mutex here to speed up */
-        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
-            return false;
-
-        float color[3];
-        if (!mShader->fragment(fsdata, color))
-            return false;
-
-#if __NEED_BUFFER_LOCK__
-        std::lock_guard<std::mutex> lck(mBuffer->getMutex(offset));
-#endif
-        if (gEnableStencilTest && !mBuffer->stencilTest(offset))
-            return false;
-
-        /* depth test */
-        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
-            return false;
-
-        /* Write stencil buffer need to pass depth test */
-        if (gEnableStencilWrite)
-            mBuffer->stencilFunc(offset);
-
-        mBuffer->drawPixel(x, y, color);
-
-        return true;
+            return;
+        mFSInData.mUPC = w1 / areaPC;
+        mFSInData.mVPC = w2 / areaPC;
+        drawPixel(x, y, depth);
     }
 
-    void Program::rasterizationLine(
-            glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2, FSInData *fsdata)
+    void Program::rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3],
+            glm::vec2 screen_v[3], float area, int p1, int p2)
     {
         float x0 = screen_v[p1].x, x1 = screen_v[p2].x;
         float y0 = screen_v[p1].y, y1 = screen_v[p2].y;
@@ -378,7 +376,7 @@ finish:
             // Not good, but works well
             if (!(v.x > (int)mBuffer->mW - 1 || v.y > (int)mBuffer->mH - 1|| v.x < 0 || v.y < 0))
                 // skip inside check for draw line
-                rasterizationPoint(clip_v, ndc_v, screen_v, area, v, fsdata, false);
+                rasterizationPoint(clip_v, ndc_v, screen_v, area, v, false);
 
             error += deltaerr;
             if (error >= 0.5)
@@ -389,7 +387,7 @@ finish:
         }
     }
 
-    bool Program::rasterization(VSOutData *vsdata[3])
+    void Program::rasterization(VSOutData *vsdata[3])
     {
         glm::vec4 clip_v[3] = { vsdata[0]->tr_Position, vsdata[1]->tr_Position, vsdata[2]->tr_Position };
         glm::vec4 ndc_v[3];
@@ -404,22 +402,21 @@ finish:
         float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
 
         if (gCullFace == TR_CCW && area >= 0)
-            return false;
+            return;
         else if (gCullFace == TR_CW && area <= 0)
-            return false;
+            return;
         else if (area == 0)
             /* Special case */
-            return false;
+            return;
 
-        FSInData *fsdata = allocFSInData();
-        prepareFragmentData(vsdata, fsdata);
+        prepareFragmentData(vsdata);
 
-        if (gDrawMode == TR_LINE)
+        if (gPolygonMode == TR_LINE)
         {
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 0, 1, fsdata);
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 1, 2, fsdata);
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 2, 0, fsdata);
-            return true;
+            rasterizationLine(clip_v, ndc_v, screen_v, area, 0, 1);
+            rasterizationLine(clip_v, ndc_v, screen_v, area, 1, 2);
+            rasterizationLine(clip_v, ndc_v, screen_v, area, 2, 0);
+            return;
         }
 
         int xStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
@@ -427,18 +424,17 @@ finish:
         int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
         int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
 
-        int drawSth = 0;
         for (int y = yStart; y < yEnd; y++) {
             for (int x = xStart; x < xEnd; x++) {
                 glm::vec2 point(x, y);
-                drawSth += rasterizationPoint(clip_v, ndc_v, screen_v, area, point, fsdata, true);
+                rasterizationPoint(clip_v, ndc_v, screen_v, area, point, true);
             }
         }
-        return drawSth;
     }
 
     void trTrianglesInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num)
     {
+        gProgram.setBuffer(gRenderTarget);
         gProgram.setShader(shader);
         gProgram.drawTrianglesInstanced(gRenderTarget, mesh, index, num);
     }
@@ -519,6 +515,7 @@ finish:
     {
         __compute_premultiply_mat__();
 
+        gDrawMode = TR_TRIANGLES;
         trTrianglesMT(mesh, shader);
     }
 
@@ -545,9 +542,9 @@ finish:
         gEnableDepthTest = enable;
     }
 
-    void trDrawMode(TRDrawMode mode)
+    void trPolygonMode(TRPolygonMode mode)
     {
-        gDrawMode = mode;
+        gPolygonMode = mode;
     }
 
     void trCullFaceMode(TRCullFaceMode mode)

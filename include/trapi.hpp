@@ -25,7 +25,7 @@ namespace TGRenderer
             std::vector<glm::vec3> colors;
             std::vector<glm::vec3> tangents;
 
-            TRMeshData() {};
+            TRMeshData() = default;
             TRMeshData(const TRMeshData &) = delete;
             TRMeshData& operator=(const TRMeshData &) = delete;
 
@@ -34,6 +34,11 @@ namespace TGRenderer
     };
 
     enum TRDrawMode
+    {
+        TR_TRIANGLES,
+    };
+
+    enum TRPolygonMode
     {
         TR_FILL,
         TR_LINE,
@@ -128,7 +133,7 @@ namespace TGRenderer
     void trEnableStencilTest(bool enable);
     void trEnableStencilWrite(bool enable);
     void trEnableDepthTest(bool enable);
-    void trDrawMode(TRDrawMode mode);
+    void trPolygonMode(TRPolygonMode mode);
     void trCullFaceMode(TRCullFaceMode mode);
     // Buffer related API
     TRBuffer *trCreateRenderTarget(int w, int h);

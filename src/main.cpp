@@ -55,10 +55,10 @@ void kcb(int key)
             if (gOption.wireframeMode)
             {
                 trCullFaceMode(TR_NONE);
-                trDrawMode(TR_LINE);
+                trPolygonMode(TR_LINE);
             } else {
                 trCullFaceMode(TR_CCW);
-                trDrawMode(TR_FILL);
+                trPolygonMode(TR_FILL);
             }
             break;
         case SDL_SCANCODE_M:
@@ -269,9 +269,9 @@ int main(int argc, char *argv[])
 #endif
         w.swapBuffer();
         w.pollEvent();
-        if (frame % 100 == 0)
+        if (frame % 360 == 0)
         {
-            double fps = 100 / truTimerGetSecondsFromClick();
+            double fps = 360 / truTimerGetSecondsFromClick();
             std::cout << "Current fps: " << fps << std::endl;
             truTimerClick();
         }
