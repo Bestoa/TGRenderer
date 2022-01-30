@@ -50,7 +50,7 @@ int main()
     glm::mat4 projMat = glm::perspective(glm::radians(75.0f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
 
     TRTexture earthTex("examples/res/earth.tga");
-    if (!earthTex.isValid())
+    if (!earthTex.OK())
     {
         std::cout << "Load earthTexture failed." << std::endl;
         abort();
@@ -67,7 +67,7 @@ int main()
     truCreateQuadPlane(BGPlane);
     TextureMapExShader texShader;
     TRTexture bgTex("examples/res/stars.tga");
-    if (!bgTex.isValid())
+    if (!bgTex.OK())
     {
         std::cout << "Load background texture failed." << std::endl;
         abort();

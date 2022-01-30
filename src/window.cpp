@@ -40,7 +40,7 @@ TRWindow::TRWindow(int w, int h, const char *name)
         goto error;
 
     mBuffer = new TRBuffer(mWidth, mHeight, false);
-    if (!mBuffer || !mBuffer->isValid())
+    if (!mBuffer || !mBuffer->OK())
         goto error;
 
     void *addr;
@@ -49,7 +49,7 @@ TRWindow::TRWindow(int w, int h, const char *name)
         goto error;
     assert(pitch == int(mBuffer->getStride() * BUFFER_CHANNEL));
     mBuffer->setExtBuffer(addr);
-    trSetCurrentRenderTarget(mBuffer);
+    trSetRenderTarget(mBuffer);
 
     mDisplayThread = new thread(__disp_func__, this);
     if (!mDisplayThread || !mDisplayThread->joinable())
@@ -77,7 +77,7 @@ error:
     mRunning = false;
 }
 
-bool TRWindow::isRunning()
+bool TRWindow::isRunning() const
 {
     return mRunning;
 }
@@ -98,7 +98,7 @@ bool TRWindow::swapBuffer()
     return ret;
 };
 
-bool TRWindow::shouldStop()
+bool TRWindow::shouldStop() const
 {
     return mShouldStop;
 }

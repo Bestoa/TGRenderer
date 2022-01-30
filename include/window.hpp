@@ -13,23 +13,17 @@ typedef void (*KeyEventCb)(int scancode);
 class TRWindow {
     public:
         TRWindow(int w, int h, const char *name = "TopGun Renderer");
+        TRWindow(const TRWindow &&) = delete;
         ~TRWindow();
 
-        bool isRunning();
+        bool isRunning() const;
         void pollEvent();
         void registerKeyEventCb(KeyEventCb func);
         void removeKeyEventCb();
-        bool shouldStop();
+        bool shouldStop() const;
         bool swapBuffer();
-        TGRenderer::TRBuffer* getBuffer() { return mBuffer; };
-
-        // Disable copy init.
-        TRWindow(const TRWindow &) = delete;
-        TRWindow& operator=(const TRWindow &) = delete;
 
     private:
-        TRWindow() = delete;
-
         TGRenderer::TRBuffer *mBuffer = nullptr;
         int mWidth = 0;
         int mHeight = 0;

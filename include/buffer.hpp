@@ -24,8 +24,8 @@ namespace TGRenderer
             void clearStencil();
 
             // offset for depth buffer and stencil, pre-calculate for performance.
-            size_t getOffset(int x, int y);
-            virtual size_t getStride();
+            size_t getOffset(int x, int y) const;
+            virtual size_t getStride() const;
             virtual void drawPixel(int x, int y, float color[]);
             bool depthTest(size_t offset, float depth);
             void stencilFunc(size_t offset);
@@ -35,17 +35,15 @@ namespace TGRenderer
 #endif
             void setExtBuffer(void *addr);
 
-            TRBuffer() = delete;
             TRBuffer(int w, int h, bool alloc = true);
-            TRBuffer(const TRBuffer &) = delete;
-            TRBuffer& operator=(const TRBuffer &) = delete;
+            TRBuffer(const TRBuffer &&) = delete;
 
             virtual ~TRBuffer();
 
-            bool isValid();
+            bool OK() const;
 
         protected:
-            bool mValid = false;
+            bool mOK = false;
             uint8_t mBgColor3i[BUFFER_CHANNEL] = { 0, 0, 0 };
             float mBgColor3f[BUFFER_CHANNEL] = { 0.0f, 0.0f, 0.0f };
 

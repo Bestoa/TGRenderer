@@ -7,17 +7,13 @@ class TRObj
 {
     public:
         TRObj(const char *confg);
+        TRObj(const TRObj &&) = delete;
         ~TRObj();
-        bool isValid();
+
+        bool OK() const;
         bool draw(int id = 3);
         bool drawShadowMap();
-
-        float getFloorYAxis();
-
-        // Disable copy init.
-        TRObj() = delete;
-        TRObj(const TRObj &) = delete;
-        TRObj& operator=(const TRObj &) = delete;
+        float getFloorYAxis() const;
 
     private:
 
@@ -37,7 +33,7 @@ class TRObj
 
         TGRenderer::Shader *mShaders[4] = { &mColorShader, &mTextureMapShader, &mColorPhongShader, &mTextureMapPhongShader };
 
-        bool mValid = false;
+        bool mOK = false;
 };
 
 #endif

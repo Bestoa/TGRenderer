@@ -13,21 +13,18 @@ namespace TGRenderer
             TRTexture(const char *);
             // Empty texture
             TRTexture(int w, int h);
-            TRTexture() = delete;
-            TRTexture(const TRTexture &) = delete;
-            TRTexture& operator=(const TRTexture &) = delete;
-
+            TRTexture(const TRTexture &&) = delete;
             ~TRTexture();
 
             float* getColor(float u, float v);
             float* getBuffer();
-            int getH();
-            int getW();
+            int getH() const;
+            int getW() const;
 
-            bool isValid();
+            bool OK() const;
 
         private:
-            bool mValid = false;
+            bool mOK = false;
             float *mData = nullptr;
             int mPitch = 0;
             int mW = 0;
@@ -38,10 +35,7 @@ namespace TGRenderer
     {
         public:
             TRTextureBuffer(int w, int h);
-            TRTextureBuffer() = delete;
-            TRTextureBuffer(const TRTextureBuffer &) = delete;
-            TRTextureBuffer& operator=(const TRTextureBuffer &) = delete;
-
+            TRTextureBuffer(const TRTextureBuffer &&) = delete;
             ~TRTextureBuffer();
 
             void clearColor();

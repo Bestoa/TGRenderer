@@ -56,12 +56,12 @@ namespace TGRenderer
             mStencil[i] = 0;
     }
 
-    size_t TRBuffer::getStride()
+    size_t TRBuffer::getStride() const
     {
         return mW;
     }
 
-    size_t TRBuffer::getOffset(int x, int y)
+    size_t TRBuffer::getOffset(int x, int y) const
     {
         return y * mW + x;
     }
@@ -105,7 +105,7 @@ namespace TGRenderer
 
     void TRBuffer::setExtBuffer(void *addr)
     {
-        if (mValid && !mAlloc)
+        if (mOK && !mAlloc)
             mData = reinterpret_cast<uint8_t *>(addr);
     }
 
@@ -134,7 +134,7 @@ namespace TGRenderer
         clearDepth();
         clearStencil();
 
-        mValid = true;
+        mOK = true;
 
         return;
 error:
@@ -149,7 +149,7 @@ error:
     TRBuffer::~TRBuffer()
     {
         std::cout << "Destory TRBuffer, ID = " << mId << std::endl;
-        if (!mValid)
+        if (!mOK)
             return;
         if (mAlloc && mData)
             delete mData;
@@ -163,18 +163,18 @@ error:
 #endif
     }
 
-    bool TRBuffer::isValid()
+    bool TRBuffer::OK() const
     {
-        return mValid;
+        return mOK;
     }
 
     TRTextureBuffer::TRTextureBuffer(int w, int h) : TRBuffer::TRBuffer(w, h, false)
     {
-        if (!mValid)
+        if (!mOK)
             return;
         mTexture = new TRTexture(w, h);
-        if (!mTexture || !mTexture->isValid())
-            mValid = false;
+        if (!mTexture || !mTexture->OK())
+            mOK = false;
     }
 
     TRTextureBuffer::~TRTextureBuffer()

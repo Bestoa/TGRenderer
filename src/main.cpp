@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
     w.registerKeyEventCb(kcb);
 
 #if ENABLE_SHADOW
-    TRBuffer *windowBuffer = w.getBuffer();
+    TRBuffer *windowBuffer = trGetRenderTarget();
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(TWIDTH, THEIGHT);
 #endif
 
@@ -168,7 +168,7 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; i++)
     {
         std::shared_ptr<TRObj> obj(new TRObj(argv[i]));
-        if (obj->isValid())
+        if (obj->OK())
             objs.push_back(obj);
     }
 
@@ -192,9 +192,9 @@ int main(int argc, char *argv[])
 
     glm::mat4 lightProjMat = glm::ortho(-2.0f, 2.0f, -2.0f, 2.0f, 0.1f, 100.0f);
 
-    trSetCurrentRenderTarget(shadowBuffer);
+    trSetRenderTarget(shadowBuffer);
     trClearColor3f(1, 1, 1);
-    trSetCurrentRenderTarget(windowBuffer);
+    trSetRenderTarget(windowBuffer);
 #endif
 
 #if DRAW_FLOOR
@@ -209,7 +209,7 @@ int main(int argc, char *argv[])
     }
     truCreateFloorPlane(floorMesh, floorHeight);
     TRTexture floorTex("res/tex/floor_diffuse.tga");
-    if (!floorTex.isValid())
+    if (!floorTex.OK())
         abort();
 #endif
 
@@ -226,7 +226,7 @@ int main(int argc, char *argv[])
 #if ENABLE_SHADOW
         if (gOption.enableShadow)
         {
-            trSetCurrentRenderTarget(shadowBuffer);
+            trSetRenderTarget(shadowBuffer);
             trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
             trSetMat4(modelMat, MAT4_MODEL);
             trSetMat4(lightViewMat, MAT4_VIEW);
@@ -237,7 +237,7 @@ int main(int argc, char *argv[])
 
             trSetMat4(lightProjMat * lightViewMat * modelMat, MAT4_LIGHT_MVP);
             trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
-            trSetCurrentRenderTarget(windowBuffer);
+            trSetRenderTarget(windowBuffer);
         }
 #endif
         trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);

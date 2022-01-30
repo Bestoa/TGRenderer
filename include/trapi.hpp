@@ -26,8 +26,7 @@ namespace TGRenderer
             std::vector<glm::vec3> tangents;
 
             TRMeshData() = default;
-            TRMeshData(const TRMeshData &) = delete;
-            TRMeshData& operator=(const TRMeshData &) = delete;
+            TRMeshData(const TRMeshData &&) = delete;
 
             void computeTangent();
             void fillSpriteColor();
@@ -74,6 +73,28 @@ namespace TGRenderer
     class FSInData
     {
         public:
+            inline glm::vec4 getPosition() const
+            {
+                return tr_PositionPrim[0] + tr_PositionPrim[1] * mUPC + tr_PositionPrim[2] * mVPC;
+            }
+
+            /* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
+            inline glm::vec2 getVec2(int index) const
+            {
+                return mVaryingVec2Prim[index][0] + mVaryingVec2Prim[index][1] * mUPC + mVaryingVec2Prim[index][2] * mVPC;
+            }
+
+            inline glm::vec3 getVec3(int index) const
+            {
+                return mVaryingVec3Prim[index][0] + mVaryingVec3Prim[index][1] * mUPC + mVaryingVec3Prim[index][2] * mVPC;
+            }
+
+            inline glm::vec4 getVec4(int index) const
+            {
+                return mVaryingVec4Prim[index][0] + mVaryingVec4Prim[index][1] * mUPC + mVaryingVec4Prim[index][2] * mVPC;
+            }
+
+        private:
             glm::vec4 tr_PositionPrim[3];
 
             glm::vec2 mVaryingVec2Prim[SHADER_VARYING_NUM_MAX][3];
@@ -83,26 +104,7 @@ namespace TGRenderer
             float mUPC = 0.f;
             float mVPC = 0.f;
 
-            inline glm::vec4 getPosition()
-            {
-                return tr_PositionPrim[0] + tr_PositionPrim[1] * mUPC + tr_PositionPrim[2] * mVPC;
-            }
-
-            /* Fast interpolation funciotn , v'0 = v0, v'1 = v1 - v0, v'2 = v2 - v0 , pre-calculated */
-            inline glm::vec2 getVec2(int index)
-            {
-                return mVaryingVec2Prim[index][0] + mVaryingVec2Prim[index][1] * mUPC + mVaryingVec2Prim[index][2] * mVPC;
-            }
-
-            inline glm::vec3 getVec3(int index)
-            {
-                return mVaryingVec3Prim[index][0] + mVaryingVec3Prim[index][1] * mUPC + mVaryingVec3Prim[index][2] * mVPC;
-            }
-
-            inline glm::vec4 getVec4(int index)
-            {
-                return mVaryingVec4Prim[index][0] + mVaryingVec4Prim[index][1] * mUPC + mVaryingVec4Prim[index][2] * mVPC;
-            }
+            friend class Program;
     };
 
     class Shader
@@ -137,7 +139,8 @@ namespace TGRenderer
     void trCullFaceMode(TRCullFaceMode mode);
     // Buffer related API
     TRBuffer *trCreateRenderTarget(int w, int h);
-    void trSetCurrentRenderTarget(TRBuffer *traget);
+    void trSetRenderTarget(TRBuffer *traget);
+    TRBuffer *trGetRenderTarget();
     void trViewport(int x, int y, int w, int h);
     void trClear(int mode);
     void trClearColor3f(float r, float g, float b);

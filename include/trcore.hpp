@@ -11,6 +11,7 @@ namespace TGRenderer
     {
         public:
             Program() = default;
+            Program(const Program &&) = delete;
 
             void drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num);
             void setBuffer(TRBuffer *buffer);

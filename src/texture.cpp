@@ -38,7 +38,7 @@ namespace TGRenderer
             }
         }
 
-        mValid = true;
+        mOK = true;
 
 free_image:
         stbi_image_free(texSrcData);
@@ -51,7 +51,7 @@ free_image:
         mPitch = mW * TEXTURE_CHANNEL;
         mData = new float[mPitch * mH];
         if (mData)
-            mValid = true;
+            mOK = true;
     }
 
     TRTexture::~TRTexture()
@@ -73,17 +73,17 @@ free_image:
         return mData;
     }
 
-    bool TRTexture::isValid()
+    bool TRTexture::OK() const
     {
-        return mValid;
+        return mOK;
     }
 
-    int TRTexture::getW()
+    int TRTexture::getW() const
     {
         return mW;
     }
 
-    int TRTexture::getH()
+    int TRTexture::getH() const
     {
         return mH;
     }

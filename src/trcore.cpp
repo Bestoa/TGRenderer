@@ -555,12 +555,18 @@ namespace TGRenderer
     // Buffer related API
     TRBuffer * trCreateRenderTarget(int w, int h)
     {
-        return new TRBuffer(w, h, true);
+        gRenderTarget = new TRBuffer(w, h, true);
+        return gRenderTarget;
     }
 
-    void trSetCurrentRenderTarget(TRBuffer *buffer)
+    void trSetRenderTarget(TRBuffer *buffer)
     {
         gRenderTarget = buffer;
+    }
+
+    TRBuffer * trGetRenderTarget()
+    {
+        return gRenderTarget;
     }
 
     void trViewport(int x, int y, int w, int h)

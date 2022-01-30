@@ -17,7 +17,6 @@ int main()
     TRBuffer *buffer;
 
     buffer = trCreateRenderTarget(WIDTH, HEIGHT);
-    trSetCurrentRenderTarget(buffer);
 
     trClearColor3f(0.1, 0.1, 0.1);
 

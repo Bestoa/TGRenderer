@@ -22,12 +22,12 @@ TRObj::~TRObj()
         delete mTextureNormal;
 }
 
-bool TRObj::isValid()
+bool TRObj::OK() const
 {
-    return mValid;
+    return mOK;
 }
 
-float TRObj::getFloorYAxis()
+float TRObj::getFloorYAxis() const
 {
     float floorY = 100.f;
     for (auto &v3 : mMeshData.vertices)
@@ -73,7 +73,7 @@ TRObj::TRObj(const char *config)
     if (line.length())
         mTextureDiffuse = new TRTexture(line.c_str());
 
-    if (!mTextureDiffuse || !mTextureDiffuse->isValid())
+    if (!mTextureDiffuse || !mTextureDiffuse->OK())
     {
         cout << "Load diffuse texture error!" << endl;
         return;
@@ -84,7 +84,7 @@ TRObj::TRObj(const char *config)
     {
         cout << "Load specular texture..." << endl;
         mTextureSpecular = new TRTexture(line.c_str());
-        if (!mTextureSpecular || !mTextureDiffuse->isValid())
+        if (!mTextureSpecular || !mTextureDiffuse->OK())
             mTextureSpecular = nullptr;
     }
 
@@ -93,7 +93,7 @@ TRObj::TRObj(const char *config)
     {
         cout << "Load glow texture..." << endl;
         mTextureGlow = new TRTexture(line.c_str());
-        if (!mTextureGlow || !mTextureGlow->isValid())
+        if (!mTextureGlow || !mTextureGlow->OK())
             mTextureGlow = nullptr;
     }
 
@@ -102,7 +102,7 @@ TRObj::TRObj(const char *config)
     {
         cout << "Load normal texutre..." << endl;
         mTextureNormal = new TRTexture(line.c_str());
-        if (!mTextureNormal || !mTextureNormal->isValid())
+        if (!mTextureNormal || !mTextureNormal->OK())
             mTextureNormal = nullptr;
     }
 
@@ -110,12 +110,12 @@ TRObj::TRObj(const char *config)
 
     cout << "Create TRObj done.\n" << endl;
 
-    mValid = true;
+    mOK = true;
 }
 
 bool TRObj::draw(int id)
 {
-    if (isValid() == false)
+    if (OK() == false)
         return false;
 
     trBindTexture(mTextureDiffuse, TEXTURE_DIFFUSE);
@@ -123,13 +123,13 @@ bool TRObj::draw(int id)
     trBindTexture(nullptr, TEXTURE_GLOW);
     trBindTexture(nullptr, TEXTURE_NORMAL);
 
-    if (mTextureSpecular && mTextureSpecular->isValid())
+    if (mTextureSpecular && mTextureSpecular->OK())
         trBindTexture(mTextureSpecular, TEXTURE_SPECULAR);
 
-    if (mTextureGlow && mTextureGlow->isValid())
+    if (mTextureGlow && mTextureGlow->OK())
         trBindTexture(mTextureGlow, TEXTURE_GLOW);
 
-    if (mTextureNormal && mTextureNormal->isValid())
+    if (mTextureNormal && mTextureNormal->OK())
         trBindTexture(mTextureNormal, TEXTURE_NORMAL);
 
     trTriangles(mMeshData, mShaders[id]);
@@ -139,7 +139,7 @@ bool TRObj::draw(int id)
 
 bool TRObj::drawShadowMap()
 {
-    if (isValid() == false)
+    if (OK() == false)
         return false;
 
     trTriangles(mMeshData, &mShadowShader);
