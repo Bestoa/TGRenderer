@@ -33,7 +33,7 @@ float TRObj::getFloorYAxis() const
     for (auto &v3 : mMeshData.vertices)
         if (v3.y < floorY)
             floorY = v3.y;
-    return floorY;
+    return floorY - 0.1;
 }
 
 
