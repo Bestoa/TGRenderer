@@ -146,15 +146,15 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[3])
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
     float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
 #endif
-    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * unidata->mSpecularStrength) * unidata->mLightColor;
-
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-
-        result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        float shadow = calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        diff *= shadow;
+        spec *= shadow;
     }
+    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * unidata->mSpecularStrength) * unidata->mLightColor;
 
     color[0] = glm::min(result[0], 1.f);
     color[1] = glm::min(result[1], 1.f);
@@ -241,17 +241,16 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[3])
     else
         specColor *= unidata->mSpecularStrength;
 
-    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
-
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-
-        result *= calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        float shadow = calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        diff *= shadow;
+        spec *= shadow;
     }
 
-    /* glow shouldn't be affectd by shadow */
+    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
     if (trGetTexture(TEXTURE_GLOW) != nullptr)
         result += glm::make_vec3(texture2D(TEXTURE_GLOW, texCoord.x, texCoord.y));
 
