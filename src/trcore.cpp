@@ -135,32 +135,41 @@ namespace TGRenderer
 #endif
     }
 
-    void Program::prepareFragmentData(VSOutData *vsdata[3])
+    void Program::prepareFragmentData(VSOutData *vsdata[], int num)
     {
+        assert(num > 0 && num < 4);
         size_t v2n, v3n, v4n;
         mShader->getVaryingNum(v2n, v3n, v4n);
 
         mFSInData.tr_PositionPrim[0] = vsdata[0]->tr_Position;
-        mFSInData.tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
-        mFSInData.tr_PositionPrim[2] = vsdata[2]->tr_Position - vsdata[0]->tr_Position;
+        if (num > 1)
+            mFSInData.tr_PositionPrim[1] = vsdata[1]->tr_Position - vsdata[0]->tr_Position;
+        if (num > 2)
+            mFSInData.tr_PositionPrim[2] = vsdata[2]->tr_Position - vsdata[0]->tr_Position;
 
         for (size_t i = 0; i < v2n; i++)
         {
             mFSInData.mVaryingVec2Prim[i][0] = vsdata[0]->mVaryingVec2[i];
-            mFSInData.mVaryingVec2Prim[i][1] = vsdata[1]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
-            mFSInData.mVaryingVec2Prim[i][2] = vsdata[2]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+            if (num > 1)
+                mFSInData.mVaryingVec2Prim[i][1] = vsdata[1]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
+            if (num > 2)
+                mFSInData.mVaryingVec2Prim[i][2] = vsdata[2]->mVaryingVec2[i] - vsdata[0]->mVaryingVec2[i];
         }
         for (size_t i = 0; i < v3n; i++)
         {
             mFSInData.mVaryingVec3Prim[i][0] = vsdata[0]->mVaryingVec3[i];
-            mFSInData.mVaryingVec3Prim[i][1] = vsdata[1]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
-            mFSInData.mVaryingVec3Prim[i][2] = vsdata[2]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+            if (num > 1)
+                mFSInData.mVaryingVec3Prim[i][1] = vsdata[1]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
+            if (num > 2)
+                mFSInData.mVaryingVec3Prim[i][2] = vsdata[2]->mVaryingVec3[i] - vsdata[0]->mVaryingVec3[i];
         }
         for (size_t i = 0; i < v4n; i++)
         {
             mFSInData.mVaryingVec4Prim[i][0] = vsdata[0]->mVaryingVec4[i];
-            mFSInData.mVaryingVec4Prim[i][1] = vsdata[1]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
-            mFSInData.mVaryingVec4Prim[i][2] = vsdata[2]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+            if (num > 1)
+                mFSInData.mVaryingVec4Prim[i][1] = vsdata[1]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
+            if (num > 2)
+                mFSInData.mVaryingVec4Prim[i][2] = vsdata[2]->mVaryingVec4[i] - vsdata[0]->mVaryingVec4[i];
         }
     }
 
@@ -194,14 +203,14 @@ namespace TGRenderer
         {
             out[index++] = in2;
         }
-        else if (in1->tr_Position.w > W_CLIPPING_PLANE && in2->tr_Position.w < W_CLIPPING_PLANE)
+        else if (in1->tr_Position.w > W_CLIPPING_PLANE && in2->tr_Position.w <= W_CLIPPING_PLANE)
         {
             VSOutData *outV = allocVSOutData();
             // get interp V and put V into output
             getIntersectionVertex(in1, in2, outV);
             out[index++] = outV;
         }
-        else if (in1->tr_Position.w < W_CLIPPING_PLANE && in2->tr_Position.w > W_CLIPPING_PLANE)
+        else if (in1->tr_Position.w <= W_CLIPPING_PLANE && in2->tr_Position.w > W_CLIPPING_PLANE)
         {
             VSOutData *outV = allocVSOutData();
             // get interp V and put V and V2 into output
@@ -219,6 +228,51 @@ namespace TGRenderer
         clipLineOnWAxis(in[2], in[0], out, index);
     }
 
+    void Program::drawPoint(TRMeshData &mesh, size_t index)
+    {
+        preDraw();
+        VSOutData *vsdata = allocVSOutData();
+        mShader->vertex(mesh, vsdata, index);
+        if (vsdata->tr_Position.w >= W_CLIPPING_PLANE)
+            rasterizationPoint(vsdata);
+        postDraw();
+    }
+
+    void Program::drawLine(TRMeshData &mesh, size_t index)
+    {
+        preDraw();
+        VSOutData *vsdata[2];
+        for (size_t i = 0; i < 2; i++)
+        {
+            vsdata[i] = allocVSOutData();
+            mShader->vertex(mesh, vsdata[i], index * 2 + i);
+        }
+
+        VSOutData *out[2] = { nullptr };
+        size_t total = 0;
+        if (vsdata[0]->tr_Position.w >= W_CLIPPING_PLANE
+                && vsdata[1]->tr_Position.w >= W_CLIPPING_PLANE)
+        {
+            // No need to clip on W
+            rasterizationLine(vsdata);
+        }
+        else if (vsdata[0]->tr_Position.w <= W_CLIPPING_PLANE
+                && vsdata[1]->tr_Position.w > W_CLIPPING_PLANE)
+        {
+            clipLineOnWAxis(vsdata[0], vsdata[1], out, total);
+            assert(total == 2);
+            rasterizationLine(out);
+        }
+        else if (vsdata[0]->tr_Position.w > W_CLIPPING_PLANE
+                && vsdata[1]->tr_Position.w <= W_CLIPPING_PLANE)
+        {
+            clipLineOnWAxis(vsdata[1], vsdata[0], out, total);
+            assert(total == 2);
+            rasterizationLine(out);
+        }
+        postDraw();
+    }
+
     void Program::drawTriangle(TRMeshData &mesh, size_t index)
     {
         preDraw();
@@ -229,40 +283,49 @@ namespace TGRenderer
             mShader->vertex(mesh, vsdata[i], index * 3 + i);
         }
 
-        // Max is 4 output.
-        VSOutData *out[4] = { nullptr };
-        size_t total = 0;
-
         if (vsdata[0]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[1]->tr_Position.w >= W_CLIPPING_PLANE
                 && vsdata[2]->tr_Position.w >= W_CLIPPING_PLANE)
         {
             // No need to clip on W
-            rasterization(vsdata);
+            if (gPolygonMode == TR_LINE)
+                rasterizationWireframe(vsdata);
+            else
+                rasterizationTriangle(vsdata);
         }
         else
         {
+            // Max is 4 output.
+            VSOutData *out[4] = { nullptr };
+            size_t total = 0;
             clipOnWAxis(vsdata, out, total);
             for (size_t i = 0; total > 2 && i < total - 2; i++)
             {
                 vsdata[0] = out[0];
                 vsdata[1] = out[i + 1];
                 vsdata[2] = out[i + 2];
-                rasterization(vsdata);
+                if (gPolygonMode == TR_LINE)
+                    rasterizationWireframe(vsdata);
+                else
+                    rasterizationTriangle(vsdata);
             }
         }
         postDraw();
     }
 
-    void Program::drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num)
+    void Program::drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num, size_t vertexCountPerPrim)
     {
         size_t i = 0, j = 0;
-        size_t trianglesNum = mesh.vertices.size() / 3;
+        size_t primsCount = mesh.vertices.size() / vertexCountPerPrim;
 
-        mBuffer = buffer;
-
-        for (i = index, j = 0; i < trianglesNum && j < num; i++, j++)
-            drawTriangle(mesh, i);
+        for (i = index, j = 0; i < primsCount && j < num; i++, j++)
+            switch (vertexCountPerPrim)
+            {
+                case 1: drawPoint(mesh, i); break;
+                case 2: drawLine(mesh, i); break;
+                case 3: drawTriangle(mesh, i); break;
+                default: assert(false); break;
+            }
     }
 
     void Program::drawPixel(int x, int y, float depth)
@@ -295,55 +358,45 @@ namespace TGRenderer
         mDrawSth = true;
     }
 
-    void Program::rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3],
-            float area, glm::vec2 &point, bool insideCheck)
+    void Program::rasterizationPoint(VSOutData *vsdata)
     {
-        float w0 = __edge__(screen_v[1], screen_v[2], point);
-        float w1 = __edge__(screen_v[2], screen_v[0], point);
-        float w2 = __edge__(screen_v[0], screen_v[1], point);
-        if (insideCheck)
+        glm::vec4 clip = vsdata->tr_Position;
+        glm::vec4 ndc = clip / clip.w;
+        glm::vec2 screen;
+        mBuffer->viewport(screen, ndc);
+        if (screen.x < (int)mBuffer->mW && screen.x >= 0
+                && screen.y < (int)mBuffer->mH && screen.y >= 0)
         {
-            switch (gCullFace)
-            {
-                case TR_CW: if (w0 < 0 || w1 < 0 || w2 < 0) return; break;
-                case TR_CCW: if (w0 > 0 || w1 > 0 || w2 > 0) return; break;
-                default: if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0))) return; break;
-            }
+            float depth = ndc.z / 2.0f + 0.5f;
+            if (depth < 0.0f)
+                return;
+            prepareFragmentData(&vsdata, 1);
+            mFSInData.mUPC = 0;
+            mFSInData.mVPC = 0;
+            drawPixel(screen.x, screen.y, depth);
         }
-
-        int x = (int)point.x;
-        int y = (int)point.y;
-
-        /* Barycentric coordinate */
-        w0 /= area;
-        w1 /= area;
-        w2 /= area;
-
-        /* Using the ndc.z to calculate depth, faster then using the interpolated clip.z / clip.w. */
-        float depth = w0 * ndc_v[0].z + w1 * ndc_v[1].z + w2 * ndc_v[2].z;
-        depth = depth / 2.0f + 0.5f;
-        /* z in ndc of opengl should between 0.0f to 1.0f */
-        if (depth < 0.0f)
-            return;
-
-        /* Perspective-Correct */
-        w0 /= clip_v[0].w;
-        w1 /= clip_v[1].w;
-        w2 /= clip_v[2].w;
-        float areaPC = (w0 + w1 + w2);
-        /* One more special case... */
-        if (!insideCheck && areaPC == 0)
-            return;
-        mFSInData.mUPC = w1 / areaPC;
-        mFSInData.mVPC = w2 / areaPC;
-        drawPixel(x, y, depth);
     }
 
-    void Program::rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3],
-            glm::vec2 screen_v[3], float area, int p1, int p2)
+    void Program::rasterizationLine(VSOutData *vsdata[2])
     {
-        float x0 = screen_v[p1].x, x1 = screen_v[p2].x;
-        float y0 = screen_v[p1].y, y1 = screen_v[p2].y;
+        glm::vec4 clip[2];
+        glm::vec4 ndc[2];
+        glm::vec2 screen[2];
+
+        for (int i = 0; i < 2; i++)
+        {
+            clip[i] = vsdata[i]->tr_Position;
+            ndc[i] = clip[i] / clip[i].w;
+            mBuffer->viewport(screen[i], ndc[i]);
+        }
+
+        prepareFragmentData(vsdata, 2);
+
+        float x0 = screen[0].x, x1 = screen[1].x;
+        float y0 = screen[0].y, y1 = screen[1].y;
+        glm::vec2 p0(x0, y0);
+        glm::vec2 p1(x1, y1);
+        float L = glm::length(p0 - p1);
 
         // Bresenham's line algorithm
         bool steep = abs(y1 - y0) > abs(x1 - x0);
@@ -375,8 +428,22 @@ namespace TGRenderer
                 v = glm::vec2(y, x);
             // Not good, but works well
             if (!(v.x > (int)mBuffer->mW - 1 || v.y > (int)mBuffer->mH - 1|| v.x < 0 || v.y < 0))
-                // skip inside check for draw line
-                rasterizationPoint(clip_v, ndc_v, screen_v, area, v, false);
+            {
+                float l0 = glm::length(v - p1) / L;
+                float l1 = glm::length(v - p0) / L;
+
+                float depth = l0 * ndc[0].z + l1 * ndc[1].z;
+                depth = depth / 2.0f + 0.5f;
+                if (depth < 0.0f)
+                    return;
+
+                l0 /= clip[0].w;
+                l1 /= clip[1].w;
+                float LPC = l0 + l1;
+                mFSInData.mUPC = l1 / LPC;
+                mFSInData.mVPC = 0;
+                drawPixel(v.x, v.y, depth);
+            }
 
             error += deltaerr;
             if (error >= 0.5)
@@ -387,20 +454,34 @@ namespace TGRenderer
         }
     }
 
-    void Program::rasterization(VSOutData *vsdata[3])
+    void Program::rasterizationWireframe(VSOutData *vsdata[3])
     {
-        glm::vec4 clip_v[3] = { vsdata[0]->tr_Position, vsdata[1]->tr_Position, vsdata[2]->tr_Position };
-        glm::vec4 ndc_v[3];
-        glm::vec2 screen_v[3];
+        VSOutData *vs[2];
+        vs[0] = vsdata[0];
+        vs[1] = vsdata[1];
+        rasterizationLine(vs);
+        vs[0] = vsdata[1];
+        vs[1] = vsdata[2];
+        rasterizationLine(vs);
+        vs[0] = vsdata[2];
+        vs[1] = vsdata[0];
+        rasterizationLine(vs);
+    }
+
+    void Program::rasterizationTriangle(VSOutData *vsdata[3])
+    {
+        glm::vec4 clip[3];
+        glm::vec4 ndc[3];
+        glm::vec2 screen[3];
 
         for (int i = 0; i < 3; i++)
         {
-            ndc_v[i] = clip_v[i] / clip_v[i].w;
-            mBuffer->viewport(screen_v[i], ndc_v[i]);
+            clip[i] = vsdata[i]->tr_Position;
+            ndc[i] = clip[i] / clip[i].w;
+            mBuffer->viewport(screen[i], ndc[i]);
         }
 
-        float area = __edge__(screen_v[0], screen_v[1], screen_v[2]);
-
+        float area = __edge__(screen[0], screen[1], screen[2]);
         if (gCullFace == TR_CCW && area >= 0)
             return;
         else if (gCullFace == TR_CW && area <= 0)
@@ -409,55 +490,78 @@ namespace TGRenderer
             /* Special case */
             return;
 
-        prepareFragmentData(vsdata);
+        prepareFragmentData(vsdata, 3);
 
-        if (gPolygonMode == TR_LINE)
+        int xStart = glm::max(0.0f, glm::min(glm::min(screen[0].x, screen[1].x), screen[2].x)) + 0.5;
+        int yStart = glm::max(0.0f, glm::min(glm::min(screen[0].y, screen[1].y), screen[2].y)) + 0.5;
+        int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen[0].x, screen[1].x), screen[2].x)) + 1.5;
+        int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen[0].y, screen[1].y), screen[2].y)) + 1.5;
+
+        for (int y = yStart; y < yEnd; y++)
         {
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 0, 1);
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 1, 2);
-            rasterizationLine(clip_v, ndc_v, screen_v, area, 2, 0);
-            return;
-        }
-
-        int xStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 0.5;
-        int yStart = glm::max(0.0f, glm::min(glm::min(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 0.5;
-        int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen_v[0].x, screen_v[1].x), screen_v[2].x)) + 1.5;
-        int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen_v[0].y, screen_v[1].y), screen_v[2].y)) + 1.5;
-
-        for (int y = yStart; y < yEnd; y++) {
-            for (int x = xStart; x < xEnd; x++) {
+            for (int x = xStart; x < xEnd; x++)
+            {
                 glm::vec2 point(x, y);
-                rasterizationPoint(clip_v, ndc_v, screen_v, area, point, true);
+                float w0 = __edge__(screen[1], screen[2], point);
+                float w1 = __edge__(screen[2], screen[0], point);
+                float w2 = __edge__(screen[0], screen[1], point);
+                switch (gCullFace)
+                {
+                    case TR_CW: if (w0 < 0 || w1 < 0 || w2 < 0) continue; break;
+                    case TR_CCW: if (w0 > 0 || w1 > 0 || w2 > 0) continue; break;
+                    default: if (!((w0 > 0 && w1 > 0 && w2 > 0) || (w0 < 0 && w1 < 0 && w2 < 0))) continue; break;
+                }
+
+                /* Barycentric coordinate */
+                w0 /= area;
+                w1 /= area;
+                w2 /= area;
+
+                /* Using the ndc.z to calculate depth, faster then using the interpolated clip.z / clip.w. */
+                float depth = w0 * ndc[0].z + w1 * ndc[1].z + w2 * ndc[2].z;
+                depth = depth / 2.0f + 0.5f;
+                /* z in ndc of opengl should between 0.0f to 1.0f */
+                if (depth < 0.0f)
+                    return;
+
+                /* Perspective-Correct */
+                w0 /= clip[0].w;
+                w1 /= clip[1].w;
+                w2 /= clip[2].w;
+                float areaPC = (w0 + w1 + w2);
+                mFSInData.mUPC = w1 / areaPC;
+                mFSInData.mVPC = w2 / areaPC;
+                drawPixel(x, y, depth);
             }
         }
     }
 
-    void trTrianglesInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num)
+    void trPrimsInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num, size_t vertexCountPerPrim)
     {
         gProgram.setBuffer(gRenderTarget);
         gProgram.setShader(shader);
-        gProgram.drawTrianglesInstanced(gRenderTarget, mesh, index, num);
+        gProgram.drawPrimsInstranced(mesh, index, num, vertexCountPerPrim);
     }
 
-    void trTrianglesMT(TRMeshData &mesh, Shader *shader)
+    void trPrimsMT(TRMeshData &mesh, Shader *shader, size_t vertexCountPerPrim)
     {
-        size_t trianglesNum = mesh.vertices.size() / 3;
+        size_t primsCount = mesh.vertices.size() / vertexCountPerPrim;
         if (gThreadNum > 1)
         {
             std::vector<std::thread> thread_pool;
-            size_t index_step = trianglesNum / gThreadNum;
+            size_t index_step = primsCount / gThreadNum;
             if (!index_step)
                 index_step = 1;
 
             for (size_t i = 0; i < gThreadNum; i++)
             {
                 size_t start = i * index_step;
-                if (start > trianglesNum - 1)
+                if (start > primsCount - 1)
                     break;
                 if (i == gThreadNum - 1)
-                    index_step = trianglesNum - start;
+                    index_step = primsCount - start;
 
-                thread_pool.push_back(std::thread(trTrianglesInstanced, std::ref(mesh), shader, start, index_step));
+                thread_pool.push_back(std::thread(trPrimsInstanced, std::ref(mesh), shader, start, index_step, vertexCountPerPrim));
             }
 
             for (auto &th : thread_pool)
@@ -465,7 +569,7 @@ namespace TGRenderer
                     th.join();
 
         } else {
-            trTrianglesInstanced(mesh, shader, 0, trianglesNum);
+            trPrimsInstanced(mesh, shader, 0, primsCount, vertexCountPerPrim);
         }
     }
 
@@ -511,12 +615,12 @@ namespace TGRenderer
     }
 
     // Draw related API
-    void trTriangles(TRMeshData &mesh, Shader *shader)
+    void trDrawArrays(TRDrawMode mode, TRMeshData &mesh, Shader *shader)
     {
         __compute_premultiply_mat__();
 
-        gDrawMode = TR_TRIANGLES;
-        trTrianglesMT(mesh, shader);
+        gDrawMode = mode;
+        trPrimsMT(mesh, shader, mode);
     }
 
     // Core state related API

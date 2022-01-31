@@ -135,16 +135,16 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[3])
     // from fragment to light
     glm::vec3 lightDirection = glm::normalize(unidata->mViewLightPosition - fragmentPosition);
 
-    float diff = glm::max(dot(normal, lightDirection), 0.0f);
+    float diff = glm::max(glm::dot(normal, lightDirection), 0.0f);
 
     // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
     glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
-    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
+    float spec = glm::pow(glm::max(glm::dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
 #else
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
-    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
+    float spec = glm::pow(glm::max(glm::dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
 #endif
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
@@ -183,7 +183,7 @@ void TextureMapPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t i
     {
         glm::vec3 N = glm::normalize(vsdata->mVaryingVec3[SH_NORMAL]);
         glm::vec3 T = glm::normalize(trGetMat3(MAT3_NORMAL) * mesh.tangents[index / 3]);
-        T = glm::normalize(T - dot(T, N) * N);
+        T = glm::normalize(T - glm::dot(T, N) * N);
         glm::vec3 B = glm::cross(N, T);
         // Mat3 from view space to tangent space
         glm::mat3 TBN = glm::transpose(glm::mat3(T, B, N));
@@ -223,17 +223,17 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[3])
     // from fragment to light
     glm::vec3 lightDirection = glm::normalize(lightPosition - fragmentPosition);
 
-    float diff = glm::max(dot(normal, lightDirection), 0.0f);
+    float diff = glm::max(glm::dot(normal, lightDirection), 0.0f);
 
     // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
     // even in tangent space, eys still in (0, 0, 0)
     glm::vec3 eyeDirection = glm::normalize(-fragmentPosition);
 #if __BLINN_PHONG__
     glm::vec3 halfwayDirection = glm::normalize(lightDirection + eyeDirection);
-    float spec = glm::pow(glm::max(dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
+    float spec = glm::pow(glm::max(glm::dot(normal, halfwayDirection), 0.0f), unidata->mShininess * 2);
 #else
     glm::vec3 reflectDirection = glm::reflect(-lightDirection, normal);
-    float spec = glm::pow(glm::max(dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
+    float spec = glm::pow(glm::max(glm::dot(eyeDirection, reflectDirection), 0.0f), unidata->mShininess);
 #endif
     glm::vec3 specColor(1.0f);
     if (trGetTexture(TEXTURE_SPECULAR) != nullptr)

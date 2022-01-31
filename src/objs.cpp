@@ -132,7 +132,7 @@ bool TRObj::draw(int id)
     if (mTextureNormal && mTextureNormal->OK())
         trBindTexture(mTextureNormal, TEXTURE_NORMAL);
 
-    trTriangles(mMeshData, mShaders[id]);
+    trDrawArrays(TR_TRIANGLES, mMeshData, mShaders[id]);
 
     return true;
 }
@@ -142,6 +142,6 @@ bool TRObj::drawShadowMap()
     if (OK() == false)
         return false;
 
-    trTriangles(mMeshData, &mShadowShader);
+    trDrawArrays(TR_TRIANGLES, mMeshData, &mShadowShader);
     return true;
 }

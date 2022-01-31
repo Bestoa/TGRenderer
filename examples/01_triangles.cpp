@@ -34,14 +34,14 @@ int main()
 
     trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
     mesh.fillSpriteColor();
-    trTriangles(mesh, &shader);
+    trDrawArrays(TR_TRIANGLES, mesh, &shader);
     truSavePNG("01_sprite_color.png", buffer);
 
     mesh.colors.clear();
     truLoadVec3(vertex, 0, 3, 3, 6, mesh.colors);
 
     trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
-    trTriangles(mesh, &shader);
+    trDrawArrays(TR_TRIANGLES, mesh, &shader);
     truSavePNG("01_color.png", buffer);
 
     delete buffer;

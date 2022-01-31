@@ -34,6 +34,8 @@ namespace TGRenderer
 
     enum TRDrawMode
     {
+        TR_POINTS = 1,
+        TR_LINES,
         TR_TRIANGLES,
     };
 
@@ -129,7 +131,7 @@ namespace TGRenderer
     void trResetMat3(MAT_INDEX_TYPE type);
     void trResetMat4(MAT_INDEX_TYPE type);
     // Draw related API
-    void trTriangles(TRMeshData &mesh, Shader *shader);
+    void trDrawArrays(TRDrawMode mode, TRMeshData &mesh, Shader *shader);
     // Core state related API
     void trSetRenderThreadNum(size_t num);
     void trEnableStencilTest(bool enable);

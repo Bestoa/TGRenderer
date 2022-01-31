@@ -13,7 +13,7 @@ namespace TGRenderer
             Program() = default;
             Program(const Program &&) = delete;
 
-            void drawTrianglesInstanced(TRBuffer *buffer, TRMeshData &mesh, size_t index, size_t num);
+            void drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num, size_t vertexCountPerPrim);
             void setBuffer(TRBuffer *buffer);
             void setShader(Shader *shader);
 
@@ -33,16 +33,19 @@ namespace TGRenderer
             void preDraw();
             void postDraw();
             /* Prepare fragment data for interpolation. Put { V0.AAA, V1.AAA - V0.AAA, V2.AAA - V0.AAA } into FSInData. */
-            void prepareFragmentData(VSOutData *vsdata[3]);
+            void prepareFragmentData(VSOutData *vsdata[], int num);
             /* Add a new vertex if needed when clipping on W axis. Formula: new V.AAA = in2.AAA + t * (in1.AAA -in2.AAA) */
             void getIntersectionVertex(VSOutData *in1, VSOutData *in2, VSOutData *outV);
             void clipLineOnWAxis(VSOutData *in1, VSOutData *in2, VSOutData *out[4], size_t &index);
             void clipOnWAxis(VSOutData *in[3], VSOutData *out[4], size_t &index);
+            void drawPoint(TRMeshData &mesh, size_t index);
+            void drawLine(TRMeshData &mesh, size_t index);
             void drawTriangle(TRMeshData &mesh, size_t index);
-            void rasterization(VSOutData *vsdata[3]);
+            void rasterizationPoint(VSOutData *vsdata);
+            void rasterizationLine(VSOutData *vsdata[2]);
+            void rasterizationWireframe(VSOutData *vsdata[3]);
+            void rasterizationTriangle(VSOutData *vsdata[3]);
             void drawPixel(int x, int y, float depth);
-            void rasterizationPoint(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, glm::vec2 &point, bool insideCheck);
-            void rasterizationLine(glm::vec4 clip_v[3], glm::vec4 ndc_v[3], glm::vec2 screen_v[3], float area, int p1, int p2);
     };
 }
 #endif

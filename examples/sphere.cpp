@@ -84,7 +84,7 @@ int main()
         trEnableStencilWrite(true);
         trBindTexture(&earthTex, TEXTURE_DIFFUSE);
         trSetUniformData(&unidata);
-        trTriangles(sphere, &shader);
+        trDrawArrays(TR_TRIANGLES, sphere, &shader);
 
         trEnableDepthTest(false);
         trEnableStencilTest(true);
@@ -94,7 +94,7 @@ int main()
         trResetMat4(MAT4_PROJ);
         trBindTexture(&bgTex, TEXTURE_DIFFUSE);
         trSetUniformData(&frame);
-        trTriangles(BGPlane, &texShader);
+        trDrawArrays(TR_TRIANGLES, BGPlane, &texShader);
         trEnableDepthTest(true);
         trEnableStencilTest(false);
 

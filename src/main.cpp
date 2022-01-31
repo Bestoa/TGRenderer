@@ -263,7 +263,7 @@ int main(int argc, char *argv[])
 #endif
             trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
             trBindTexture(&floorTex, TEXTURE_DIFFUSE);
-            trTriangles(floorMesh, &floorShader);
+            trDrawArrays(TR_TRIANGLES, floorMesh, &floorShader);
         }
 #endif
 #if ENABLE_SHADOW

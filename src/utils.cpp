@@ -163,6 +163,8 @@ bool truLoadObj(
 
 void truCreateFloorPlane(TGRenderer::TRMeshData &mesh, float height, float width, const float *color)
 {
+    /* Workaroud: in line mode, wrap texture coord may cause a strage bug, 2.0 will be treat as 0.0 not 1.0 */
+    width = width * 0.999;
     float floorData[] =
     {
         /* x, y, z, r, g, b, n.x, n.y, n.z, uv.x, uv.y */
