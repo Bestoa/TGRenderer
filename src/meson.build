@@ -11,17 +11,9 @@ libtrcore = shared_library('trcore',
            include_directories : include_dir,
            install : true)
 
-libtrobj = shared_library('trobj',
-           'objs.cpp',
-           link_with : libtrcore,
-           dependencies : [
-             dep_glm,
-             ],
-           include_directories : include_dir,
-           install : true)
-
 executable('TGRenderer',
            'main.cpp',
+           'objs.cpp',
            window_src,
            dependencies : [
              dep_glm,
@@ -29,6 +21,6 @@ executable('TGRenderer',
              ],
            include_directories : include_dir,
            link_args : '-pthread',
-           link_with : [ libtrcore, libtrobj ] ,
+           link_with : [ libtrcore ],
            install : true)
 
