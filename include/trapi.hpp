@@ -30,6 +30,7 @@ namespace TGRenderer
 
             void computeTangent();
             void fillSpriteColor();
+            void fillPureColor(glm::vec3 color);
     };
 
     enum TRDrawMode

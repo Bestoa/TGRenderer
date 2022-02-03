@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <sstream>
 
 #include "trapi.hpp"
 #include "utils.hpp"
@@ -12,14 +13,14 @@ using namespace TGRenderer;
 TRObj::~TRObj()
 {
     cout << "Destory TRObj" << endl;
-    if (mTextureDiffuse)
-        delete mTextureDiffuse;
-    if (mTextureSpecular)
-        delete mTextureSpecular;
-    if (mTextureGlow)
-        delete mTextureGlow;
-    if (mTextureNormal)
-        delete mTextureNormal;
+    if (mAttribute.map_Kd)
+        delete mAttribute.map_Kd;
+    if (mAttribute.map_Ks)
+        delete mAttribute.map_Ks;
+    if (mAttribute.map_Ke)
+        delete mAttribute.map_Ke;
+    if (mAttribute.map_Kn)
+        delete mAttribute.map_Kn;
 }
 
 bool TRObj::OK() const
@@ -43,74 +44,79 @@ TRObj::TRObj(const char *config)
 
     ifstream in(config);
     string line;
+    stringstream ss;
+    glm::vec3 Kd(0.0f);
+    bool hasKd = false;
 
-    if (in.bad())
+    if (!in.good())
     {
-        cout << "Open config file faile!" << endl;
-        return;
+        cout << "Open config file failed!" << endl;
+        goto close_file;
     }
 
-    cout << "Loading OBJ..." << endl;
-    getline(in, line);
-    if (!line.length() || !truLoadObj(line.c_str(), mMeshData.vertices, mMeshData.texcoords, mMeshData.normals))
+    while (true)
     {
-        cout << "Load OBJ file error!" << endl;
-        return;
+        getline(in, line);
+        if (!line.length())
+            break;
+        size_t firstSpace = line.find(" ");
+        if (firstSpace == string::npos)
+            continue;
+        string type = line.substr(0, firstSpace);
+        ss.str(line.substr(firstSpace + 1));
+        if (type == "obj")
+        {
+            cout << "Loading OBJ..." << endl;
+            if (!truLoadObj(ss.str().c_str(), mMeshData.vertices, mMeshData.texcoords, mMeshData.normals))
+            {
+                cout << "Load OBJ file error!" << endl;
+                goto close_file;
+            }
+
+            if (mMeshData.vertices.size() != mMeshData.texcoords.size()
+                    || mMeshData.vertices.size() != mMeshData.normals.size()
+                    || mMeshData.vertices.size() % 3 != 0)
+            {
+                cout << "Mesh data is invalid." << endl;
+                goto close_file;
+            }
+            mMeshData.computeTangent();
+        }
+        else if (type == "map_Kd")
+            mAttribute.map_Kd = new TRTexture(ss.str().c_str());
+        else if (type == "map_Ks")
+            mAttribute.map_Ks = new TRTexture(ss.str().c_str());
+        else if (type == "map_Ke")
+            mAttribute.map_Ke = new TRTexture(ss.str().c_str());
+        else if (type == "map_Kn")
+            mAttribute.map_Kn = new TRTexture(ss.str().c_str());
+        else if (type == "Kd")
+        {
+            float r, g, b;
+            ss >> r >> g >> b;
+            if (!ss.fail())
+            {
+                Kd = glm::vec3(r, g, b);
+                hasKd = true;
+            }
+        }
+        else if (type == "Ns")
+            ss >> mAttribute.Ns;
+        else if (type == "sharpness")
+            ss >> mAttribute.sharpness;
+
+        ss.clear();
     }
 
-    if (mMeshData.vertices.size() != mMeshData.texcoords.size()
-            || mMeshData.vertices.size() != mMeshData.normals.size()
-            || mMeshData.vertices.size() % 3 != 0)
-    {
-        cout << "Mesh data is invalid." << endl;
-        return;
-    }
-    mMeshData.computeTangent();
-    mMeshData.fillSpriteColor();
-
-    cout << "Loading diffuse texture..." << endl;
-    getline(in, line);
-    if (line.length())
-        mTextureDiffuse = new TRTexture(line.c_str());
-
-    if (!mTextureDiffuse || !mTextureDiffuse->OK())
-    {
-        cout << "Load diffuse texture error!" << endl;
-        return;
-    }
-
-    getline(in, line);
-    if (line.length() && line != "null")
-    {
-        cout << "Load specular texture..." << endl;
-        mTextureSpecular = new TRTexture(line.c_str());
-        if (!mTextureSpecular || !mTextureDiffuse->OK())
-            mTextureSpecular = nullptr;
-    }
-
-    getline(in, line);
-    if (line.length() && line != "null")
-    {
-        cout << "Load glow texture..." << endl;
-        mTextureGlow = new TRTexture(line.c_str());
-        if (!mTextureGlow || !mTextureGlow->OK())
-            mTextureGlow = nullptr;
-    }
-
-    getline(in, line);
-    if (line.length() && line != "null")
-    {
-        cout << "Load normal texutre..." << endl;
-        mTextureNormal = new TRTexture(line.c_str());
-        if (!mTextureNormal || !mTextureNormal->OK())
-            mTextureNormal = nullptr;
-    }
-
-    in.close();
+    if (hasKd)
+        mMeshData.fillPureColor(Kd);
+    else
+        mMeshData.fillSpriteColor();
 
     cout << "Create TRObj done.\n" << endl;
-
     mOK = true;
+close_file:
+    in.close();
 }
 
 bool TRObj::draw(int id)
@@ -118,22 +124,35 @@ bool TRObj::draw(int id)
     if (OK() == false)
         return false;
 
-    trBindTexture(mTextureDiffuse, TEXTURE_DIFFUSE);
+    trBindTexture(nullptr, TEXTURE_DIFFUSE);
     trBindTexture(nullptr, TEXTURE_SPECULAR);
     trBindTexture(nullptr, TEXTURE_GLOW);
     trBindTexture(nullptr, TEXTURE_NORMAL);
 
-    if (mTextureSpecular && mTextureSpecular->OK())
-        trBindTexture(mTextureSpecular, TEXTURE_SPECULAR);
+    if (mAttribute.map_Kd && mAttribute.map_Kd->OK())
+        trBindTexture(mAttribute.map_Kd, TEXTURE_DIFFUSE);
 
-    if (mTextureGlow && mTextureGlow->OK())
-        trBindTexture(mTextureGlow, TEXTURE_GLOW);
+    if (mAttribute.map_Ks && mAttribute.map_Ks->OK())
+        trBindTexture(mAttribute.map_Ks, TEXTURE_SPECULAR);
 
-    if (mTextureNormal && mTextureNormal->OK())
-        trBindTexture(mTextureNormal, TEXTURE_NORMAL);
+    if (mAttribute.map_Ke && mAttribute.map_Ke->OK())
+        trBindTexture(mAttribute.map_Ke, TEXTURE_GLOW);
+
+    if (mAttribute.map_Kn && mAttribute.map_Kn->OK())
+        trBindTexture(mAttribute.map_Kn, TEXTURE_NORMAL);
+
+    if (mAttribute.map_Kd == nullptr && (id == 1 || id == 3))
+        id--;
+
+    PhongUniformData *data = reinterpret_cast<PhongUniformData *>(trGetUniformData());
+    /* Save the original value */
+    PhongUniformData sdata = *data;
+    data->mShininess = int(mAttribute.Ns);
+    data->mSpecularStrength = mAttribute.sharpness / 1000.f;
 
     trDrawArrays(TR_TRIANGLES, mMeshData, mShaders[id]);
 
+    *data = sdata;
     return true;
 }
 

@@ -98,6 +98,15 @@ namespace TGRenderer
             colors.push_back(color[i % 3]);
     }
 
+    void TRMeshData::fillPureColor(glm::vec3 color)
+    {
+        if (colors.size() != 0)
+            return;
+
+        for (size_t i = 0; i < vertices.size(); i++)
+            colors.push_back(color);
+    }
+
     void Program::setBuffer(TRBuffer *buffer)
     {
         mBuffer = buffer;
