@@ -43,21 +43,21 @@ TRObj::TRObj(const char *config)
     cout << "Create TRObj..." << endl;
 
     ifstream in(config);
-    string line;
-    stringstream ss;
-    glm::vec3 Kd(0.0f);
-    bool hasKd = false;
-
     if (!in.good())
     {
         cout << "Open config file failed!" << endl;
-        goto close_file;
+        return;
     }
+
+    glm::vec3 Kd(0.0f);
+    bool hasKd = false;
 
     while (true)
     {
+        string line;
+        stringstream ss;
         getline(in, line);
-        if (!line.length())
+        if (!line.length() && in.eof())
             break;
         size_t firstSpace = line.find(" ");
         if (firstSpace == string::npos)
@@ -104,8 +104,6 @@ TRObj::TRObj(const char *config)
             ss >> mAttribute.Ns;
         else if (type == "sharpness")
             ss >> mAttribute.sharpness;
-
-        ss.clear();
     }
 
     if (hasKd)

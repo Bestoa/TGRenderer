@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
 {
     if (argc < 2)
     {
-        printf("Usage: %s obj_config...\n", argv[0]);
+        std::cout << "Usage: " << argv[0] << " obj_config..." << std::endl;
         return 0;
     }
     TRWindow w(WIDTH, HEIGHT);
@@ -285,7 +285,5 @@ int main(int argc, char *argv[])
 #if ENABLE_SHADOW
     delete shadowBuffer;
 #endif
-
-    printf("Rendering done.\n");
     return 0;
 }
