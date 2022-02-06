@@ -356,7 +356,7 @@ namespace TGRenderer
             return;
 
         /* depth test */
-        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
+        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth, true))
             return;
 
         /* Write stencil buffer need to pass depth test */
@@ -373,8 +373,9 @@ namespace TGRenderer
         glm::vec4 ndc = clip / clip.w;
         glm::vec2 screen;
         mBuffer->viewport(screen, ndc);
-        if (screen.x < (int)mBuffer->mW && screen.x >= 0
-                && screen.y < (int)mBuffer->mH && screen.y >= 0)
+        glm::uvec4 drawArea = mBuffer->getDrawArea();
+        if (screen.x < drawArea[2] && screen.x >= drawArea[0]
+                && screen.y < drawArea[3] && screen.y >= drawArea[1])
         {
             float depth = ndc.z / 2.0f + 0.5f;
             if (depth < 0.0f)
@@ -406,6 +407,7 @@ namespace TGRenderer
         glm::vec2 p0(x0, y0);
         glm::vec2 p1(x1, y1);
         float L = glm::length(p0 - p1);
+        glm::uvec4 drawArea = mBuffer->getDrawArea();
 
         // Bresenham's line algorithm
         bool steep = abs(y1 - y0) > abs(x1 - x0);
@@ -436,7 +438,7 @@ namespace TGRenderer
             if (steep)
                 v = glm::vec2(y, x);
             // Not good, but works well
-            if (!(v.x > (int)mBuffer->mW - 1 || v.y > (int)mBuffer->mH - 1|| v.x < 0 || v.y < 0))
+            if (v.x < drawArea[2] && v.y < drawArea[3] && v.x >= drawArea[0] && v.y >= drawArea[1])
             {
                 float l0 = glm::length(v - p1) / L;
                 float l1 = glm::length(v - p0) / L;
@@ -501,10 +503,11 @@ namespace TGRenderer
 
         prepareFragmentData(vsdata, 3);
 
-        int xStart = glm::max(0.0f, glm::min(glm::min(screen[0].x, screen[1].x), screen[2].x)) + 0.5;
-        int yStart = glm::max(0.0f, glm::min(glm::min(screen[0].y, screen[1].y), screen[2].y)) + 0.5;
-        int xEnd = glm::min(float(mBuffer->mW - 1), glm::max(glm::max(screen[0].x, screen[1].x), screen[2].x)) + 1.5;
-        int yEnd = glm::min(float(mBuffer->mH - 1), glm::max(glm::max(screen[0].y, screen[1].y), screen[2].y)) + 1.5;
+        glm::uvec4 drawArea = mBuffer->getDrawArea();
+        int xStart = glm::max(float(drawArea[0]), glm::min(glm::min(screen[0].x, screen[1].x), screen[2].x)) + 0.5;
+        int yStart = glm::max(float(drawArea[1]), glm::min(glm::min(screen[0].y, screen[1].y), screen[2].y)) + 0.5;
+        int xEnd = glm::min(float(drawArea[2] - 1), glm::max(glm::max(screen[0].x, screen[1].x), screen[2].x)) + 1.5;
+        int yEnd = glm::min(float(drawArea[3] - 1), glm::max(glm::max(screen[0].y, screen[1].y), screen[2].y)) + 1.5;
 
         for (int y = yStart; y < yEnd; y++)
         {

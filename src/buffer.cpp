@@ -7,7 +7,7 @@ namespace TGRenderer
 {
     unsigned int gCurrentID = 1;
 
-    void TRBuffer::setViewport(int x, int y, int w, int h)
+    void TRBuffer::setViewport(int x, int y, uint32_t w, uint32_t h)
     {
         mVX = x;
         mVY = y;
@@ -17,8 +17,17 @@ namespace TGRenderer
 
     void TRBuffer::viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v)
     {
-        screen_v.x = mVX + (mW - 1) * (ndc_v.x / 2 + 0.5);
-        screen_v.y = mVY + (mH - 1) * (ndc_v.y / 2 + 0.5);
+        screen_v.x = mVX + (mVW - 1) * (ndc_v.x / 2 + 0.5);
+        screen_v.y = mVY + (mVH - 1) * (ndc_v.y / 2 + 0.5);
+    }
+
+    glm::uvec4 TRBuffer::getDrawArea()
+    {
+        int x = glm::clamp(mVX, 0, (int)mW);
+        int y = glm::clamp(mVY, 0, (int)mH);
+        int w = glm::min(mVX + mVW, mW);
+        int h = glm::min(mVY + mVH, mH);
+        return glm::uvec4(x, y, w, h);
     }
 
     void TRBuffer::setBgColor(float r, float g, float b)
@@ -47,7 +56,8 @@ namespace TGRenderer
     void TRBuffer::clearDepth()
     {
         for (size_t i = 0; i < mW * mH; i++)
-            mDepth[i] = 1.0f;
+            // add 1e-5 for skybox.
+            mDepth[i] = 1.0f + 1e-5;
     }
 
     void TRBuffer::clearStencil()
@@ -75,12 +85,12 @@ namespace TGRenderer
         base[2] = uint8_t(color[2] * 255 + 0.5);
     }
 
-    bool TRBuffer::depthTest(size_t offset, float depth)
+    bool TRBuffer::depthTest(size_t offset, float depth, bool update)
     {
         /* projection matrix will inverse z-order. */
         if (mDepth[offset] < depth)
             return false;
-        else
+        if (update)
             mDepth[offset] = depth;
         return true;
     }

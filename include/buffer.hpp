@@ -16,8 +16,9 @@ namespace TGRenderer
             uint32_t mW = 0;
             uint32_t mH = 0;
 
-            void setViewport(int x, int y, int w, int h);
+            void setViewport(int x, int y, uint32_t w, uint32_t h);
             void viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v);
+            glm::uvec4 getDrawArea();
             void setBgColor(float r, float g, float b);
             virtual void clearColor();
             void clearDepth();
@@ -27,7 +28,7 @@ namespace TGRenderer
             size_t getOffset(int x, int y) const;
             virtual size_t getStride() const;
             virtual void drawPixel(int x, int y, float color[]);
-            bool depthTest(size_t offset, float depth);
+            bool depthTest(size_t offset, float depth, bool update = false);
             void stencilFunc(size_t offset);
             bool stencilTest(size_t offset);
 #if __NEED_BUFFER_LOCK__
@@ -51,8 +52,8 @@ namespace TGRenderer
             float *mDepth = nullptr;
             uint8_t *mStencil = nullptr;
 
-            uint32_t mVX = 0;
-            uint32_t mVY = 0;
+            int mVX = 0;
+            int mVY = 0;
             uint32_t mVW = 0;
             uint32_t mVH = 0;
 
