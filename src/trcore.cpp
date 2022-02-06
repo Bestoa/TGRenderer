@@ -41,9 +41,9 @@ namespace TGRenderer
     thread_local Program gProgram;
 
     size_t gThreadNum = 4;
-    int gPolygonMode = TR_FILL;
-    int gDrawMode = TR_TRIANGLES;
-    int gCullFace = TR_CCW;
+    TRPolygonMode gPolygonMode = TR_FILL;
+    TRDrawMode gDrawMode = TR_TRIANGLES;
+    TRCullFaceMode gCullFace = TR_CCW;
     bool gEnableDepthTest = true;
     bool gEnableStencilTest = false;
     bool gEnableStencilWrite = false;
@@ -666,6 +666,11 @@ namespace TGRenderer
     void trCullFaceMode(TRCullFaceMode mode)
     {
         gCullFace = mode;
+    }
+
+    TRCullFaceMode trGetCullFaceMode()
+    {
+        return gCullFace;
     }
 
     // Buffer related API

@@ -8,6 +8,7 @@
 #include "objs.hpp"
 #include "utils.hpp"
 #include "program.hpp"
+#include "skybox.hpp"
 
 #define WIDTH (1280)
 #define HEIGHT (720)
@@ -17,6 +18,19 @@
 
 #define ENABLE_SHADOW 1
 #define DRAW_FLOOR 1
+#define ENABLE_SKYBOX 1
+
+#if ENABLE_SKYBOX
+std::string gCubeTextureNames[] =
+{
+    "res/tex/sb/bottom.jpg",
+    "res/tex/sb/top.jpg",
+    "res/tex/sb/front.jpg",
+    "res/tex/sb/back.jpg",
+    "res/tex/sb/left.jpg",
+    "res/tex/sb/right.jpg",
+};
+#endif
 
 using namespace TGRenderer;
 
@@ -26,6 +40,7 @@ int ProgramId = 3;
 class Option
 {
     public:
+        bool enableSkybox = false;
         bool enableShadow = false;
         bool drawFloor = false;
         bool wireframeMode = false;
@@ -44,6 +59,9 @@ void kcb(int key)
 {
     switch (key)
     {
+        case SDL_SCANCODE_B:
+            gOption.enableSkybox = !gOption.enableSkybox;
+            break;
         case SDL_SCANCODE_S:
             gOption.enableShadow = !gOption.enableShadow;
             break;
@@ -213,6 +231,10 @@ int main(int argc, char *argv[])
         abort();
 #endif
 
+#if ENABLE_SKYBOX
+    TRSkyBox skybox(gCubeTextureNames);
+#endif
+
     glm::mat4 modelMat(1.0f);
     unidata.mLightPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 
@@ -269,6 +291,10 @@ int main(int argc, char *argv[])
 #if ENABLE_SHADOW
         if (gOption.enableShadow)
             trBindTexture(nullptr, TEXTURE_SHADOWMAP);
+#endif
+#if ENABLE_SKYBOX
+        if (gOption.enableSkybox)
+            skybox.draw();
 #endif
         w.swapBuffer();
         w.pollEvent();

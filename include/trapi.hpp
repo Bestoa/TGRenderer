@@ -140,6 +140,7 @@ namespace TGRenderer
     void trEnableDepthTest(bool enable);
     void trPolygonMode(TRPolygonMode mode);
     void trCullFaceMode(TRCullFaceMode mode);
+    TRCullFaceMode trGetCullFaceMode();
     // Buffer related API
     TRBuffer *trCreateRenderTarget(int w, int h);
     void trSetRenderTarget(TRBuffer *traget);

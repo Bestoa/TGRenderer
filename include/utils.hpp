@@ -11,9 +11,9 @@ constexpr float GREEN[3] = { 0.0f, 1.0f, 0.0f };
 constexpr float BLUE[3] = { 0.0f, 0.0f, 1.0f };
 
 bool truSavePNG(const char *name, TGRenderer::TRBuffer *buffer);
-void truLoadVec2(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out);
-void truLoadVec3(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out);
-void truLoadVec4(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out);
+void truLoadVec2(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out);
+void truLoadVec3(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out);
+void truLoadVec4(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out);
 void truTimerBegin();
 void truTimerClick();
 double truTimerGetSecondsFromClick();

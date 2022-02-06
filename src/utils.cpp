@@ -19,19 +19,19 @@ bool truSavePNG(const char *name, TGRenderer::TRBuffer *buffer)
     return stbi_write_png(name, buffer->mW, buffer->mH, TGRenderer::BUFFER_CHANNEL, buffer->mData, buffer->mW * TGRenderer::BUFFER_CHANNEL);
 }
 
-void truLoadVec4(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec4> &out)
+void truLoadVec4(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec4> &out)
 {
     for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
         out.push_back(glm::make_vec4(&data[i]));
 }
 
-void truLoadVec3(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out)
+void truLoadVec3(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec3> &out)
 {
     for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
         out.push_back(glm::make_vec3(&data[i]));
 }
 
-void truLoadVec2(float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out)
+void truLoadVec2(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec2> &out)
 {
     for (size_t i = start * stride + offset, j = 0; j < len; i += stride, j++)
         out.push_back(glm::make_vec2(&data[i]));
