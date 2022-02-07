@@ -36,7 +36,7 @@ class TextureMapExShader : public TextureMapShader
 int main()
 {
     TRWindow w(WIDTH, HEIGHT, "Sphere demo");
-    if (!w.isRunning())
+    if (!w.OK())
         return 1;
 
     TRMeshData sphere;

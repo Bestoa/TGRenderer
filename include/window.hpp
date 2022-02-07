@@ -2,10 +2,6 @@
 #define __WINDOW_TC__
 
 #include <SDL.h>
-#include <SDL_image.h>
-#include <thread>
-#include <mutex>
-#include <condition_variable>
 #include "trapi.hpp"
 
 typedef void (*KeyEventCb)(int scancode);
@@ -16,7 +12,7 @@ class TRWindow {
         TRWindow(const TRWindow &&) = delete;
         ~TRWindow();
 
-        bool isRunning() const;
+        bool OK() const;
         void pollEvent();
         void registerKeyEventCb(KeyEventCb func);
         void removeKeyEventCb();
@@ -29,17 +25,11 @@ class TRWindow {
         int mHeight = 0;
         SDL_Window *mWindow = nullptr;
         SDL_Renderer *mRenderer = nullptr;
-        SDL_Texture *mDrawTexture = nullptr;
-        SDL_Texture *mDispTexture = nullptr;
-        std::mutex mMutex;
-        std::condition_variable mCV;
-        std::thread *mDisplayThread = nullptr;
-        bool mRunning = false;
+        SDL_Texture *mTexture = nullptr;
         bool mShouldStop = false;
-
+        bool mOK = false;
+        bool mShown = false;
         KeyEventCb mKcb = nullptr;
-
-        static void __disp_func__(TRWindow *);
 };
 
 #endif
