@@ -5,9 +5,20 @@ project('TopGun Renderer', 'cpp',
 dep_glm = dependency('glm')
 dep_sdl2 = dependency('SDL2')
 
-root = meson.source_root()
 include_dir = [ include_directories('include'), include_directories('stb') ]
-window_src = root + '/src/window.cpp'
 
 subdir('src')
 subdir('examples')
+
+executable('TGRenderer',
+           'src/main.cpp',
+           'src/helper/objs.cpp',
+           'src/helper/window.cpp',
+           dependencies : [
+             dep_glm,
+             dep_sdl2,
+             ],
+           include_directories : include_dir,
+           link_with : [ libtrcore ],
+           install : true)
+
