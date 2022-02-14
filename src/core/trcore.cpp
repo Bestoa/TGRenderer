@@ -2,7 +2,6 @@
 #include <vector>
 #include <thread>
 #include <mutex>
-#include <glm/ext.hpp>
 
 #include "trcore.hpp"
 
@@ -131,7 +130,9 @@ namespace TGRenderer
     {
         assert(mBuffer != nullptr);
         assert(mShader != nullptr);
+#if __DEBUG_FINISH_CB__
         mDrawSth = false;
+#endif
         freeShaderData();
     }
 
@@ -322,17 +323,17 @@ namespace TGRenderer
         postDraw();
     }
 
-    void Program::drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num, size_t vertexCountPerPrim)
+    void Program::drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num)
     {
         size_t i = 0, j = 0;
-        size_t primsCount = mesh.vertices.size() / vertexCountPerPrim;
+        size_t primsCount = mesh.vertices.size() / gDrawMode;
 
         for (i = index, j = 0; i < primsCount && j < num; i++, j++)
-            switch (vertexCountPerPrim)
+            switch (gDrawMode)
             {
-                case 1: drawPoint(mesh, i); break;
-                case 2: drawLine(mesh, i); break;
-                case 3: drawTriangle(mesh, i); break;
+                case TR_POINTS: drawPoint(mesh, i); break;
+                case TR_LINES: drawLine(mesh, i); break;
+                case TR_TRIANGLES: drawTriangle(mesh, i); break;
                 default: assert(false); break;
             }
     }
@@ -364,7 +365,9 @@ namespace TGRenderer
             mBuffer->stencilFunc(offset);
 
         mBuffer->drawPixel(x, y, color);
+#if __DEBUG_FINISH_CB__
         mDrawSth = true;
+#endif
     }
 
     void Program::rasterizationPoint(VSOutData *vsdata)
@@ -410,7 +413,7 @@ namespace TGRenderer
         glm::uvec4 drawArea = mBuffer->getDrawArea();
 
         // Bresenham's line algorithm
-        bool steep = abs(y1 - y0) > abs(x1 - x0);
+        bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
         if (steep)
         {
             std::swap(x0, y0);
@@ -423,7 +426,7 @@ namespace TGRenderer
             std::swap(y0, y1);
         }
         int deltax = int(x1 - x0);
-        int deltay = int(abs(y1 - y0));
+        int deltay = int(std::abs(y1 - y0));
         float error = 0;
         float deltaerr = (float)deltay / (float)deltax;
         int ystep;
@@ -548,16 +551,16 @@ namespace TGRenderer
         }
     }
 
-    void trPrimsInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num, size_t vertexCountPerPrim)
+    void trPrimsInstanced(TRMeshData &mesh, Shader *shader, size_t index, size_t num)
     {
         gProgram.setBuffer(gRenderTarget);
         gProgram.setShader(shader);
-        gProgram.drawPrimsInstranced(mesh, index, num, vertexCountPerPrim);
+        gProgram.drawPrimsInstranced(mesh, index, num);
     }
 
-    void trPrimsMT(TRMeshData &mesh, Shader *shader, size_t vertexCountPerPrim)
+    void trPrimsMT(TRMeshData &mesh, Shader *shader)
     {
-        size_t primsCount = mesh.vertices.size() / vertexCountPerPrim;
+        size_t primsCount = mesh.vertices.size() / gDrawMode;
         if (gThreadNum > 1)
         {
             std::vector<std::thread> thread_pool;
@@ -573,7 +576,7 @@ namespace TGRenderer
                 if (i == gThreadNum - 1)
                     index_step = primsCount - start;
 
-                thread_pool.push_back(std::thread(trPrimsInstanced, std::ref(mesh), shader, start, index_step, vertexCountPerPrim));
+                thread_pool.push_back(std::thread(trPrimsInstanced, std::ref(mesh), shader, start, index_step));
             }
 
             for (auto &th : thread_pool)
@@ -581,7 +584,7 @@ namespace TGRenderer
                     th.join();
 
         } else {
-            trPrimsInstanced(mesh, shader, 0, primsCount, vertexCountPerPrim);
+            trPrimsInstanced(mesh, shader, 0, primsCount);
         }
     }
 
@@ -632,7 +635,7 @@ namespace TGRenderer
         __compute_premultiply_mat__();
 
         gDrawMode = mode;
-        trPrimsMT(mesh, shader, mode);
+        trPrimsMT(mesh, shader);
     }
 
     // Core state related API

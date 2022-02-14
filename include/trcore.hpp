@@ -13,7 +13,7 @@ namespace TGRenderer
             Program() = default;
             Program(const Program &&) = delete;
 
-            void drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num, size_t vertexCountPerPrim);
+            void drawPrimsInstranced(TRMeshData &mesh, size_t index, size_t num);
             void setBuffer(TRBuffer *buffer);
             void setShader(Shader *shader);
 
@@ -23,7 +23,9 @@ namespace TGRenderer
             VSOutData mVSOutData[MAX_VSDATA_NUM];
             FSInData mFSInData;
             int mAllocIndex = 0;
+#if __DEBUG_FINISH_CB__
             bool mDrawSth = false;
+#endif
 
             VSOutData *allocVSOutData();
             /* Free vsdata which were allocated by us.
