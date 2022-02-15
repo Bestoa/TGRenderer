@@ -52,28 +52,28 @@ class PhongUniformData
 class ColorShader : public TGRenderer::Shader
 {
     void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
-    bool fragment(TGRenderer::FSInData *, float color[3]);
+    bool fragment(TGRenderer::FSInData *, float color[]);
     void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
 class TextureMapShader : public TGRenderer::Shader
 {
     void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t );
-    bool fragment(TGRenderer::FSInData *, float color[3]);
+    bool fragment(TGRenderer::FSInData *, float color[]);
     void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
 class ColorPhongShader : public TGRenderer::Shader
 {
     void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
-    bool fragment(TGRenderer::FSInData *, float color[3]);
+    bool fragment(TGRenderer::FSInData *, float color[]);
     void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
 class TextureMapPhongShader : public TGRenderer::Shader
 {
     void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
-    bool fragment(TGRenderer::FSInData *, float color[3]);
+    bool fragment(TGRenderer::FSInData *, float color[]);
     void getVaryingNum(size_t &, size_t &, size_t &);
 };
 
@@ -81,7 +81,7 @@ class ShadowMapShader : public TGRenderer::Shader
 {
     private:
         void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
-        bool fragment(TGRenderer::FSInData *, float color[3]);
+        bool fragment(TGRenderer::FSInData *, float color[]);
         void getVaryingNum(size_t &, size_t &, size_t &);
 
     public:

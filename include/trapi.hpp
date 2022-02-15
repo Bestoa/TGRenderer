@@ -116,7 +116,7 @@ namespace TGRenderer
             virtual ~Shader() = default;
 
             virtual void vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index) = 0;
-            virtual bool fragment(FSInData *fsdata, float color[3]/* Out */) = 0;
+            virtual bool fragment(FSInData *fsdata, float color[]/* Out */) = 0;
             virtual void getVaryingNum(size_t &v2, size_t &v3, size_t &v4) = 0;
     };
 

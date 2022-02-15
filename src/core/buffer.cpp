@@ -35,22 +35,19 @@ namespace TGRenderer
         mBgColor3i[0] = glm::clamp(int(r * 255 + 0.5), 0, 255);
         mBgColor3i[1] = glm::clamp(int(g * 255 + 0.5), 0, 255);
         mBgColor3i[2] = glm::clamp(int(b * 255 + 0.5), 0, 255);
+        mBgColor3i[3] = 255;
 
         mBgColor3f[0] = r;
         mBgColor3f[1] = g;
         mBgColor3f[2] = b;
+        mBgColor3f[3] = 1.0f;
     }
 
     void TRBuffer::clearColor()
     {
         for (size_t i = 0; i < mW * mH * BUFFER_CHANNEL; i += BUFFER_CHANNEL)
-        {
-            mData[i + 0] = mBgColor3i[0];
-            mData[i + 1] = mBgColor3i[1];
-            mData[i + 2] = mBgColor3i[2];
-            if (BUFFER_CHANNEL == 4)
-                mData[i + 3] = 255;
-        }
+            for (size_t j = 0; j < BUFFER_CHANNEL; j++)
+                mData[i + j] = mBgColor3i[j];
     }
 
     void TRBuffer::clearDepth()
@@ -80,9 +77,8 @@ namespace TGRenderer
     {
         // flip Y here
         uint8_t *base = mData + ((mH - 1 - y) * mW + x) * BUFFER_CHANNEL;
-        base[0] = uint8_t(color[0] * 255 + 0.5);
-        base[1] = uint8_t(color[1] * 255 + 0.5);
-        base[2] = uint8_t(color[2] * 255 + 0.5);
+        for (size_t i = 0; i < BUFFER_CHANNEL; i++)
+            base[i] = uint8_t(color[i] * 255 + 0.5);
     }
 
     bool TRBuffer::depthTest(size_t offset, float depth, bool update)
@@ -197,21 +193,15 @@ error:
     {
         float *base = mTexture->getBuffer();
         for (size_t i = 0; i < mW * mH * TEXTURE_CHANNEL; i += TEXTURE_CHANNEL)
-        {
-            base[i + 0] = mBgColor3f[0];
-            base[i + 1] = mBgColor3f[1];
-            base[i + 2] = mBgColor3f[2];
-            if (TEXTURE_CHANNEL == 4)
-                base[i + 3] = 1.0f;
-        }
+            for (size_t j = 0; j < TEXTURE_CHANNEL; j++)
+                base[i + j] = mBgColor3f[j];
     }
 
     void TRTextureBuffer::drawPixel(int x, int y, float color[])
     {
         float *base = mTexture->getBuffer() + (y * mW + x) * TEXTURE_CHANNEL;
-        base[0] = color[0];
-        base[1] = color[1];
-        base[2] = color[2];
+        for (size_t i = 0; i < TEXTURE_CHANNEL; i++)
+            base[i] = color[i];
     }
 
     TRTexture* TRTextureBuffer::getTexture()

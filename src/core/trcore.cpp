@@ -346,7 +346,8 @@ namespace TGRenderer
         if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
             return;
 
-        float color[3];
+        float color[4];
+        color[3] = 1.0f;
         if (!mShader->fragment(&mFSInData, color))
             return;
 

@@ -70,12 +70,12 @@ void ColorShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
     vsdata->mVaryingVec3[SH_COLOR] = mesh.colors[index];
 }
 
-bool ColorShader::fragment(FSInData *fsdata, float color[3])
+bool ColorShader::fragment(FSInData *fsdata, float color[])
 {
     glm::vec3 C = fsdata->getVec3(SH_COLOR);
-    color[0] = C[0];
-    color[1] = C[1];
-    color[2] = C[2];
+    for (int i = 0; i < 3; i++)
+        color[i] = C[i];
+
     return true;
 }
 
@@ -92,16 +92,15 @@ void TextureMapShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
     vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.texcoords[index];
 }
 
-bool TextureMapShader::fragment(FSInData *fsdata, float color[3])
+bool TextureMapShader::fragment(FSInData *fsdata, float color[])
 {
     glm::vec2 texCoord = fsdata->getVec2(SH_TEXCOORD);
     textureCoordWrap(texCoord);
 
-    float *c = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
+    float *C = texture2D(TEXTURE_DIFFUSE, texCoord.x, texCoord.y);
+    for (int i = 0; i < 3; i++)
+        color[i] = C[i];
 
-    color[0] = c[0];
-    color[1] = c[1];
-    color[2] = c[2];
     return true;
 }
 
@@ -123,7 +122,7 @@ void ColorPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
         vsdata->mVaryingVec4[SH_LIGHT_FRAG_POSITION] = trGetMat4(MAT4_LIGHT_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool ColorPhongShader::fragment(FSInData *fsdata, float color[3])
+bool ColorPhongShader::fragment(FSInData *fsdata, float color[])
 {
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
 
@@ -155,10 +154,8 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[3])
         spec *= shadow;
     }
     glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * unidata->mSpecularStrength) * unidata->mLightColor;
-
-    color[0] = glm::min(result[0], 1.f);
-    color[1] = glm::min(result[1], 1.f);
-    color[2] = glm::min(result[2], 1.f);
+    for (int i = 0; i < 3; i++)
+        color[i] = glm::min(result[i], 1.f);
 
     return true;
 }
@@ -196,7 +193,7 @@ void TextureMapPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t i
         vsdata->mVaryingVec4[SH_LIGHT_FRAG_POSITION] = trGetMat4(MAT4_LIGHT_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[3])
+bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[])
 {
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
 
@@ -253,10 +250,8 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[3])
     glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
     if (trGetTexture(TEXTURE_GLOW) != nullptr)
         result += glm::make_vec3(texture2D(TEXTURE_GLOW, texCoord.x, texCoord.y));
-
-    color[0] = glm::min(result[0], 1.f);
-    color[1] = glm::min(result[1], 1.f);
-    color[2] = glm::min(result[2], 1.f);
+    for (int i = 0; i < 3; i++)
+        color[i] = glm::min(result[i], 1.f);
 
     return true;
 }
@@ -273,13 +268,12 @@ void ShadowMapShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
 }
 
-bool ShadowMapShader::fragment(FSInData *fsdata, float color[3])
+bool ShadowMapShader::fragment(FSInData *fsdata, float color[])
 {
     glm::vec4 clipV = fsdata->getPosition();
     float depth = glm::clamp((clipV.z / clipV.w) * 0.5f + 0.5f, 0.0f, 1.0f);
-    color[0] = depth;
-    color[1] = depth;
-    color[2] = depth;
+    for (int i = 0; i < 3; i++)
+        color[i] = depth;
 
     return true;
 }
