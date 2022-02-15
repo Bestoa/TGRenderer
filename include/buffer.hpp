@@ -4,7 +4,9 @@
 #include <glm/glm.hpp>
 #include <mutex>
 
+#ifndef __NEED_BUFFER_LOCK__
 #define __NEED_BUFFER_LOCK__ (1)
+#endif
 
 namespace TGRenderer
 {

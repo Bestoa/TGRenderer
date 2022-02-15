@@ -584,7 +584,9 @@ namespace TGRenderer
                 if (th.joinable())
                     th.join();
 
-        } else {
+        }
+        else
+        {
             trPrimsInstanced(mesh, shader, 0, primsCount);
         }
     }

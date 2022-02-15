@@ -7,8 +7,8 @@ executable('01_triangles',
            link_with : libtrcore,
            install : true)
 
-executable('sphere',
-           'sphere.cpp',
+executable('earth',
+           'earth.cpp',
            '../src/helper/window.cpp',
            dependencies : [
              dep_glm,
