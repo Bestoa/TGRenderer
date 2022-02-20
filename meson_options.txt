@@ -1,1 +1,1 @@
-option('buffer_lock', type : 'boolean', value : 'false')
+option('buffer_lock', type : 'boolean', value : 'true')

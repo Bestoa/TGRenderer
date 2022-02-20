@@ -42,7 +42,7 @@ namespace TGRenderer
     size_t gThreadNum = 4;
     TRPolygonMode gPolygonMode = TR_FILL;
     TRDrawMode gDrawMode = TR_TRIANGLES;
-    TRCullFaceMode gCullFace = TR_CCW;
+    TRCullFaceMode gCullFace = TR_NONE;
     bool gEnableDepthTest = true;
     bool gEnableStencilTest = false;
     bool gEnableStencilWrite = false;

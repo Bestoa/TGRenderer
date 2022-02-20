@@ -158,7 +158,9 @@ bool TRObj::drawShadowMap()
 {
     if (OK() == false)
         return false;
-
+    TRCullFaceMode oldCullFaceMode = trGetCullFaceMode();
+    trCullFaceMode(TR_NONE);
     trDrawArrays(TR_TRIANGLES, mMeshData, &mShadowShader);
+    trCullFaceMode(oldCullFaceMode);
     return true;
 }

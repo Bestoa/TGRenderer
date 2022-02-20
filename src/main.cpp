@@ -72,13 +72,9 @@ void kcb(int key)
         case SDL_SCANCODE_W:
             gOption.wireframeMode = !gOption.wireframeMode;
             if (gOption.wireframeMode)
-            {
-                trCullFaceMode(TR_NONE);
                 trPolygonMode(TR_LINE);
-            } else {
-                trCullFaceMode(TR_CCW);
+            else
                 trPolygonMode(TR_FILL);
-            }
             break;
         case SDL_SCANCODE_M:
             gOption.rotateModel = !gOption.rotateModel;
@@ -249,7 +245,6 @@ int main(int argc, char *argv[])
 #if ENABLE_SHADOW
         if (gOption.enableShadow)
         {
-            trCullFaceMode(TR_NONE);
             trSetRenderTarget(shadowBuffer);
             trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
             trSetMat4(modelMat, MAT4_MODEL);
@@ -262,8 +257,6 @@ int main(int argc, char *argv[])
             trSetMat4(lightProjMat * lightViewMat * modelMat, MAT4_LIGHT_MVP);
             trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
             trSetRenderTarget(windowBuffer);
-            if (!gOption.wireframeMode)
-                trCullFaceMode(TR_CCW);
         }
 #endif
         trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
