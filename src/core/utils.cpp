@@ -16,7 +16,7 @@ using namespace std::chrono;
 
 bool truSavePNG(const char *name, TGRenderer::TRBuffer *buffer)
 {
-    return stbi_write_png(name, buffer->mW, buffer->mH, TGRenderer::BUFFER_CHANNEL, buffer->mData, buffer->mW * TGRenderer::BUFFER_CHANNEL);
+    return stbi_write_png(name, buffer->getW(), buffer->getH(), TGRenderer::BUFFER_CHANNEL, buffer->getRawData(), buffer->getW() * TGRenderer::BUFFER_CHANNEL);
 }
 
 void truLoadVec4(const float *data, size_t start, size_t len, size_t offset, size_t stride, std::vector<glm::vec4> &out)

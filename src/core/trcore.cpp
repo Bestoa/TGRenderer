@@ -343,7 +343,7 @@ namespace TGRenderer
         size_t offset = mBuffer->getOffset(x, y);
         /* easy-z */
         /* Do not use mutex here to speed up */
-        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth))
+        if (gEnableDepthTest && mBuffer->getDepth(offset) < depth)
             return;
 
         float color[4];
@@ -354,16 +354,17 @@ namespace TGRenderer
 #if __NEED_BUFFER_LOCK__
         std::lock_guard<std::mutex> lck(mBuffer->getMutex(offset));
 #endif
-        if (gEnableStencilTest && !mBuffer->stencilTest(offset))
+        if (gEnableStencilTest && mBuffer->getStencil(offset) != 0)
             return;
 
         /* depth test */
-        if (gEnableDepthTest && !mBuffer->depthTest(offset, depth, true))
+        if (gEnableDepthTest && mBuffer->getDepth(offset) < depth)
             return;
 
+        mBuffer->updateDepth(offset, depth);
         /* Write stencil buffer need to pass depth test */
         if (gEnableStencilWrite)
-            mBuffer->stencilFunc(offset);
+            mBuffer->updateStencil(offset, 1);
 
         mBuffer->drawPixel(x, y, color);
 #if __DEBUG_FINISH_CB__
@@ -375,8 +376,7 @@ namespace TGRenderer
     {
         glm::vec4 clip = vsdata->tr_Position;
         glm::vec4 ndc = clip / clip.w;
-        glm::vec2 screen;
-        mBuffer->viewport(screen, ndc);
+        glm::vec2 screen = mBuffer->viewportTransform(ndc);
         glm::uvec4 drawArea = mBuffer->getDrawArea();
         if (screen.x < drawArea[2] && screen.x >= drawArea[0]
                 && screen.y < drawArea[3] && screen.y >= drawArea[1])
@@ -401,7 +401,7 @@ namespace TGRenderer
         {
             clip[i] = vsdata[i]->tr_Position;
             ndc[i] = clip[i] / clip[i].w;
-            mBuffer->viewport(screen[i], ndc[i]);
+            screen[i] = mBuffer->viewportTransform(ndc[i]);
         }
 
         prepareFragmentData(vsdata, 2);
@@ -493,7 +493,7 @@ namespace TGRenderer
         {
             clip[i] = vsdata[i]->tr_Position;
             ndc[i] = clip[i] / clip[i].w;
-            mBuffer->viewport(screen[i], ndc[i]);
+            screen[i] = mBuffer->viewportTransform(ndc[i]);
         }
 
         float area = __edge__(screen[0], screen[1], screen[2]);

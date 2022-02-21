@@ -14,12 +14,11 @@ namespace TGRenderer
     class TRBuffer
     {
         public:
-            uint8_t *mData = nullptr;
-            uint32_t mW = 0;
-            uint32_t mH = 0;
-
+            void * getRawData();
+            uint32_t getW() const;
+            uint32_t getH() const;
             void setViewport(int x, int y, uint32_t w, uint32_t h);
-            void viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v);
+            glm::vec2 viewportTransform(glm::vec4 &ndc_v) const;
             glm::uvec4 getDrawArea();
             void setBgColor(float r, float g, float b);
             virtual void clearColor();
@@ -30,9 +29,10 @@ namespace TGRenderer
             size_t getOffset(int x, int y) const;
             virtual size_t getStride() const;
             virtual void drawPixel(int x, int y, float color[]);
-            bool depthTest(size_t offset, float depth, bool update = false);
-            void stencilFunc(size_t offset);
-            bool stencilTest(size_t offset);
+            float getDepth(size_t offset) const;
+            void updateDepth(size_t offset, float depth);
+            uint8_t getStencil(size_t offset) const;
+            void updateStencil(size_t offset, uint8_t stencil);
 #if __NEED_BUFFER_LOCK__
             std::mutex & getMutex(size_t offset);
 #endif
@@ -46,7 +46,10 @@ namespace TGRenderer
             bool OK() const;
 
         protected:
+            uint8_t *mData = nullptr;
             bool mOK = false;
+            uint32_t mW = 0;
+            uint32_t mH = 0;
             uint8_t mBgColor3i[BUFFER_CHANNEL] = { 0, 0, 0 };
             float mBgColor3f[BUFFER_CHANNEL] = { 0.0f, 0.0f, 0.0f };
 

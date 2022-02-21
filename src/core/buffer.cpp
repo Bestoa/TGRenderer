@@ -7,6 +7,21 @@ namespace TGRenderer
 {
     unsigned int gCurrentID = 1;
 
+    void * TRBuffer::getRawData()
+    {
+        return mData;
+    }
+
+    uint32_t TRBuffer::getH() const
+    {
+        return mH;
+    }
+
+    uint32_t TRBuffer::getW() const
+    {
+        return mW;
+    }
+
     void TRBuffer::setViewport(int x, int y, uint32_t w, uint32_t h)
     {
         mVX = x;
@@ -15,10 +30,9 @@ namespace TGRenderer
         mVH = h;
     }
 
-    void TRBuffer::viewport(glm::vec2 &screen_v, glm::vec4 &ndc_v)
+    glm::vec2 TRBuffer::viewportTransform(glm::vec4 &ndc_v) const
     {
-        screen_v.x = mVX + (mVW - 1) * (ndc_v.x / 2 + 0.5);
-        screen_v.y = mVY + (mVH - 1) * (ndc_v.y / 2 + 0.5);
+        return glm::vec2(mVX + (mVW - 1) * (ndc_v.x / 2 + 0.5), mVY + (mVH - 1) * (ndc_v.y / 2 + 0.5));
     }
 
     glm::uvec4 TRBuffer::getDrawArea()
@@ -81,25 +95,24 @@ namespace TGRenderer
             base[i] = uint8_t(color[i] * 255 + 0.5);
     }
 
-    bool TRBuffer::depthTest(size_t offset, float depth, bool update)
+    float TRBuffer::getDepth(size_t offset) const
     {
-        /* projection matrix will inverse z-order. */
-        if (mDepth[offset] < depth)
-            return false;
-        if (update)
-            mDepth[offset] = depth;
-        return true;
+        return mDepth[offset];
     }
 
-    void TRBuffer::stencilFunc(size_t offset)
+    void TRBuffer::updateDepth(size_t offset, float depth)
     {
-        /* simple stencil func */
-        mStencil[offset]++;
+        mDepth[offset] = depth;
     }
 
-    bool TRBuffer::stencilTest(size_t offset)
+    uint8_t TRBuffer::getStencil(size_t offset) const
     {
-        return mStencil[offset] == 0;
+        return mStencil[offset];
+    }
+
+    void TRBuffer::updateStencil(size_t offset, uint8_t stencil)
+    {
+        mStencil[offset] = stencil;
     }
 
 #if __NEED_BUFFER_LOCK__
