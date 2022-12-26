@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 #endif
 
 #if ENABLE_SKYBOX
-    TRSkyBox skybox(gCubeTextureNames);
+    TRSkyBox *pSkybox = nullptr;
 #endif
 
     glm::mat4 modelMat(1.0f);
@@ -288,7 +288,11 @@ int main(int argc, char *argv[])
 #endif
 #if ENABLE_SKYBOX
         if (gOption.enableSkybox)
-            skybox.draw();
+        {
+            if (!pSkybox)
+                pSkybox = new TRSkyBox(gCubeTextureNames);
+            pSkybox->draw();
+        }
 #endif
         w.swapBuffer();
         w.pollEvent();
@@ -302,6 +306,10 @@ int main(int argc, char *argv[])
     double fps = frame / truTimerGetSecondsFromBegin();
     std::cout << "Fps: " << fps << std::endl;
 
+#if ENABLE_SKYBOX
+    if (pSkybox)
+        delete pSkybox;
+#endif
 #if ENABLE_SHADOW
     delete shadowBuffer;
 #endif
