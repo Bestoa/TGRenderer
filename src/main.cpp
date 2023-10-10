@@ -21,6 +21,10 @@
 #define DRAW_FLOOR 1
 #define ENABLE_SKYBOX 1
 
+#if ENABLE_SHADOW
+bool gNeedRedrawShadowMap = true;
+#endif
+
 #if ENABLE_SKYBOX
 std::string gCubeTextureNames[] =
 {
@@ -120,6 +124,9 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
     {
         rotateM++;
         modelMat = glm::rotate(glm::mat4(1.0f), glm::radians(1.0f * rotateM), glm::vec3(0.0f, 1.0f, 0.0f));
+#if ENABLE_SHADOW
+        gNeedRedrawShadowMap = true;
+#endif
     }
 
     if (gOption.rotateEye)
@@ -160,6 +167,7 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
                 glm::vec3(glm::sin(degree), 1, glm::cos(degree)),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0));
+        gNeedRedrawShadowMap = true;
 #endif
         unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
     }
@@ -252,8 +260,9 @@ int main(int argc, char *argv[])
         unidata.mViewLightPosition = eyeViewMat * glm::vec4(unidata.mLightPosition, 1.0f);
         trSetUniformData(&unidata);
 #if ENABLE_SHADOW
-        if (gOption.enableShadow)
+        if (gOption.enableShadow && gNeedRedrawShadowMap)
         {
+            gNeedRedrawShadowMap = false;
             // Get window buffer again since we enable resize event
             windowBuffer = trGetRenderTarget();
             trSetRenderTarget(shadowBuffer);
@@ -266,9 +275,10 @@ int main(int argc, char *argv[])
             /* Skip floor in shadow map to speedup */
 
             trSetMat4(lightProjMat * lightViewMat * modelMat, MAT4_LIGHT_MVP);
-            trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
             trSetRenderTarget(windowBuffer);
         }
+        if (gOption.enableShadow)
+            trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
 #endif
         // do clear color again since we enable resize event
         trClearColor3f(0.1, 0.1, 0.1);

@@ -39,29 +39,23 @@ float calcShadowFast(float depth, float x, float y)
         return 1.0f;
 }
 
-float calcShadow(float depth, float x, float y)
+float calcShadowPCF(float depth, float x, float y)
 {
     TRTexture *st = trGetTexture(TEXTURE_SHADOWMAP);
-    float xstep = 1.f / st->getW();
-    float ystep = 1.f / st->getH();
+    float xstep = st->getXStep();
+    float ystep = st->getYStep();
     float shadow = 0.f;
 
-    float texcoords[] =
+    float texcoords[][3] =
     {
-        x - xstep, y - ystep,
-        x, y - ystep,
-        x + xstep, y - ystep,
-        x - xstep, y,
-        x, y,
-        x + xstep, y,
-        x - xstep, y + ystep,
-        x, y + ystep,
-        x + xstep, y + ystep,
+        {x - xstep, y - ystep, 1.0f}, {x, y - ystep, 2.0f}, {x + xstep, y - ystep, 1.0f},
+        {x - xstep, y, 2.0f}, {x, y, 4.0f}, {x + xstep, y, 2.0f},
+        {x - xstep, y + ystep, 1.0f}, {x, y + ystep, 2.0f}, {x + xstep, y + ystep, 1.0f},
     };
     for (size_t i = 0; i < 9; i++)
-        shadow += calcShadowFast(depth, texcoords[i*2], texcoords[i*2+1]);
+        shadow += calcShadowFast(depth, texcoords[i][0], texcoords[i][1]) * texcoords[i][2];
 
-    return shadow / 9.0f;
+    return shadow / 16.0f;
 }
 
 void ColorShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t index)
@@ -149,7 +143,7 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[])
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        float shadow = calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        float shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
         diff *= shadow;
         spec *= shadow;
     }
@@ -242,7 +236,7 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[])
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        float shadow = calcShadow(lightClipV.z, lightClipV.x, lightClipV.y);
+        float shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
         diff *= shadow;
         spec *= shadow;
     }
