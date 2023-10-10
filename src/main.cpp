@@ -106,7 +106,11 @@ void kcb(int key)
     }
 }
 
-void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat, glm::mat4 &lightViewMat)
+void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
+#if ENABLE_SHADOW
+        ,glm::mat4 &lightViewMat
+#endif
+        )
 {
     static int rotateM = 0, rotateE = 0, rotateL = 0;
     static float eyeStartDistance = 1.5f;
@@ -151,10 +155,12 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat, glm::mat4 &lightViewM
     {
         rotateL++;
         float degree = glm::radians(1.0f * rotateL);
+#if ENABLE_SHADOW
         lightViewMat = glm::lookAt(
                 glm::vec3(glm::sin(degree), 1, glm::cos(degree)),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0));
+#endif
         unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
     }
 }
@@ -238,7 +244,11 @@ int main(int argc, char *argv[])
     truTimerBegin();
     while (!w.shouldStop() && frame++ < endFrame)
     {
-        reCalcMat(modelMat, eyeViewMat, lightViewMat);
+        reCalcMat(modelMat, eyeViewMat
+#if ENABLE_SHADOW
+                ,lightViewMat
+#endif
+                );
         unidata.mViewLightPosition = eyeViewMat * glm::vec4(unidata.mLightPosition, 1.0f);
         trSetUniformData(&unidata);
 #if ENABLE_SHADOW
