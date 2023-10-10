@@ -13,6 +13,7 @@ class TRWindow {
         ~TRWindow();
 
         bool OK() const;
+        bool createTextureAndBuffer(bool first);
         void pollEvent();
         void registerKeyEventCb(KeyEventCb func);
         void removeKeyEventCb();

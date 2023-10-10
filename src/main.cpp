@@ -177,8 +177,6 @@ int main(int argc, char *argv[])
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(TWIDTH, THEIGHT);
 #endif
 
-    trClearColor3f(0.1, 0.1, 0.1);
-
     std::vector<std::shared_ptr <TRObj>> objs;
     for (int i = 1; i < argc; i++)
     {
@@ -245,6 +243,8 @@ int main(int argc, char *argv[])
 #if ENABLE_SHADOW
         if (gOption.enableShadow)
         {
+            // Get window buffer again since we enable resize event
+            windowBuffer = trGetRenderTarget();
             trSetRenderTarget(shadowBuffer);
             trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
             trSetMat4(modelMat, MAT4_MODEL);
@@ -259,6 +259,8 @@ int main(int argc, char *argv[])
             trSetRenderTarget(windowBuffer);
         }
 #endif
+        // do clear color again since we enable resize event
+        trClearColor3f(0.1, 0.1, 0.1);
         trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
         trSetMat4(modelMat, MAT4_MODEL);
         trSetMat4(eyeViewMat, MAT4_VIEW);
