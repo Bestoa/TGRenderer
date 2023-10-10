@@ -51,7 +51,7 @@ void truTimerClick()
     gTimerLastClick = system_clock::now();
 }
 
-double __getSeconds__(system_clock::time_point t1, system_clock::time_point t2)
+static double __getSeconds__(system_clock::time_point t1, system_clock::time_point t2)
 {
     auto duration = duration_cast<std::chrono::microseconds>(t2 - t1);
     return (double(duration.count()) * microseconds::period::num / microseconds::period::den);

@@ -234,6 +234,7 @@ int main(int argc, char *argv[])
     unidata.mLightPosition = glm::vec3(0.0f, 1.0f, 1.0f);
 
     int frame = 0;
+    int frame_fps = 0;
     truTimerBegin();
     while (!w.shouldStop() && frame++ < endFrame)
     {
@@ -297,13 +298,17 @@ int main(int argc, char *argv[])
         }
 #endif
         w.swapBuffer();
-        w.pollEvent();
-        if (frame % 360 == 0)
+
+        double current = truTimerGetSecondsFromClick();
+        frame_fps++;
+        if (current > 5.0f)
         {
-            double fps = 360 / truTimerGetSecondsFromClick();
-            std::cout << "Current fps: " << fps << std::endl;
+            std::cout << "Current fps in last 5s: " << frame_fps / current << std::endl;
+            frame_fps = 0;
             truTimerClick();
         }
+
+        w.pollEvent();
     }
     double fps = frame / truTimerGetSecondsFromBegin();
     std::cout << "Fps: " << fps << std::endl;
