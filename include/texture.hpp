@@ -20,6 +20,8 @@ namespace TGRenderer
             float* getBuffer();
             int getH() const;
             int getW() const;
+            float getXStep() const;
+            float getYStep() const;
 
             bool OK() const;
 

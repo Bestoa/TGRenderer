@@ -87,4 +87,16 @@ free_image:
     {
         return mH;
     }
+
+    float TRTexture::getXStep() const
+    {
+        static float xstep = 1.0f / mW;
+        return xstep;
+    }
+
+    float TRTexture::getYStep() const
+    {
+        static float ystep = 1.0f / mH;
+        return ystep;
+    }
 }
