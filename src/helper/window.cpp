@@ -13,45 +13,68 @@ TRWindow::TRWindow(int w, int h, const char *name)
     mHeight = h;
 
     if (SDL_Init(SDL_INIT_VIDEO))
-        goto error;
+        return;
 
-    if (SDL_CreateWindowAndRenderer(mWidth, mHeight, SDL_WINDOW_HIDDEN, &mWindow, &mRenderer))
+    if (SDL_CreateWindowAndRenderer(mWidth, mHeight, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE, &mWindow, &mRenderer))
         goto error;
     SDL_SetWindowTitle(mWindow, name);
 
-    mTexture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
-    if (mTexture == nullptr)
+    if (createTextureAndBuffer(true) == false)
         goto error;
-
-    mBuffer = new TRBuffer(mWidth, mHeight, false);
-    if (!mBuffer || !mBuffer->OK())
-        goto error;
-
-    void *addr;
-    int pitch;
-    if (SDL_LockTexture(mTexture, nullptr, &addr, &pitch))
-        goto error;
-    assert(pitch == int(mBuffer->getStride() * BUFFER_CHANNEL));
-    mBuffer->setExtBuffer(addr);
-    trSetRenderTarget(mBuffer);
 
     mOK = true;
-
     return;
 
 error:
-    if (mBuffer)
-        delete mBuffer;
-    if (mTexture)
-        SDL_DestroyTexture(mTexture);
-    if (mRenderer)
-        SDL_DestroyRenderer(mRenderer);
     if (mWindow)
         SDL_DestroyWindow(mWindow);
 
-    SDL_Quit();
     mWidth = 0;
     mHeight = 0;
+}
+
+bool TRWindow::createTextureAndBuffer(bool first)
+{
+    SDL_Texture *texture = nullptr;
+    TRBuffer *buffer = nullptr;
+
+    texture = SDL_CreateTexture(mRenderer, SDL_PIXELFORMAT_RGBA32, SDL_TEXTUREACCESS_STREAMING, mWidth, mHeight);
+    if (texture == nullptr)
+        return false;
+
+    buffer = new TRBuffer(mWidth, mHeight, false);
+    if (!buffer || !buffer->OK())
+    {
+        goto error;
+    }
+
+    void *addr;
+    int pitch;
+    if (SDL_LockTexture(texture, nullptr, &addr, &pitch))
+        goto error;
+    assert(pitch == int(buffer->getStride() * BUFFER_CHANNEL));
+    buffer->setExtBuffer(addr);
+
+    if (!first)
+    {
+        SDL_DestroyTexture(mTexture);
+        delete mBuffer;
+    }
+
+    mTexture = texture;
+    mBuffer = buffer;
+
+    trSetRenderTarget(mBuffer);
+
+
+    return true;
+
+error:
+    if (texture)
+        SDL_DestroyTexture(texture);
+    if (buffer)
+        delete buffer;
+    return false;
 }
 
 bool TRWindow::OK() const
@@ -99,13 +122,25 @@ void TRWindow::pollEvent()
     SDL_Event event;
     while (SDL_PollEvent(&event) != 0)
     {
-        if (event.type == SDL_QUIT)
-            mShouldStop = true;
-        if (event.type == SDL_KEYDOWN) {
-            if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+        switch (event.type)
+        {
+            case SDL_QUIT:
                 mShouldStop = true;
-            if (mKcb)
-                mKcb(event.key.keysym.scancode);
+                break;
+            case SDL_KEYDOWN:
+                if (event.key.keysym.scancode == SDL_SCANCODE_ESCAPE)
+                    mShouldStop = true;
+                else if (mKcb)
+                    mKcb(event.key.keysym.scancode);
+                break;
+            case SDL_WINDOWEVENT:
+                if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+                {
+                    mWidth = event.window.data1;
+                    mHeight = event.window.data2;
+                    createTextureAndBuffer(false);
+                }
+                break;
         }
     }
 }
