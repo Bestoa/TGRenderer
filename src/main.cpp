@@ -54,9 +54,22 @@ class Option
         bool rotateLight = false;
         bool zoomIn = false;
         bool zoomOut = false;
+        bool up = false;
+        bool down = false;
+        bool resetView = false;
 };
 
 Option gOption;
+
+class View
+{
+    public:
+        float distanceInXZPlane = 1.5f;
+        float Y = 0.75f;
+};
+
+View gViewDefault;
+View gView;
 
 const int endFrame = 36000;
 
@@ -102,6 +115,15 @@ void kcb(int key)
         case SDL_SCANCODE_O:
             gOption.zoomOut = true;
             break;
+        case SDL_SCANCODE_U:
+            gOption.up = true;
+            break;
+        case SDL_SCANCODE_D:
+            gOption.down = true;
+            break;
+        case SDL_SCANCODE_R:
+            gOption.resetView = true;
+            break;
         case SDL_SCANCODE_C:
             ProgramId++;
             if (ProgramId == 4)
@@ -117,7 +139,6 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
         )
 {
     static int rotateM = 0, rotateE = 0, rotateL = 0;
-    static float eyeStartDistance = 1.5f;
 
     bool reCalcViewMat = false;
     if (gOption.rotateModel)
@@ -139,21 +160,42 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
     {
         gOption.zoomIn = false;
         reCalcViewMat = true;
-        eyeStartDistance -= 0.1f;
+        gView.distanceInXZPlane -= 0.1f;
     }
 
     if (gOption.zoomOut)
     {
         gOption.zoomOut = false;
         reCalcViewMat = true;
-        eyeStartDistance += 0.1f;
+        gView.distanceInXZPlane += 0.1f;
+    }
+
+    if (gOption.up)
+    {
+        gOption.up = false;
+        reCalcViewMat = true;
+        gView.Y += 0.1f;
+    }
+
+    if (gOption.down)
+    {
+        gOption.down = false;
+        reCalcViewMat = true;
+        gView.Y -= 0.1f;
+    }
+
+    if (gOption.resetView)
+    {
+        gOption.resetView = false;
+        gView = gViewDefault;
+        reCalcViewMat = true;;
     }
 
     if (reCalcViewMat)
     {
         float degree = glm::radians(1.0f * rotateE);
         eyeViewMat = glm::lookAt(
-                glm::vec3(eyeStartDistance * glm::sin(degree), eyeStartDistance / 2, eyeStartDistance * glm::cos(degree)),
+                glm::vec3(gView.distanceInXZPlane * glm::sin(degree), gView.Y, gView.distanceInXZPlane * glm::cos(degree)),
                 glm::vec3(0,0,0),
                 glm::vec3(0,1,0));
     }
@@ -202,9 +244,8 @@ int main(int argc, char *argv[])
     if (objs.size() == 0)
         abort();
 
-    float eyeStartDistance = 1.5f;
     glm::mat4 eyeViewMat = glm::lookAt(
-            glm::vec3(0,eyeStartDistance / 2 ,eyeStartDistance), // Camera is at (0,0.75,1.5), in World Space
+            glm::vec3(0, gView.Y, gView.distanceInXZPlane), // Camera is at (0,0.75,1.5), in World Space
             glm::vec3(0,0,0), // and looks at the origin
             glm::vec3(0,1,0));  // Head is up (set to 0,-1,0 to look upside-down)
 
