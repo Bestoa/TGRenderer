@@ -40,11 +40,11 @@ std::string gCubeTextureNames[] =
 using namespace TGRenderer;
 
 PhongUniformData unidata;
-int ProgramId = 3;
 
 class Option
 {
     public:
+        int ProgramId = 3;
         bool enableSkybox = false;
         bool enableShadow = false;
         bool drawFloor = false;
@@ -125,9 +125,9 @@ void kcb(int key)
             gOption.resetView = true;
             break;
         case SDL_SCANCODE_C:
-            ProgramId++;
-            if (ProgramId == 4)
-                ProgramId = 0;
+            gOption.ProgramId++;
+            if (gOption.ProgramId == 4)
+                gOption.ProgramId = 0;
             break;
     }
 }
@@ -213,6 +213,39 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
 #endif
         unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
     }
+}
+        bool enableSkybox = false;
+        bool enableShadow = false;
+        bool drawFloor = false;
+        bool wireframeMode = false;
+        bool rotateModel = false;
+        bool rotateEye = false;
+        bool rotateLight = false;
+        bool zoomIn = false;
+        bool zoomOut = false;
+        bool up = false;
+        bool down = false;
+        bool resetView = false;
+
+void dumpInfo()
+{
+    std::cout << "Mode: ";
+    std::cout << "program id = " << gOption.ProgramId << " ";
+    if (gOption.enableSkybox)
+        std::cout << "skybox ";
+    if (gOption.enableShadow)
+        std::cout << "shadow ";
+    if (gOption.drawFloor)
+        std::cout << "floor ";
+    if (gOption.wireframeMode)
+        std::cout << "wireframe ";
+    if (gOption.rotateModel)
+        std::cout << "model-rotate ";
+    if (gOption.rotateEye)
+        std::cout << "eye-rotate ";
+    if (gOption.rotateLight)
+        std::cout << "light-rotate ";
+    std::cout << std::endl;
 }
 
 int main(int argc, char *argv[])
@@ -331,7 +364,7 @@ int main(int argc, char *argv[])
         trSetMat4(eyeViewMat, MAT4_VIEW);
         trSetMat4(eyeProjMat, MAT4_PROJ);
         for (auto obj : objs)
-            obj->draw(ProgramId);
+            obj->draw(gOption.ProgramId);
 
 #if DRAW_FLOOR
         if (gOption.drawFloor)
@@ -368,6 +401,7 @@ int main(int argc, char *argv[])
         if (current > 5.0f)
         {
             std::cout << "Current fps in last 5s: " << frame_fps / current << std::endl;
+            dumpInfo();
             frame_fps = 0;
             truTimerClick();
         }
