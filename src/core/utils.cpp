@@ -147,6 +147,16 @@ bool truLoadObj(
         unsigned int uvIndex        = uvIndices[i];
         unsigned int normalIndex    = normalIndices[i];
 
+        // Validate indices
+        if (vertexIndex == 0 || vertexIndex > temp_vertices.size() ||
+            uvIndex == 0 || uvIndex > temp_texcoords.size() ||
+            normalIndex == 0 || normalIndex > temp_normals.size())
+        {
+            std::cout << "Invalid vertex index in OBJ file." << std::endl;
+            in.close();
+            return false;
+        }
+
         // Get the attributes thanks to the index
         glm::vec3 vertex    = temp_vertices[vertexIndex-1];
         glm::vec2 uv        = temp_texcoords[uvIndex-1];

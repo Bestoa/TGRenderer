@@ -214,18 +214,6 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
         unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
     }
 }
-        bool enableSkybox = false;
-        bool enableShadow = false;
-        bool drawFloor = false;
-        bool wireframeMode = false;
-        bool rotateModel = false;
-        bool rotateEye = false;
-        bool rotateLight = false;
-        bool zoomIn = false;
-        bool zoomOut = false;
-        bool up = false;
-        bool down = false;
-        bool resetView = false;
 
 void dumpInfo()
 {

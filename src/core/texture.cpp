@@ -57,7 +57,7 @@ free_image:
     TRTexture::~TRTexture()
     {
         if (mData)
-            delete mData;
+            delete[] mData;
     }
 
     float* TRTexture::getColor(float u, float v)

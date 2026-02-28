@@ -67,7 +67,7 @@ namespace TGRenderer
             unsigned int mId = 0;
 #if __NEED_BUFFER_LOCK__
             // 1024 pixels share one mutex
-            constexpr static int MUTEX_PIXEL_SHIT = 10;
+            constexpr static int MUTEX_PIXEL_SHIFT = 10;
             std::mutex *mMutex = nullptr;
 #endif
     };

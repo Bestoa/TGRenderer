@@ -27,7 +27,10 @@ void textureCoordWrap(glm::vec2 &coord)
 
 float *texture2D(int type, float u, float v)
 {
-    return trGetTexture(type)->getColor(u, v);
+    TRTexture *texture = trGetTexture(type);
+    if (texture == nullptr)
+        return nullptr;
+    return texture->getColor(u, v);
 }
 
 float calcShadowFast(float depth, float x, float y)

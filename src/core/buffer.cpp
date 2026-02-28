@@ -118,7 +118,7 @@ namespace TGRenderer
 #if __NEED_BUFFER_LOCK__
     std::mutex & TRBuffer::getMutex(size_t offset)
     {
-        return mMutex[offset >> MUTEX_PIXEL_SHIT];
+        return mMutex[offset >> MUTEX_PIXEL_SHIFT];
     }
 #endif
 
@@ -142,7 +142,7 @@ namespace TGRenderer
         if (mDepth == nullptr || mStencil == nullptr)
             goto error;
 #if __NEED_BUFFER_LOCK__
-        mMutex = new std::mutex[((w * h) >> MUTEX_PIXEL_SHIT) + 1];
+        mMutex = new std::mutex[((w * h) >> MUTEX_PIXEL_SHIFT) + 1];
         if (mMutex == nullptr)
             goto error;
 #endif
@@ -158,11 +158,11 @@ namespace TGRenderer
         return;
 error:
         if (mData)
-            delete mData;
+            delete[] mData;
         if (mDepth)
-            delete mDepth;
+            delete[] mDepth;
         if (mStencil)
-            delete mStencil;
+            delete[] mStencil;
     }
 
     TRBuffer::~TRBuffer()
@@ -171,11 +171,11 @@ error:
         if (!mOK)
             return;
         if (mAlloc && mData)
-            delete mData;
+            delete[] mData;
         if (mDepth)
-            delete mDepth;
+            delete[] mDepth;
         if (mStencil)
-            delete mStencil;
+            delete[] mStencil;
 #if __NEED_BUFFER_LOCK__
         if (mMutex)
             delete [] mMutex;
