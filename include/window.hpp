@@ -5,6 +5,7 @@
 #include "trapi.hpp"
 
 typedef void (*KeyEventCb)(int scancode);
+typedef void (*MouseMotionEventCb)(int dx, int dy);
 
 class TRWindow {
     public:
@@ -17,6 +18,11 @@ class TRWindow {
         void pollEvent();
         void registerKeyEventCb(KeyEventCb func);
         void removeKeyEventCb();
+        void registerMouseMotionEventCb(MouseMotionEventCb func);
+        void removeMouseMotionEventCb();
+        bool isKeyPressed(int scancode) const;
+        void setRelativeMouseMode(bool enable);
+        bool isRelativeMouseMode() const;
         bool shouldStop() const;
         bool swapBuffer();
 
@@ -31,6 +37,7 @@ class TRWindow {
         bool mOK = false;
         bool mShown = false;
         KeyEventCb mKcb = nullptr;
+        MouseMotionEventCb mMcb = nullptr;
 };
 
 #endif

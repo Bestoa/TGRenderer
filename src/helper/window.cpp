@@ -117,6 +117,35 @@ void TRWindow::removeKeyEventCb()
    mKcb = nullptr;
 }
 
+void TRWindow::registerMouseMotionEventCb(MouseMotionEventCb func)
+{
+   mMcb = func;
+}
+
+void TRWindow::removeMouseMotionEventCb()
+{
+   mMcb = nullptr;
+}
+
+bool TRWindow::isKeyPressed(int scancode) const
+{
+    int numkeys = 0;
+    const Uint8 *state = SDL_GetKeyboardState(&numkeys);
+    if (state == nullptr || scancode < 0 || scancode >= numkeys)
+        return false;
+    return state[scancode] != 0;
+}
+
+void TRWindow::setRelativeMouseMode(bool enable)
+{
+    SDL_SetRelativeMouseMode(enable ? SDL_TRUE : SDL_FALSE);
+}
+
+bool TRWindow::isRelativeMouseMode() const
+{
+    return SDL_GetRelativeMouseMode() == SDL_TRUE;
+}
+
 void TRWindow::pollEvent()
 {
     SDL_Event event;
@@ -132,6 +161,10 @@ void TRWindow::pollEvent()
                     mShouldStop = true;
                 else if (mKcb)
                     mKcb(event.key.keysym.scancode);
+                break;
+            case SDL_MOUSEMOTION:
+                if (mMcb)
+                    mMcb(event.motion.xrel, event.motion.yrel);
                 break;
             case SDL_WINDOWEVENT:
                 if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)

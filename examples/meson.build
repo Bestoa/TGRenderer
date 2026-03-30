@@ -17,3 +17,14 @@ executable('earth',
            include_directories : include_dir,
            link_with : libtrcore,
            install : true)
+
+executable('solar_system',
+           'solar_system.cpp',
+           '../src/helper/window.cpp',
+           dependencies : [
+             dep_glm,
+             dep_sdl2,
+             ],
+           include_directories : include_dir,
+           link_with : libtrcore,
+           install : true)
