@@ -1,7 +1,9 @@
 #include <array>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include <glm/glm.hpp>
@@ -81,6 +83,24 @@ namespace
     float deg2rad(float deg)
     {
         return glm::radians(deg);
+    }
+
+    std::string buildWindowTitle()
+    {
+        std::ostringstream oss;
+        oss << std::fixed << std::setprecision(2)
+            << "TGRenderer Solar System"
+            << " | focus: " << gBodies[gFocusIndex].name
+            << " | orbit x" << gSim.speed
+            << " | spin x" << gSim.spinScale
+            << " | day " << gSim.days;
+
+        if (gLockTarget)
+            oss << " | lock";
+        if (gSim.paused)
+            oss << " | paused";
+
+        return oss.str();
     }
 
     glm::vec3 getBodyPosition(const Body &body, float simDays)
@@ -215,9 +235,11 @@ int main()
     gCamera.setMoveSpeed(10.0f);
     gCamera.setLookSensitivity(0.14f);
     gCamera.setPerspective(60.0f, (float)WIDTH / (float)HEIGHT, 0.1f, 200.0f);
+    window.setTitle(buildWindowTitle());
 
     truTimerBegin();
     double prevTime = truTimerGetSecondsFromBegin();
+    double titleTime = prevTime;
 
     trClearColor3f(0.01f, 0.01f, 0.03f);
 
@@ -283,6 +305,12 @@ int main()
         gCamera.updateFromWindow(window, dt);
         if (gLockTarget)
             gCamera.lookAt(positions[gFocusIndex]);
+
+        if (now - titleTime >= 0.2)
+        {
+            window.setTitle(buildWindowTitle());
+            titleTime = now;
+        }
 
         glm::mat4 viewMat = gCamera.getViewMatrix();
         glm::mat4 projMat = gCamera.getProjectionMatrix();

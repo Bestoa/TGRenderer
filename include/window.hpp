@@ -1,6 +1,8 @@
 #ifndef __WINDOW_TC__
 #define __WINDOW_TC__
 
+#include <string>
+
 #include <SDL.h>
 #include "trapi.hpp"
 
@@ -21,6 +23,7 @@ class TRWindow {
         void registerMouseMotionEventCb(MouseMotionEventCb func);
         void removeMouseMotionEventCb();
         bool isKeyPressed(int scancode) const;
+        void setTitle(const std::string &title);
         void setRelativeMouseMode(bool enable);
         bool isRelativeMouseMode() const;
         bool shouldStop() const;

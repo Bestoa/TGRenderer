@@ -1,6 +1,8 @@
 #include <vector>
 #include <iostream>
 #include <memory>
+#include <sstream>
+#include <string>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -72,6 +74,33 @@ View gViewDefault;
 View gView;
 
 const int endFrame = 36000;
+
+std::string buildWindowTitle(double fps = 0.0)
+{
+    std::ostringstream oss;
+    oss << "TopGun Renderer"
+        << " | program " << gOption.ProgramId
+        << " | view(" << gView.distanceInXZPlane << ", " << gView.Y << ")";
+
+    if (gOption.enableSkybox)
+        oss << " | skybox";
+    if (gOption.enableShadow)
+        oss << " | shadow";
+    if (gOption.drawFloor)
+        oss << " | floor";
+    if (gOption.wireframeMode)
+        oss << " | wireframe";
+    if (gOption.rotateModel)
+        oss << " | model-rotate";
+    if (gOption.rotateEye)
+        oss << " | eye-rotate";
+    if (gOption.rotateLight)
+        oss << " | light-rotate";
+    if (fps > 0.0)
+        oss << " | fps " << fps;
+
+    return oss.str();
+}
 
 void kcb(int key)
 {
@@ -248,6 +277,7 @@ int main(int argc, char *argv[])
         return 1;
 
     w.registerKeyEventCb(kcb);
+    w.setTitle(buildWindowTitle());
 
 #if ENABLE_SHADOW
     TRBuffer *windowBuffer = trGetRenderTarget();
@@ -312,6 +342,7 @@ int main(int argc, char *argv[])
     int frame = 0;
     int frame_fps = 0;
     truTimerBegin();
+    double titleTime = truTimerGetSecondsFromBegin();
     while (!w.shouldStop() && frame++ < endFrame)
     {
         reCalcMat(modelMat, eyeViewMat
@@ -385,13 +416,21 @@ int main(int argc, char *argv[])
         w.swapBuffer();
 
         double current = truTimerGetSecondsFromClick();
+        double now = truTimerGetSecondsFromBegin();
         frame_fps++;
+        if (now - titleTime > 0.2)
+        {
+            w.setTitle(buildWindowTitle(current > 0.0 ? frame_fps / current : 0.0));
+            titleTime = now;
+        }
         if (current > 5.0f)
         {
             std::cout << "Current fps in last 5s: " << frame_fps / current << std::endl;
             dumpInfo();
             frame_fps = 0;
             truTimerClick();
+            w.setTitle(buildWindowTitle());
+            titleTime = truTimerGetSecondsFromBegin();
         }
 
         w.pollEvent();

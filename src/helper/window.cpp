@@ -136,6 +136,12 @@ bool TRWindow::isKeyPressed(int scancode) const
     return state[scancode] != 0;
 }
 
+void TRWindow::setTitle(const std::string &title)
+{
+    if (mWindow)
+        SDL_SetWindowTitle(mWindow, title.c_str());
+}
+
 void TRWindow::setRelativeMouseMode(bool enable)
 {
     SDL_SetRelativeMouseMode(enable ? SDL_TRUE : SDL_FALSE);
