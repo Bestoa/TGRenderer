@@ -27,6 +27,10 @@ namespace
     {
         const char *name;
         float orbitRadius;
+        float orbitEccentricity;
+        float orbitInclinationDeg;
+        float orbitAscendingNodeDeg;
+        float orbitPeriapsisDeg;
         float radius;
         float orbitDays;
         float spinDays;
@@ -64,15 +68,15 @@ namespace
 
     const std::array<Body, 9> gBodies =
     {{
-        { "Sun",     0.0f,  2.30f,      1.0f,   25.0f,  7.25f,   0.0f, "res/tex/solar_system/sun.jpg",     false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Mercury", 4.0f,  0.30f,     88.0f,   58.6f,  0.03f,  10.0f, "res/tex/solar_system/mercury.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Venus",   5.8f,  0.48f,    225.0f, -243.0f, 177.0f,  75.0f, "res/tex/solar_system/venus.jpg",   false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Earth",   8.0f,  0.52f,    365.0f,    1.0f, 23.50f, 135.0f, "res/tex/solar_system/earth.jpg",   false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Mars",   10.5f,  0.40f,    687.0f,    1.03f, 25.0f, 195.0f, "res/tex/solar_system/mars.jpg",    false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Jupiter",14.5f,  1.15f,   4333.0f,    0.41f,  3.1f, 250.0f, "res/tex/solar_system/jupiter.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Saturn", 19.0f,  0.98f,  10759.0f,    0.45f, 26.7f, 305.0f, "res/tex/solar_system/saturn.jpg",   true, 1.45f, 2.20f, glm::vec3(0.85f, 0.80f, 0.62f) },
-        { "Uranus", 23.0f,  0.72f,  30687.0f,   -0.72f, 97.8f,  15.0f, "res/tex/solar_system/uranus.jpg",  false, 0.0f, 0.0f, glm::vec3(0.0f) },
-        { "Neptune",27.5f,  0.70f,  60190.0f,    0.67f, 28.3f, 100.0f, "res/tex/solar_system/neptune.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Sun",     0.0f,  0.0f,   0.00f,   0.00f,   0.00f,  2.30f,      1.0f,   25.0f,  7.25f,   0.0f, "res/tex/solar_system/sun.jpg",     false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Mercury", 4.0f,  0.2056f, 7.00f,  48.33f,  29.12f,  0.30f,     88.0f,   58.6f,  0.03f,  10.0f, "res/tex/solar_system/mercury.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Venus",   5.8f,  0.0068f, 3.39f,  76.68f,  54.88f,  0.48f,    225.0f, -243.0f, 177.0f,  75.0f, "res/tex/solar_system/venus.jpg",   false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Earth",   8.0f,  0.0167f, 0.00f, -11.26f, 114.21f,  0.52f,    365.0f,    1.0f, 23.50f, 135.0f, "res/tex/solar_system/earth.jpg",   false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Mars",   10.5f,  0.0934f, 1.85f,  49.58f, 286.50f,  0.40f,    687.0f,    1.03f, 25.0f, 195.0f, "res/tex/solar_system/mars.jpg",    false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Jupiter",14.5f,  0.0489f, 1.30f, 100.46f, 273.87f,  1.15f,   4333.0f,    0.41f,  3.1f, 250.0f, "res/tex/solar_system/jupiter.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Saturn", 19.0f,  0.0565f, 2.49f, 113.67f, 339.39f,  0.98f,  10759.0f,    0.45f, 26.7f, 305.0f, "res/tex/solar_system/saturn.jpg",   true, 1.45f, 2.20f, glm::vec3(0.85f, 0.80f, 0.62f) },
+        { "Uranus", 23.0f,  0.0472f, 0.77f,  74.01f,  96.73f,  0.72f,  30687.0f,   -0.72f, 97.8f,  15.0f, "res/tex/solar_system/uranus.jpg",  false, 0.0f, 0.0f, glm::vec3(0.0f) },
+        { "Neptune",27.5f,  0.0086f, 1.77f, 131.78f, 273.19f,  0.70f,  60190.0f,    0.67f, 28.3f, 100.0f, "res/tex/solar_system/neptune.jpg", false, 0.0f, 0.0f, glm::vec3(0.0f) },
     }};
 
     TRCamera gCamera;
@@ -83,6 +87,40 @@ namespace
     float deg2rad(float deg)
     {
         return glm::radians(deg);
+    }
+
+    // Solve Kepler's equation M = E - e sin(E) with a few Newton iterations.
+    float solveEccentricAnomaly(float meanAnomaly, float eccentricity)
+    {
+        float eccentricAnomaly = eccentricity < 0.8f ? meanAnomaly : PI;
+        for (int i = 0; i < 6; i++)
+        {
+            float sinE = std::sin(eccentricAnomaly);
+            float cosE = std::cos(eccentricAnomaly);
+            float f = eccentricAnomaly - eccentricity * sinE - meanAnomaly;
+            float fp = 1.0f - eccentricity * cosE;
+            eccentricAnomaly -= f / glm::max(fp, 1e-4f);
+        }
+        return eccentricAnomaly;
+    }
+
+    // Rotate a point from the orbital plane into world space using standard orbital elements.
+    glm::vec3 orbitToWorld(const Body &body, float radius, float trueAnomaly)
+    {
+        float u = deg2rad(body.orbitPeriapsisDeg) + trueAnomaly;
+        float node = deg2rad(body.orbitAscendingNodeDeg);
+        float inclination = deg2rad(body.orbitInclinationDeg);
+
+        float cosU = std::cos(u);
+        float sinU = std::sin(u);
+        float cosNode = std::cos(node);
+        float sinNode = std::sin(node);
+        float cosI = std::cos(inclination);
+        float sinI = std::sin(inclination);
+
+        return glm::vec3(radius * (cosNode * cosU - sinNode * sinU * cosI),
+                         radius * (sinU * sinI),
+                         radius * (sinNode * cosU + cosNode * sinU * cosI));
     }
 
     std::string buildWindowTitle()
@@ -103,13 +141,20 @@ namespace
         return oss.str();
     }
 
+    // Advance the body along its ellipse and return the current world-space position.
     glm::vec3 getBodyPosition(const Body &body, float simDays)
     {
         if (body.orbitRadius <= 0.0f)
             return glm::vec3(0.0f);
 
-        float angle = deg2rad(body.phaseDeg + simDays / body.orbitDays * 360.0f);
-        return glm::vec3(std::cos(angle) * body.orbitRadius, 0.0f, std::sin(angle) * body.orbitRadius);
+        float meanAnomaly = deg2rad(body.phaseDeg + simDays / body.orbitDays * 360.0f);
+        float eccentricAnomaly = solveEccentricAnomaly(meanAnomaly, body.orbitEccentricity);
+        float cosE = std::cos(eccentricAnomaly);
+        float sinE = std::sin(eccentricAnomaly);
+        float radius = body.orbitRadius * (1.0f - body.orbitEccentricity * cosE);
+        float trueAnomaly = std::atan2(std::sqrt(1.0f - body.orbitEccentricity * body.orbitEccentricity) * sinE,
+                                       cosE - body.orbitEccentricity);
+        return orbitToWorld(body, radius, trueAnomaly);
     }
 
     glm::mat4 getBodyModel(const Body &body, const glm::vec3 &position, float simDays, float spinScale)
@@ -126,14 +171,24 @@ namespace
         return model;
     }
 
-    void appendOrbitMesh(TRMeshData &mesh, float radius, const glm::vec3 &color, int segments = 160)
+    // Build a polyline approximation of the same ellipse used by getBodyPosition().
+    void appendOrbitMesh(TRMeshData &mesh, const Body &body, const glm::vec3 &color, int segments = 320)
     {
+        if (body.orbitRadius <= 0.0f)
+            return;
+
         for (int i = 0; i < segments; i++)
         {
             float a0 = (float)i / (float)segments * 2.0f * PI;
             float a1 = (float)(i + 1) / (float)segments * 2.0f * PI;
-            mesh.vertices.push_back(glm::vec3(std::cos(a0) * radius, 0.0f, std::sin(a0) * radius));
-            mesh.vertices.push_back(glm::vec3(std::cos(a1) * radius, 0.0f, std::sin(a1) * radius));
+
+            float r0 = body.orbitRadius * (1.0f - body.orbitEccentricity * body.orbitEccentricity) /
+                       (1.0f + body.orbitEccentricity * std::cos(a0));
+            float r1 = body.orbitRadius * (1.0f - body.orbitEccentricity * body.orbitEccentricity) /
+                       (1.0f + body.orbitEccentricity * std::cos(a1));
+
+            mesh.vertices.push_back(orbitToWorld(body, r0, a0));
+            mesh.vertices.push_back(orbitToWorld(body, r1, a1));
             mesh.colors.push_back(color);
             mesh.colors.push_back(color);
         }
@@ -254,7 +309,7 @@ int main()
 
     TRMeshData orbitMesh;
     for (size_t i = 1; i < gBodies.size(); i++)
-        appendOrbitMesh(orbitMesh, gBodies[i].orbitRadius, glm::vec3(0.25f, 0.35f, 0.55f));
+        appendOrbitMesh(orbitMesh, gBodies[i], glm::vec3(0.25f, 0.35f, 0.55f));
 
     TRMeshData saturnRingMesh;
     createRingMesh(saturnRingMesh,
