@@ -11,6 +11,26 @@
 class TRCamera
 {
     public:
+        struct MoveKeyBinding
+        {
+            MoveKeyBinding()
+            {
+            }
+
+            MoveKeyBinding(int forward, int backward, int left, int right)
+            : mForward(forward),
+              mBackward(backward),
+              mLeft(left),
+              mRight(right)
+            {
+            }
+
+            int mForward = SDL_SCANCODE_UP;
+            int mBackward = SDL_SCANCODE_DOWN;
+            int mLeft = SDL_SCANCODE_LEFT;
+            int mRight = SDL_SCANCODE_RIGHT;
+        };
+
         TRCamera()
         {
             updateVectors();
@@ -56,6 +76,16 @@ class TRCamera
         void setLookSensitivity(float sensitivity)
         {
             mLookSensitivity = sensitivity;
+        }
+
+        void setMoveKeyBinding(const MoveKeyBinding &binding)
+        {
+            mMoveKeyBinding = binding;
+        }
+
+        const MoveKeyBinding &getMoveKeyBinding() const
+        {
+            return mMoveKeyBinding;
         }
 
         const glm::vec3 &getPosition() const
@@ -121,13 +151,13 @@ class TRCamera
             float forward = 0.0f;
             float right = 0.0f;
 
-            if (window.isKeyPressed(SDL_SCANCODE_UP))
+            if (window.isKeyPressed(mMoveKeyBinding.mForward))
                 forward += 1.0f;
-            if (window.isKeyPressed(SDL_SCANCODE_DOWN))
+            if (window.isKeyPressed(mMoveKeyBinding.mBackward))
                 forward -= 1.0f;
-            if (window.isKeyPressed(SDL_SCANCODE_RIGHT))
+            if (window.isKeyPressed(mMoveKeyBinding.mRight))
                 right += 1.0f;
-            if (window.isKeyPressed(SDL_SCANCODE_LEFT))
+            if (window.isKeyPressed(mMoveKeyBinding.mLeft))
                 right -= 1.0f;
 
             moveLocal(forward, right, 0.0f, dt);
@@ -190,6 +220,7 @@ class TRCamera
         float mAspect = 16.0f / 9.0f;
         float mNearPlane = 0.1f;
         float mFarPlane = 100.0f;
+        MoveKeyBinding mMoveKeyBinding;
 
         static float clampPitch(float pitchDeg)
         {

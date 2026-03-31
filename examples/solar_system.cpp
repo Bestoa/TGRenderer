@@ -213,7 +213,7 @@ namespace
     {
         std::cout << "Controls:\n"
                   << "  Move mouse/trackpad to look around\n"
-                  << "  Arrow keys move\n"
+                  << "  WASD move\n"
                   << "  L toggle target lock, 0-8 focus Sun/planets\n"
                   << "  +/- change orbit speed, [/] change spin speed, Space pause, Esc quit\n";
     }
@@ -230,6 +230,12 @@ int main()
     window.registerMouseMotionEventCb(onMouseMove);
     window.setRelativeMouseMode(true);
 
+    gCamera.setMoveKeyBinding({
+        SDL_SCANCODE_W,
+        SDL_SCANCODE_S,
+        SDL_SCANCODE_A,
+        SDL_SCANCODE_D
+    });
     gCamera.setPosition(glm::vec3(0.0f, 8.0f, 38.0f));
     gCamera.setYawPitch(-90.0f, -10.0f);
     gCamera.setMoveSpeed(10.0f);
