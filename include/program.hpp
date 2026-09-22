@@ -65,6 +65,26 @@ class PhongUniformData
         // Attenuate the reflection by the shadow factor, so faces the light
         // can not reach do not show a strong mirror image.
         bool mReflectShadowMod = false;
+        // Fragment opacity for blending, only meaningful with trEnableBlend()
+        float mOpacity = 1.0f;
+        // Index of refraction. > 1.0 turns the fragment into glass shading:
+        // fresnel weighted reflection + double refraction through
+        // mRefractionSphere replaces the regular Phong body.
+        float mIOR = 1.0f;
+        // World space sphere (center.xyz, radius.w) for the analytic double
+        // refraction: enter at the fragment, exit where the inner ray hits
+        // the sphere again. w <= 0 disables the analytic path.
+        glm::vec4 mRefractionSphere = glm::vec4(0.0f, 0.0f, 0.0f, 0.0f);
+        // Analytic refraction scene: the exit ray hits this floor plane
+        // (world Y) when pointing down and samples TEXTURE_REFRACTION at the
+        // exact hit point, otherwise it samples the skybox cube. Exact for
+        // the floor (no probe parallax), exact for the sky (at infinity).
+        float mRefractionFloorY = 0.0f;
+        // Floor texture world size for the refraction lookup
+        float mRefractionFloorSize = 20.0f;
+        // Half extent of the floor in world units, rays hitting beyond it
+        // see the far field (skybox horizon) instead
+        float mRefractionFloorExtent = 20.0f;
 };
 
 class ColorShader : public TGRenderer::Shader
@@ -105,5 +125,23 @@ class ShadowMapShader : public TGRenderer::Shader
     public:
         constexpr static float BIAS = 0.001f;
         constexpr static float FACTOR = 0.2f;
+};
+
+// Back face render for the mesh refraction (glmark2 style): outputs the
+// view space normal, meant to be rendered with front faces culled.
+class BackNormalShader : public TGRenderer::Shader
+{
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
+    bool fragment(TGRenderer::FSInData *, float color[]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
+};
+
+// Back face render companion: outputs the view space depth (distance
+// along the view axis) in the red channel.
+class BackDepthShader : public TGRenderer::Shader
+{
+    void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
+    bool fragment(TGRenderer::FSInData *, float color[]);
+    void getVaryingNum(size_t &, size_t &, size_t &);
 };
 #endif

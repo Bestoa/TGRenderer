@@ -11,6 +11,15 @@
 namespace TGRenderer
 {
     constexpr int BUFFER_CHANNEL = 4;
+
+    enum TRBlendFactor
+    {
+        TR_ZERO,
+        TR_ONE,
+        TR_SRC_ALPHA,
+        TR_ONE_MINUS_SRC_ALPHA,
+    };
+
     class TRBuffer
     {
         public:
@@ -29,6 +38,8 @@ namespace TGRenderer
             size_t getOffset(int x, int y) const;
             virtual size_t getStride() const;
             virtual void drawPixel(int x, int y, float color[]);
+            // src * srcFactor + dst * dstFactor, read back the destination
+            virtual void blendPixel(int x, int y, float srcColor[4], TRBlendFactor srcFactor, TRBlendFactor dstFactor);
             float getDepth(size_t offset) const;
             void updateDepth(size_t offset, float depth);
             uint8_t getStencil(size_t offset) const;

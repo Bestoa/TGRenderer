@@ -164,3 +164,14 @@ bool TRObj::drawShadowMap()
     trCullFaceMode(oldCullFaceMode);
     return true;
 }
+
+bool TRObj::drawRaw(TGRenderer::Shader *shader)
+{
+    if (OK() == false || shader == nullptr)
+        return false;
+    TRCullFaceMode oldCullFaceMode = trGetCullFaceMode();
+    trDrawArrays(TR_TRIANGLES, mMeshData, shader);
+    trCullFaceMode(oldCullFaceMode);
+    return true;
+}
+

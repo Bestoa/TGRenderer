@@ -60,6 +60,7 @@ class Option
         bool enableShadow = false;
         bool drawFloor = true;
         bool wireframeMode = false;
+        bool glassMode = false;
         bool rotateModel = false;
         bool rotateEye = false;
         bool rotateLight = false;
@@ -71,6 +72,9 @@ class Option
 };
 
 Option gOption;
+
+// Glass ball index of refraction, adjustable at runtime with [ and ]
+float gGlassIOR = 1.5f;
 
 class View
 {
@@ -101,6 +105,8 @@ std::string buildWindowTitle(double fps = 0.0)
         oss << " | floor";
     if (gOption.wireframeMode)
         oss << " | wireframe";
+    if (gOption.glassMode)
+        oss << " | glass";
     if (gOption.rotateModel)
         oss << " | model-rotate";
     if (gOption.rotateEye)
@@ -120,8 +126,26 @@ void kcb(int key)
         case SDL_SCANCODE_B:
             gOption.enableSkybox = !gOption.enableSkybox;
             break;
+        case SDL_SCANCODE_T:
+            gOption.glassMode = !gOption.glassMode;
+            // exclusive with reflection: blending + probe reflection combos
+            // produce hard-to-explain renders in this demo
+            if (gOption.glassMode)
+                gOption.enableReflection = false;
+            break;
+        case SDL_SCANCODE_LEFTBRACKET:
+            // glass IOR dial, watch the image flip as it passes ~1.25
+            gGlassIOR = glm::max(1.05f, gGlassIOR - 0.05f);
+            std::cout << "IOR = " << gGlassIOR << std::endl;
+            break;
+        case SDL_SCANCODE_RIGHTBRACKET:
+            gGlassIOR = glm::min(2.5f, gGlassIOR + 0.05f);
+            std::cout << "IOR = " << gGlassIOR << std::endl;
+            break;
         case SDL_SCANCODE_N:
             gOption.enableReflection = !gOption.enableReflection;
+            if (gOption.enableReflection)
+                gOption.glassMode = false;
             break;
         case SDL_SCANCODE_S:
             gOption.enableShadow = !gOption.enableShadow;
@@ -276,6 +300,8 @@ void dumpInfo()
         std::cout << "floor ";
     if (gOption.wireframeMode)
         std::cout << "wireframe ";
+    if (gOption.glassMode)
+        std::cout << "glass ";
     if (gOption.rotateModel)
         std::cout << "model-rotate ";
     if (gOption.rotateEye)
@@ -353,9 +379,10 @@ int main(int argc, char *argv[])
         if (currentFloorHeight < floorHeight)
             floorHeight = currentFloorHeight;
     }
-    // Wide floor so the reflections near the horizon stay on the floor
-    // instead of the dark skybox below-horizon region outside the floor edge
-    truCreateFloorPlane(floorMesh, floorHeight, 20.0f);
+    // Table-sized floor (not an infinite world plane): through the glass
+    // ball the far field beyond the table edge shows the skybox horizon,
+    // which matches the real-life look of a ball on a table
+    truCreateFloorPlane(floorMesh, floorHeight, 3.0f);
     TRTexture floorTex("res/tex/floor_diffuse.tga");
     if (!floorTex.OK())
         abort();
@@ -418,7 +445,9 @@ int main(int argc, char *argv[])
 #if ENABLE_PROBE
         // Reflection probe: render the scene (floor + skybox, the reflective
         // objects themselves are skipped) into 6 cube faces from the model
-        // center, so the reflection picks up scene geometry too.
+        // center, so the reflection picks up scene geometry too. The glass
+        // ball does not use the probe: its far field is the static skybox
+        // and its floor is the analytic plane, so no probe work for T mode.
         if (gOption.enableReflection && gNeedRedrawProbe
                 && !objs.empty() && objs.front()->OK()
 #if ENABLE_SKYBOX
@@ -485,25 +514,69 @@ int main(int argc, char *argv[])
 #if ENABLE_SKYBOX
         // Reflection needs the skybox cube textures even when the skybox
         // itself is not drawn.
-        if (!pSkybox && (gOption.enableSkybox || gOption.enableReflection))
+        if (!pSkybox && (gOption.enableSkybox || gOption.enableReflection || gOption.glassMode))
             pSkybox = new TRSkyBox(gCubeTextureNames);
 #endif
+
+        if (gOption.glassMode && gGlassIOR > 1.0f && !objs.empty())
+        {
+            // Back face maps for the mesh refraction (glmark2 style):
+            // render the objects with front faces culled from the CURRENT
+            // view into a normal map and a view-axis depth map. The glass
+            // shader then looks these up per fragment.
+            static BackNormalShader backNormalShader;
+            static BackDepthShader backDepthShader;
+            static TRTextureBuffer *backNormalTarget = nullptr;
+            static TRTextureBuffer *backDepthTarget = nullptr;
+            static int backMapW = 0, backMapH = 0;
+            int bw = WIDTH / 2, bh = HEIGHT / 2;
+            if (backMapW != bw || backMapH != bh)
+            {
+                if (backNormalTarget) delete backNormalTarget;
+                if (backDepthTarget) delete backDepthTarget;
+                backNormalTarget = new TRTextureBuffer(bw, bh);
+                backDepthTarget = new TRTextureBuffer(bw, bh);
+                backMapW = bw;
+                backMapH = bh;
+            }
+            TRBuffer *current = trGetRenderTarget();
+            for (int pass = 0; pass < 2; pass++)
+            {
+                trSetRenderTarget(pass == 0 ? backNormalTarget : backDepthTarget);
+                trClearColor3f(0.0f, 0.0f, 0.0f);
+                trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
+                trCullFaceMode(TR_CW);   // cull front faces, keep back faces
+                for (auto obj : objs)
+                    obj->drawRaw(pass == 0
+                            ? static_cast<TGRenderer::Shader *>(&backNormalShader)
+                            : static_cast<TGRenderer::Shader *>(&backDepthShader));
+                trCullFaceMode(TR_NONE);
+            }
+            trSetRenderTarget(current);
+            trBindTexture(backNormalTarget->getTexture(), TEXTURE_BACK_NORMAL);
+            trBindTexture(backDepthTarget->getTexture(), TEXTURE_BACK_DEPTH);
+        }
+
 #if ENABLE_PROBE
-        if (gOption.enableReflection && pProbe && pProbe->OK())
+        if ((gOption.enableReflection || gOption.glassMode) && pProbe && pProbe->OK())
             // dynamic environment: floor + skybox
             trBindCubeTexture(pProbe->getCubeTexture());
         else
 #endif
 #if ENABLE_SKYBOX
-        if (gOption.enableReflection && pSkybox && pSkybox->OK())
+        if ((gOption.enableReflection || gOption.glassMode) && pSkybox && pSkybox->OK())
             // fallback: static skybox only
             trBindCubeTexture(pSkybox->getCubeTexture());
         else
             trBindCubeTexture(nullptr);
 #endif
-        for (auto obj : objs)
-            obj->draw(gOption.ProgramId);
-
+#if ENABLE_SKYBOX
+        // Draw the skybox first as the background: transparent geometry does
+        // not write depth, so anything drawn after it would show through the
+        // glass ball only if the skybox is already there to be blended with.
+        if (gOption.enableSkybox && pSkybox && pSkybox->OK())
+            pSkybox->draw();
+#endif
 #if DRAW_FLOOR
         if (gOption.drawFloor)
         {
@@ -525,9 +598,51 @@ int main(int argc, char *argv[])
             trBindTexture(nullptr, TEXTURE_SHADOWMAP);
 #endif
 #if ENABLE_SKYBOX
-        if (gOption.enableSkybox && pSkybox && pSkybox->OK())
-            pSkybox->draw();
+        // trUnbindTextureAll() above cleared the cube binding too, but the
+        // sphere is drawn after the floor now: rebind or the reflection /
+        // refraction would silently disappear.
+        if ((gOption.enableReflection || gOption.glassMode) && pProbe && pProbe->OK())
+            trBindCubeTexture(pProbe->getCubeTexture());
+        else if ((gOption.enableReflection || gOption.glassMode) && pSkybox && pSkybox->OK())
+            trBindCubeTexture(pSkybox->getCubeTexture());
 #endif
+        if (gOption.glassMode && gGlassIOR > 1.0f)
+        {
+            // Refraction glass ball, drawn last, after all opaque geometry.
+            // The doubly refracted environment replaces the Phong body (see
+            // TextureMapPhongShader), so no alpha blending is involved: the
+            // "transparency" comes from sampling the environment along the
+            // refracted exit ray. Single pass, no culling.
+            float dialBackup = unidata.mReflectivity;
+            float f0Backup = unidata.mFresnelFactor;
+            unidata.mReflectivity = 0.9f;
+            unidata.mFresnelFactor = 0.08f;
+            unidata.mIOR = gGlassIOR;
+            // analytic refraction scene: follow the floor visibility toggle
+            // (F), no invisible floor in the transmitted image
+            if (gOption.drawFloor)
+            {
+                unidata.mRefractionFloorY = floorHeight;
+                trBindTexture(&floorTex, TEXTURE_REFRACTION);
+            }
+            else
+            {
+                unidata.mRefractionFloorY = 0.0f;
+                trBindTexture(nullptr, TEXTURE_REFRACTION);
+            }
+            unidata.mRefractionFloorSize = 2.0f;
+            unidata.mRefractionFloorExtent = 3.0f;   // matches the table floor mesh (width 3)
+            for (auto obj : objs)
+                obj->draw(gOption.ProgramId);
+            unidata.mIOR = 1.0f;
+            unidata.mRefractionFloorY = 0.0f;
+            trBindTexture(nullptr, TEXTURE_REFRACTION);
+            unidata.mReflectivity = dialBackup;
+            unidata.mFresnelFactor = f0Backup;
+        } else {
+            for (auto obj : objs)
+                obj->draw(gOption.ProgramId);
+        }
         w.swapBuffer();
 
         double current = truTimerGetSecondsFromClick();

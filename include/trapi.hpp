@@ -141,6 +141,11 @@ namespace TGRenderer
     void trPolygonMode(TRPolygonMode mode);
     void trCullFaceMode(TRCullFaceMode mode);
     TRCullFaceMode trGetCullFaceMode();
+    // Blend related API. The blend happens after the fragment shader and the
+    // depth test, before the color write. Blended fragments do not update
+    // the depth buffer (GL convention for transparent geometry).
+    void trEnableBlend(bool enable);
+    void trBlendFunc(TRBlendFactor srcFactor, TRBlendFactor dstFactor);
     // Buffer related API
     TRBuffer *trCreateRenderTarget(int w, int h);
     void trSetRenderTarget(TRBuffer *traget);

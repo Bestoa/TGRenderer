@@ -11,6 +11,9 @@ namespace TGRenderer
     TRBuffer *gRenderTarget = nullptr;
     TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
     TRCubeTexture *gCubeTexture = nullptr;
+    bool gEnableBlend = false;
+    TRBlendFactor gBlendSrc = TR_ONE;
+    TRBlendFactor gBlendDst = TR_ZERO;
     void *gUniform = nullptr;
 
     glm::mat4 gDefaultMat4[MAT_INDEX_MAX] =
@@ -362,12 +365,19 @@ namespace TGRenderer
         if (gEnableDepthTest && mBuffer->getDepth(offset) < depth)
             return;
 
-        mBuffer->updateDepth(offset, depth);
-        /* Write stencil buffer need to pass depth test */
-        if (gEnableStencilWrite)
-            mBuffer->updateStencil(offset, 1);
-
-        mBuffer->drawPixel(x, y, color);
+        if (gEnableBlend)
+        {
+            /* Transparent fragments keep the depth of what is behind them:
+             * writing the depth here would let translucent geometry occlude
+             * the background drawn later. */
+            mBuffer->blendPixel(x, y, color, gBlendSrc, gBlendDst);
+        } else {
+            mBuffer->updateDepth(offset, depth);
+            /* Write stencil buffer need to pass depth test */
+            if (gEnableStencilWrite)
+                mBuffer->updateStencil(offset, 1);
+            mBuffer->drawPixel(x, y, color);
+        }
 #if __DEBUG_FINISH_CB__
         mDrawSth = true;
 #endif
@@ -678,6 +688,18 @@ namespace TGRenderer
     TRCullFaceMode trGetCullFaceMode()
     {
         return gCullFace;
+    }
+
+    // Blend related API
+    void trEnableBlend(bool enable)
+    {
+        gEnableBlend = enable;
+    }
+
+    void trBlendFunc(TRBlendFactor srcFactor, TRBlendFactor dstFactor)
+    {
+        gBlendSrc = srcFactor;
+        gBlendDst = dstFactor;
     }
 
     // Buffer related API

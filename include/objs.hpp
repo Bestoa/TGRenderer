@@ -12,6 +12,7 @@ class TRObj
 
         bool OK() const;
         bool draw(int id = 3);
+        bool drawRaw(TGRenderer::Shader *shader);
         bool drawShadowMap();
         float getFloorYAxis() const;
 

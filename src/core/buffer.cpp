@@ -95,6 +95,32 @@ namespace TGRenderer
             base[i] = uint8_t(color[i] * 255 + 0.5);
     }
 
+    static float blendFactorValue(TRBlendFactor factor, float srcAlpha)
+    {
+        switch (factor)
+        {
+            case TR_ZERO: return 0.0f;
+            case TR_ONE: return 1.0f;
+            case TR_SRC_ALPHA: return srcAlpha;
+            case TR_ONE_MINUS_SRC_ALPHA: return 1.0f - srcAlpha;
+        }
+        return 1.0f;
+    }
+
+    void TRBuffer::blendPixel(int x, int y, float srcColor[4], TRBlendFactor srcFactor, TRBlendFactor dstFactor)
+    {
+        // flip Y here, same as drawPixel
+        uint8_t *base = mData + ((mH - 1 - y) * mW + x) * BUFFER_CHANNEL;
+        float sf = blendFactorValue(srcFactor, srcColor[3]);
+        float df = blendFactorValue(dstFactor, srcColor[3]);
+        for (size_t i = 0; i < BUFFER_CHANNEL; i++)
+        {
+            float dst = base[i] / 255.0f;
+            float out = glm::clamp(srcColor[i] * sf + dst * df, 0.0f, 1.0f);
+            base[i] = uint8_t(out * 255 + 0.5);
+        }
+    }
+
     float TRBuffer::getDepth(size_t offset) const
     {
         return mDepth[offset];
@@ -215,6 +241,15 @@ error:
         float *base = mTexture->getBuffer() + (y * mW + x) * TEXTURE_CHANNEL;
         for (size_t i = 0; i < TEXTURE_CHANNEL; i++)
             base[i] = color[i];
+    }
+
+    void TRTextureBuffer::blendPixel(int x, int y, float srcColor[4], TRBlendFactor srcFactor, TRBlendFactor dstFactor)
+    {
+        float *base = mTexture->getBuffer() + (y * mW + x) * TEXTURE_CHANNEL;
+        float sf = blendFactorValue(srcFactor, srcColor[3]);
+        float df = blendFactorValue(dstFactor, srcColor[3]);
+        for (size_t i = 0; i < TEXTURE_CHANNEL; i++)
+            base[i] = glm::clamp(srcColor[i] * sf + base[i] * df, 0.0f, 1.0f);
     }
 
     TRTexture* TRTextureBuffer::getTexture()

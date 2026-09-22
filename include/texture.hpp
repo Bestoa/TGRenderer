@@ -59,6 +59,9 @@ namespace TGRenderer
 
             void clearColor();
             void drawPixel(int x, int y, float color[]);
+            // blend into the texture memory (no y flip, float storage),
+            // consistent with drawPixel above
+            void blendPixel(int x, int y, float srcColor[4], TRBlendFactor srcFactor, TRBlendFactor dstFactor) override;
             TRTexture *getTexture();
 
         private:
@@ -72,6 +75,10 @@ namespace TGRenderer
         TEXTURE_GLOW,
         TEXTURE_NORMAL,
         TEXTURE_SHADOWMAP,
+        TEXTURE_REFRACTION,
+        // glmark2-style back face maps for the mesh refraction
+        TEXTURE_BACK_NORMAL,
+        TEXTURE_BACK_DEPTH,
         TEXTURE_TYPE_MAX,
     };
 
