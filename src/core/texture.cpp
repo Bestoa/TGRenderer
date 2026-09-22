@@ -60,6 +60,97 @@ free_image:
             delete[] mData;
     }
 
+    TRCubeTexture::TRCubeTexture(TRTexture *faces[6])
+    {
+        for (int i = 0; i < 6; i++)
+            mFaces[i] = faces[i];
+    }
+
+    /* Face selection and UV projection are derived from the skybox cube vertex
+     * table (src/core/skybox.cpp), so sampling a direction always returns the
+     * same texel that is drawn on screen when looking along that direction.
+     *
+     * face    condition            u         v
+     * bottom  y < 0, |y| dominant  (x+1)/2   (1-z)/2
+     * top     y > 0, |y| dominant  (x+1)/2   (z+1)/2
+     * front   z < 0, |z| dominant  (x+1)/2   (y+1)/2
+     * back    z > 0, |z| dominant  (1-x)/2   (y+1)/2
+     * left    x < 0, |x| dominant  (1-z)/2   (y+1)/2
+     * right   x > 0, |x| dominant  (z+1)/2   (y+1)/2
+     *
+     * (x, y, z) here are the direction components projected onto the face
+     * plane, i.e. dir divided by its dominant absolute component, so each
+     * one is in [-1, 1].
+     */
+    float *TRCubeTexture::sample(const glm::vec3 &dir)
+    {
+        float ax = glm::abs(dir.x);
+        float ay = glm::abs(dir.y);
+        float az = glm::abs(dir.z);
+
+        if (!(ax > 0.f || ay > 0.f || az > 0.f))
+            return nullptr;
+
+        TRTexture *face = nullptr;
+        float u = 0.f;
+        float v = 0.f;
+
+        if (ay >= ax && ay >= az)
+        {
+            float s = 1.0f / ay;
+            float x = dir.x * s;
+            float z = dir.z * s;
+            if (dir.y > 0.f)
+            {
+                // top
+                face = mFaces[1];
+                u = (x + 1.0f) * 0.5f;
+                v = (z + 1.0f) * 0.5f;
+            } else {
+                // bottom
+                face = mFaces[0];
+                u = (x + 1.0f) * 0.5f;
+                v = (1.0f - z) * 0.5f;
+            }
+        } else if (ax >= az) {
+            float s = 1.0f / ax;
+            float y = dir.y * s;
+            float z = dir.z * s;
+            if (dir.x < 0.f)
+            {
+                // left
+                face = mFaces[4];
+                u = (1.0f - z) * 0.5f;
+                v = (y + 1.0f) * 0.5f;
+            } else {
+                // right
+                face = mFaces[5];
+                u = (z + 1.0f) * 0.5f;
+                v = (y + 1.0f) * 0.5f;
+            }
+        } else {
+            float s = 1.0f / az;
+            float x = dir.x * s;
+            float y = dir.y * s;
+            if (dir.z < 0.f)
+            {
+                // front
+                face = mFaces[2];
+                u = (x + 1.0f) * 0.5f;
+                v = (y + 1.0f) * 0.5f;
+            } else {
+                // back
+                face = mFaces[3];
+                u = (1.0f - x) * 0.5f;
+                v = (y + 1.0f) * 0.5f;
+            }
+        }
+
+        if (face == nullptr || !face->OK())
+            return nullptr;
+        return face->getColor(u, v);
+    }
+
     float* TRTexture::getColor(float u, float v)
     {
         int x = int(u * (mW - 1) + 0.5);

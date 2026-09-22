@@ -12,6 +12,7 @@
 #include "utils.hpp"
 #include "program.hpp"
 #include "skybox.hpp"
+#include "probe.hpp"
 
 #define WIDTH (1280)
 #define HEIGHT (720)
@@ -23,9 +24,16 @@
 #define DRAW_FLOOR 1
 #define ENABLE_SKYBOX 1
 
+#define ENABLE_PROBE 1
+#define PROBE_FACE_SIZE (256)
+
 #if ENABLE_SHADOW
 bool gNeedRedrawShadowMap = true;
 #endif
+
+// The probe content changes only when the scene (floor/light/model) changes,
+// never when the eye moves.
+bool gNeedRedrawProbe = true;
 
 #if ENABLE_SKYBOX
 std::string gCubeTextureNames[] =
@@ -48,8 +56,9 @@ class Option
     public:
         int ProgramId = 3;
         bool enableSkybox = false;
+        bool enableReflection = false;
         bool enableShadow = false;
-        bool drawFloor = false;
+        bool drawFloor = true;
         bool wireframeMode = false;
         bool rotateModel = false;
         bool rotateEye = false;
@@ -66,7 +75,7 @@ Option gOption;
 class View
 {
     public:
-        float distanceInXZPlane = 1.5f;
+        float distanceInXZPlane = 2.5f;
         float Y = 0.75f;
 };
 
@@ -84,6 +93,8 @@ std::string buildWindowTitle(double fps = 0.0)
 
     if (gOption.enableSkybox)
         oss << " | skybox";
+    if (gOption.enableReflection)
+        oss << " | reflection";
     if (gOption.enableShadow)
         oss << " | shadow";
     if (gOption.drawFloor)
@@ -109,11 +120,15 @@ void kcb(int key)
         case SDL_SCANCODE_B:
             gOption.enableSkybox = !gOption.enableSkybox;
             break;
+        case SDL_SCANCODE_N:
+            gOption.enableReflection = !gOption.enableReflection;
+            break;
         case SDL_SCANCODE_S:
             gOption.enableShadow = !gOption.enableShadow;
             break;
         case SDL_SCANCODE_F:
             gOption.drawFloor = !gOption.drawFloor;
+            gNeedRedrawProbe = true;
             break;
         case SDL_SCANCODE_W:
             gOption.wireframeMode = !gOption.wireframeMode;
@@ -177,6 +192,7 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
 #if ENABLE_SHADOW
         gNeedRedrawShadowMap = true;
 #endif
+        gNeedRedrawProbe = true;
     }
 
     if (gOption.rotateEye)
@@ -241,6 +257,8 @@ void reCalcMat(glm::mat4 &modelMat, glm::mat4 &eyeViewMat
         gNeedRedrawShadowMap = true;
 #endif
         unidata.mLightPosition = glm::vec3(glm::sin(degree), 1.0f, glm::cos(degree));
+        // the floor shading inside the probe follows the light
+        gNeedRedrawProbe = true;
     }
 }
 
@@ -250,6 +268,8 @@ void dumpInfo()
     std::cout << "program id = " << gOption.ProgramId << " ";
     if (gOption.enableSkybox)
         std::cout << "skybox ";
+    if (gOption.enableReflection)
+        std::cout << "reflection ";
     if (gOption.enableShadow)
         std::cout << "shadow ";
     if (gOption.drawFloor)
@@ -267,10 +287,17 @@ void dumpInfo()
 
 int main(int argc, char *argv[])
 {
+    // Default demo: a reflective sphere in front of the skybox
+    const char *configFiles[16];
+    int configFileNum = 0;
     if (argc < 2)
     {
         std::cout << "Usage: " << argv[0] << " obj_config..." << std::endl;
-        return 0;
+        std::cout << "No config given, using the default sphere demo." << std::endl;
+        configFiles[configFileNum++] = "res/conf/sphere.conf";
+    } else {
+        for (int i = 1; i < argc && configFileNum < 16; i++)
+            configFiles[configFileNum++] = argv[i];
     }
     TRWindow w(WIDTH, HEIGHT);
     if (!w.OK())
@@ -285,9 +312,9 @@ int main(int argc, char *argv[])
 #endif
 
     std::vector<std::shared_ptr <TRObj>> objs;
-    for (int i = 1; i < argc; i++)
+    for (int i = 0; i < configFileNum; i++)
     {
-        std::shared_ptr<TRObj> obj(new TRObj(argv[i]));
+        std::shared_ptr<TRObj> obj(new TRObj(configFiles[i]));
         if (obj->OK())
             objs.push_back(obj);
     }
@@ -326,7 +353,9 @@ int main(int argc, char *argv[])
         if (currentFloorHeight < floorHeight)
             floorHeight = currentFloorHeight;
     }
-    truCreateFloorPlane(floorMesh, floorHeight);
+    // Wide floor so the reflections near the horizon stay on the floor
+    // instead of the dark skybox below-horizon region outside the floor edge
+    truCreateFloorPlane(floorMesh, floorHeight, 20.0f);
     TRTexture floorTex("res/tex/floor_diffuse.tga");
     if (!floorTex.OK())
         abort();
@@ -335,9 +364,17 @@ int main(int argc, char *argv[])
 #if ENABLE_SKYBOX
     TRSkyBox *pSkybox = nullptr;
 #endif
+#if ENABLE_PROBE
+    TRReflectionProbe *pProbe = nullptr;
+#endif
 
     glm::mat4 modelMat(1.0f);
     unidata.mLightPosition = glm::vec3(0.0f, 1.0f, 1.0f);
+    unidata.mReflectivity = 0.8f;
+    // Fresnel: weaker reflection head-on, stronger at grazing angles
+    unidata.mFresnelFactor = 0.25f;
+    // Faces the light can not reach should not show a strong mirror image
+    unidata.mReflectShadowMod = true;
 
     int frame = 0;
     int frame_fps = 0;
@@ -351,6 +388,8 @@ int main(int argc, char *argv[])
 #endif
                 );
         unidata.mViewLightPosition = eyeViewMat * glm::vec4(unidata.mLightPosition, 1.0f);
+        // Eye position in world space for the environment reflection
+        unidata.mEyeWorldPosition = glm::vec3(glm::inverse(eyeViewMat) * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
         trSetUniformData(&unidata);
 #if ENABLE_SHADOW
         if (gOption.enableShadow && gNeedRedrawShadowMap)
@@ -376,12 +415,92 @@ int main(int argc, char *argv[])
             trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
         }
 #endif
+#if ENABLE_PROBE
+        // Reflection probe: render the scene (floor + skybox, the reflective
+        // objects themselves are skipped) into 6 cube faces from the model
+        // center, so the reflection picks up scene geometry too.
+        if (gOption.enableReflection && gNeedRedrawProbe
+                && !objs.empty() && objs.front()->OK()
+#if ENABLE_SKYBOX
+                && pSkybox && pSkybox->OK()
+#endif
+                )
+        {
+            gNeedRedrawProbe = false;
+            if (!pProbe)
+                pProbe = new TRReflectionProbe(glm::vec3(0.0f), PROBE_FACE_SIZE);
+            if (pProbe->OK())
+            {
+                // no environment reflection / shadow inside the probe
+                trBindCubeTexture(nullptr);
+#if ENABLE_SHADOW
+                trBindTexture(nullptr, TEXTURE_SHADOWMAP);
+#endif
+                // The Phong light position uniform is precomputed in view
+                // space, recompute it with the probe face view matrix or the
+                // floor inside the probe gets lit from a wrong direction
+                // (e.g. fully black when it ends up backlit).
+                glm::vec3 viewLightBackup = unidata.mViewLightPosition;
+                for (size_t i = 0; i < 6; i++)
+                {
+                    trSetRenderTarget(pProbe->getFaceBuffer(i));
+                    trClearColor3f(0.1f, 0.1f, 0.1f);
+                    trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
+                    trSetMat4(glm::mat4(1.0f), MAT4_MODEL);
+                    trSetMat4(pProbe->getFaceViewMat(i), MAT4_VIEW);
+                    trSetMat4(pProbe->getFaceProjMat(), MAT4_PROJ);
+                    unidata.mViewLightPosition = pProbe->getFaceViewMat(i) * glm::vec4(unidata.mLightPosition, 1.0f);
+#if DRAW_FLOOR
+                    if (gOption.drawFloor)
+                    {
+                        trBindTexture(&floorTex, TEXTURE_DIFFUSE);
+                        trDrawArrays(TR_TRIANGLES, floorMesh, &floorShader);
+                    }
+#endif
+#if ENABLE_SKYBOX
+                    // the skybox part of the probe stays exact: it is at
+                    // infinity, independent of the probe position
+                    pSkybox->draw();
+#endif
+                }
+                unidata.mViewLightPosition = viewLightBackup;
+                // back to the window buffer
+                trSetRenderTarget(windowBuffer);
+#if ENABLE_SHADOW
+                // the probe pass unbound the shadow map above, but the objs
+                // below still need it: without this rebind they would lose
+                // their shadows on every probe re-render frame
+                if (gOption.enableShadow)
+                    trBindTexture(shadowBuffer->getTexture(), TEXTURE_SHADOWMAP);
+#endif
+            }
+        }
+#endif
         // do clear color again since we enable resize event
         trClearColor3f(0.1, 0.1, 0.1);
         trClear(TR_CLEAR_DEPTH_BIT | TR_CLEAR_COLOR_BIT);
         trSetMat4(modelMat, MAT4_MODEL);
         trSetMat4(eyeViewMat, MAT4_VIEW);
         trSetMat4(eyeProjMat, MAT4_PROJ);
+#if ENABLE_SKYBOX
+        // Reflection needs the skybox cube textures even when the skybox
+        // itself is not drawn.
+        if (!pSkybox && (gOption.enableSkybox || gOption.enableReflection))
+            pSkybox = new TRSkyBox(gCubeTextureNames);
+#endif
+#if ENABLE_PROBE
+        if (gOption.enableReflection && pProbe && pProbe->OK())
+            // dynamic environment: floor + skybox
+            trBindCubeTexture(pProbe->getCubeTexture());
+        else
+#endif
+#if ENABLE_SKYBOX
+        if (gOption.enableReflection && pSkybox && pSkybox->OK())
+            // fallback: static skybox only
+            trBindCubeTexture(pSkybox->getCubeTexture());
+        else
+            trBindCubeTexture(nullptr);
+#endif
         for (auto obj : objs)
             obj->draw(gOption.ProgramId);
 
@@ -406,12 +525,8 @@ int main(int argc, char *argv[])
             trBindTexture(nullptr, TEXTURE_SHADOWMAP);
 #endif
 #if ENABLE_SKYBOX
-        if (gOption.enableSkybox)
-        {
-            if (!pSkybox)
-                pSkybox = new TRSkyBox(gCubeTextureNames);
+        if (gOption.enableSkybox && pSkybox && pSkybox->OK())
             pSkybox->draw();
-        }
 #endif
         w.swapBuffer();
 
@@ -441,6 +556,10 @@ int main(int argc, char *argv[])
 #if ENABLE_SKYBOX
     if (pSkybox)
         delete pSkybox;
+#endif
+#if ENABLE_PROBE
+    if (pProbe)
+        delete pProbe;
 #endif
 #if ENABLE_SHADOW
     delete shadowBuffer;

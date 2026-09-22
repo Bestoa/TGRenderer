@@ -10,6 +10,7 @@ namespace TGRenderer
     // global value
     TRBuffer *gRenderTarget = nullptr;
     TRTexture *gTexture[TEXTURE_INDEX_MAX] = { nullptr };
+    TRCubeTexture *gCubeTexture = nullptr;
     void *gUniform = nullptr;
 
     glm::mat4 gDefaultMat4[MAT_INDEX_MAX] =
@@ -727,6 +728,7 @@ namespace TGRenderer
     {
         for (int i = 0; i < TEXTURE_INDEX_MAX; i++)
             gTexture[i] = nullptr;
+        gCubeTexture = nullptr;
     }
 
     TRTexture *trGetTexture(int type)
@@ -735,6 +737,17 @@ namespace TGRenderer
             return gTexture[type];
         else
             return nullptr;
+    }
+
+    // Cube texture related API
+    void trBindCubeTexture(TRCubeTexture *texture)
+    {
+        gCubeTexture = texture;
+    }
+
+    TRCubeTexture *trGetCubeTexture()
+    {
+        return gCubeTexture;
     }
 
     // Uniform data related API

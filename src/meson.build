@@ -13,6 +13,7 @@ libtrcore = shared_library('trcore',
            'core/texture.cpp',
            'core/program.cpp',
            'core/skybox.cpp',
+           'core/probe.cpp',
            'core/utils.cpp',
            dependencies : [
              dep_glm,

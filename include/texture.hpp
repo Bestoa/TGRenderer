@@ -33,6 +33,23 @@ namespace TGRenderer
             int mH = 0;
     };
 
+    // Aggregates 6 face textures for direction sampling.
+    // Face order is the same as TRSkyBox: bottom, top, front, back, left, right.
+    // The cube texture does not own the face textures.
+    class TRCubeTexture
+    {
+        public:
+            TRCubeTexture(TRTexture *faces[6]);
+            TRCubeTexture(const TRCubeTexture &&) = delete;
+
+            // Sample by a direction in cube space (any non-zero vector, no need to normalize).
+            // Returns nullptr only when the selected face texture is missing.
+            float *sample(const glm::vec3 &dir);
+
+        private:
+            TRTexture *mFaces[6] = { nullptr };
+    };
+
     class TRTextureBuffer : public TRBuffer
     {
         public:

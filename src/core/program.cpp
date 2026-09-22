@@ -33,6 +33,14 @@ float *texture2D(int type, float u, float v)
     return texture->getColor(u, v);
 }
 
+float *textureCube(const glm::vec3 &dir)
+{
+    TRCubeTexture *cubeTexture = trGetCubeTexture();
+    if (cubeTexture == nullptr)
+        return nullptr;
+    return cubeTexture->sample(dir);
+}
+
 float calcShadowFast(float depth, float x, float y)
 {
     if (x <= 1.0f && x >= 0.0f && y <= 1.0f && y >= 0.0f
@@ -160,7 +168,7 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[])
 void ColorPhongShader::getVaryingNum(size_t &v2, size_t &v3, size_t &v4)
 {
     v2 = SH_VEC2_BASE_MAX;
-    v3 = SH_VEC3_PHONG_MAX;
+    v3 = SH_VEC3_COLOR_PHONG_MAX;
     v4 = SH_VEC4_PHONG_MAX;
 }
 
@@ -169,6 +177,12 @@ void TextureMapPhongShader::vertex(TRMeshData &mesh, VSOutData *vsdata, size_t i
     vsdata->tr_Position = trGetMat4(MAT4_MVP) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_VIEW_FRAG_POSITION] = trGetMat4(MAT4_MODELVIEW) * glm::vec4(mesh.vertices[index], 1.0f);
     vsdata->mVaryingVec3[SH_NORMAL] = trGetMat3(MAT3_NORMAL) * mesh.normals[index];
+    // World space data for environment reflection in fragment(), the cube
+    // texture (skybox) is defined in world space.
+    vsdata->mVaryingVec3[SH_WORLD_FRAG_POSITION] = trGetMat4(MAT4_MODEL) * glm::vec4(mesh.vertices[index], 1.0f);
+    // mat3(MODEL) is a proper normal matrix for rotation/uniform scale,
+    // non-uniform scale would need the inverse transpose here.
+    vsdata->mVaryingVec3[SH_WORLD_NORMAL] = glm::mat3(trGetMat4(MAT4_MODEL)) * mesh.normals[index];
     vsdata->mVaryingVec2[SH_TEXCOORD] = mesh.texcoords[index];
 
     PhongUniformData *unidata = reinterpret_cast<PhongUniformData *>(trGetUniformData());
@@ -235,16 +249,57 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[])
     else
         specColor *= unidata->mSpecularStrength;
 
+    float shadow = 1.0f;
     if (trGetTexture(TEXTURE_SHADOWMAP) != nullptr)
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        float shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
+        shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
         diff *= shadow;
         spec *= shadow;
     }
 
     glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
+
+    if (trGetCubeTexture() != nullptr)
+    {
+        // Environment reflection. The cube texture is defined in world space,
+        // so the reflection direction must be computed in world space.
+        glm::vec3 worldNormal = glm::normalize(fsdata->getVec3(SH_WORLD_NORMAL));
+        // Note: with a normal map bound, lighting uses the perturbed tangent
+        // space normal, but reflection uses the geometric world normal here.
+        // Transforming the perturbed normal back to world space would need
+        // world space TBN varyings.
+        // from eye to fragment
+        glm::vec3 eyeDirection = glm::normalize(fsdata->getVec3(SH_WORLD_FRAG_POSITION) - unidata->mEyeWorldPosition);
+        glm::vec3 reflectDirection = glm::reflect(eyeDirection, worldNormal);
+        float *envColor = textureCube(reflectDirection);
+        if (envColor != nullptr)
+        {
+            float reflectivity = unidata->mReflectivity;
+            if (unidata->mFresnelFactor > 0.0f)
+            {
+                // Schlick fresnel: reflection grows toward grazing angles and
+                // keeps the base shading when looking straight on.
+                // eyeDirection points from the eye to the fragment, so
+                // 1 + dot(eyeDirection, worldNormal) is 0 head-on and 1 at
+                // grazing angles. Clamp to 0: float rounding can make it
+                // slightly negative head-on and pow(negative, fractional
+                // power) would produce NaN colors.
+                float fresnel = unidata->mFresnelFactor
+                    + (1.0f - unidata->mFresnelFactor)
+                    * glm::pow(glm::max(0.0f, 1.0f + glm::dot(eyeDirection, worldNormal)), unidata->mFresnelPower);
+                reflectivity = glm::clamp(reflectivity * fresnel, 0.0f, 1.0f);
+            }
+            // A mirror in shadow still reflects physically, but attenuating
+            // the reflection by the shadow factor looks much more natural
+            // (unlit faces no longer glow with a strong mirror image).
+            if (unidata->mReflectShadowMod)
+                reflectivity *= shadow;
+            result = glm::mix(result, glm::make_vec3(envColor), reflectivity);
+        }
+    }
+
     if (trGetTexture(TEXTURE_GLOW) != nullptr)
         result += glm::make_vec3(texture2D(TEXTURE_GLOW, texCoord.x, texCoord.y));
     for (int i = 0; i < 3; i++)

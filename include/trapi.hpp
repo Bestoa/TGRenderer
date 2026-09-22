@@ -152,6 +152,10 @@ namespace TGRenderer
     void trBindTexture(TRTexture *texture, int type);
     void trUnbindTextureAll();
     TRTexture *trGetTexture(int type);
+    // Cube texture related API. Independent from the TRTexture slots above
+    // because a cube texture aggregates 6 face textures.
+    void trBindCubeTexture(TRCubeTexture *texture);
+    TRCubeTexture *trGetCubeTexture();
     // Uniform data related API
     void trSetUniformData(void *data);
     void *trGetUniformData();

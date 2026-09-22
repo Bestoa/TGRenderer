@@ -64,6 +64,8 @@ TRSkyBox::TRSkyBox(std::string cubeTextureNames[6])
         if (!mCubeTexture[i]->OK())
             return;
     }
+    // Does not own the face textures, they are freed in ~TRSkyBox()
+    mCubeTextureAgg = new TRCubeTexture(mCubeTexture);
     mOK = true;
 }
 
@@ -72,6 +74,8 @@ TRSkyBox::~TRSkyBox()
     for (size_t i = 0; i < 6; i++)
         if (mCubeTexture[i])
             delete mCubeTexture[i];
+    if (mCubeTextureAgg)
+        delete mCubeTextureAgg;
 }
 
 void TRSkyBox::draw()
@@ -92,4 +96,11 @@ void TRSkyBox::draw()
 bool TRSkyBox::OK()
 {
     return mOK;
+}
+
+TRCubeTexture *TRSkyBox::getCubeTexture()
+{
+    if (!mOK)
+        return nullptr;
+    return mCubeTextureAgg;
 }

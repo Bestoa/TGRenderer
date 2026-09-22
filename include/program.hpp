@@ -24,9 +24,13 @@ enum
 enum
 {
     SH_VIEW_FRAG_POSITION = SH_VEC3_BASE_MAX,
+    SH_WORLD_FRAG_POSITION,
+    SH_WORLD_NORMAL,
     SH_TANGENT_FRAG_POSITION,
     SH_TANGENT_LIGHT_POSITION,
     SH_VEC3_PHONG_MAX,
+    // ColorPhongShader has no tangent/world space data
+    SH_VEC3_COLOR_PHONG_MAX = SH_WORLD_FRAG_POSITION,
 };
 
 enum
@@ -37,6 +41,8 @@ enum
 
 void textureCoordWrap(glm::vec2 &coord);
 float *texture2D(int type, float u, float v);
+// Sample the cube texture bound by trBindCubeTexture(), nullptr when unbound
+float *textureCube(const glm::vec3 &dir);
 
 class PhongUniformData
 {
@@ -47,6 +53,18 @@ class PhongUniformData
         glm::vec3 mLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
         glm::vec3 mLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 mViewLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+        // Environment reflection strength, 0 = no reflection, 1 = pure mirror
+        float mReflectivity = 0.5f;
+        // Eye position in world space, needed by the world space reflection
+        glm::vec3 mEyeWorldPosition = glm::vec3(0.0f, 0.0f, 0.0f);
+        // Fresnel: reflection weight grows toward grazing angles,
+        // mFresnelFactor is the base reflectance at normal incidence.
+        // 0 disables the fresnel term (uniform reflection strength).
+        float mFresnelFactor = 0.0f;
+        float mFresnelPower = 5.0f;
+        // Attenuate the reflection by the shadow factor, so faces the light
+        // can not reach do not show a strong mirror image.
+        bool mReflectShadowMod = false;
 };
 
 class ColorShader : public TGRenderer::Shader

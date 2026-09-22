@@ -26,10 +26,14 @@ class TRSkyBox
 
         bool OK();
         void draw();
+        // Aggregated cube texture for environment mapping (reflection etc.)
+        // Returns nullptr when the skybox is not usable.
+        TGRenderer::TRCubeTexture *getCubeTexture();
 
     private:
         SkyboxShader mShader;
 
+        TGRenderer::TRCubeTexture *mCubeTextureAgg = nullptr;
         TGRenderer::TRTexture *mCubeTexture[6];
         TGRenderer::TRMeshData mCubeData[6];
 
