@@ -212,18 +212,18 @@ static void refractThroughSphere(const glm::vec3 &eyeDirection, const glm::vec3 
     exitDirection = exitDir;
 }
 
-float calcShadowFast(float depth, float x, float y)
+float calcShadowFast(int texType, float factor, float depth, float x, float y)
 {
     if (x <= 1.0f && x >= 0.0f && y <= 1.0f && y >= 0.0f
-            && (depth > *(texture2D(TEXTURE_SHADOWMAP, x, y)) + ShadowMapShader::BIAS))
-        return ShadowMapShader::FACTOR;
+            && (depth > *(texture2D(texType, x, y)) + ShadowMapShader::BIAS))
+        return factor;
     else
         return 1.0f;
 }
 
-float calcShadowPCF(float depth, float x, float y)
+float calcShadowPCF(int texType, float factor, float depth, float x, float y)
 {
-    TRTexture *st = trGetTexture(TEXTURE_SHADOWMAP);
+    TRTexture *st = trGetTexture(texType);
     float xstep = st->getXStep();
     float ystep = st->getYStep();
     float shadow = 0.f;
@@ -235,7 +235,7 @@ float calcShadowPCF(float depth, float x, float y)
         {x - xstep, y + ystep, 1.0f}, {x, y + ystep, 2.0f}, {x + xstep, y + ystep, 1.0f},
     };
     for (size_t i = 0; i < 9; i++)
-        shadow += calcShadowFast(depth, texcoords[i][0], texcoords[i][1]) * texcoords[i][2];
+        shadow += calcShadowFast(texType, factor, depth, texcoords[i][0], texcoords[i][1]) * texcoords[i][2];
 
     return shadow / 16.0f;
 }
@@ -325,7 +325,7 @@ bool ColorPhongShader::fragment(FSInData *fsdata, float color[])
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        float shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
+        float shadow = calcShadowPCF(TEXTURE_SHADOWMAP, ShadowMapShader::FACTOR, lightClipV.z, lightClipV.x, lightClipV.y);
         diff *= shadow;
         spec *= shadow;
     }
@@ -403,6 +403,12 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[])
     glm::vec3 lightDirection = glm::normalize(lightPosition - fragmentPosition);
 
     float diff = glm::max(glm::dot(normal, lightDirection), 0.0f);
+    // optional distance attenuation: 1/(1+k*d*d), 0 = off
+    if (unidata->mLightAttenuation > 0.0f)
+    {
+        float d = glm::length(lightPosition - fragmentPosition);
+        diff /= 1.0f + unidata->mLightAttenuation * d * d;
+    }
 
     // in camera space, eys always in (0.0, 0.0, 0.0), from fragment to eye
     // even in tangent space, eys still in (0, 0, 0)
@@ -425,12 +431,122 @@ bool TextureMapPhongShader::fragment(FSInData *fsdata, float color[])
     {
         glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
         lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
-        shadow = calcShadowPCF(lightClipV.z, lightClipV.x, lightClipV.y);
+        shadow = calcShadowPCF(TEXTURE_SHADOWMAP, ShadowMapShader::FACTOR, lightClipV.z, lightClipV.x, lightClipV.y);
         diff *= shadow;
         spec *= shadow;
     }
+    // translucent occluders (glass ball): separate map, weaker factor, so
+    // the shadow lets light through instead of going opaque-black
+    if (trGetTexture(TEXTURE_SHADOWMAP_GLASS) != nullptr)
+    {
+        glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
+        lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
+        float glassShadow = calcShadowPCF(TEXTURE_SHADOWMAP_GLASS, 0.55f,
+                                          lightClipV.z, lightClipV.x, lightClipV.y);
+        diff *= glassShadow;
+        spec *= glassShadow;
+    }
+    // glass caustics: the ball focuses the transmitted light into a bright
+    // spot + ring on the floor. Additive on top of the (already attenuated)
+    // diffuse, sampled in the same light space as the shadow maps.
+    if (trGetTexture(TEXTURE_CAUSTIC) != nullptr)
+    {
+        glm::vec4 lightClipV = fsdata->getVec4(SH_LIGHT_FRAG_POSITION);
+        lightClipV = (lightClipV / lightClipV.w) * 0.5f + 0.5f;
+        if (lightClipV.x >= 0.0f && lightClipV.x <= 1.0f
+                && lightClipV.y >= 0.0f && lightClipV.y <= 1.0f)
+        {
+            float *c = texture2D(TEXTURE_CAUSTIC, lightClipV.x, lightClipV.y);
+            if (c != nullptr)
+                diff += c[0];
+        }
+    }
 
-    glm::vec3 result = ((unidata->mAmbientStrength + diff) * diffuseColor + spec * specColor) * unidata->mLightColor;
+    // Screen-space ambient occlusion: modulates ONLY the non-direct light
+    // (ambient and indirect), never the direct diffuse/specular and never
+    // the emissive glow. Sampled at the fragment's screen position derived
+    // from the interpolated clip position.
+    float ao = 1.0f;
+    if (trGetTexture(TEXTURE_AO) != nullptr)
+    {
+        glm::vec4 clipPos = fsdata->getPosition();
+        if (clipPos.w > 0.0f)
+        {
+            // clamp: edge fragments can land slightly outside [0,1]
+            float u = glm::clamp(clipPos.x / clipPos.w / 2.0f + 0.5f, 0.0f, 1.0f);
+            float v = glm::clamp(clipPos.y / clipPos.w / 2.0f + 0.5f, 0.0f, 1.0f);
+            float *a = texture2D(TEXTURE_AO, u, v);
+            if (a != nullptr)
+                ao = a[0];
+        }
+    }
+
+    glm::vec3 result = ((unidata->mAmbientStrength * ao + diff) * diffuseColor
+                        + spec * specColor) * unidata->mLightColor;
+
+    // Color bleeding (one-bounce indirect light): a small cosine-weighted
+    // hemisphere gather around the fragment normal against the cube
+    // environment. Each tap is parallax-corrected: the direction is
+    // intersected with the room box [-1,1]^3 from the FRAGMENT position and
+    // the hit point is re-expressed as a direction from the probe position,
+    // so the gather sees roughly what a surface at the fragment would see
+    // (a floor fragment near the red wall picks up red). The environment
+    // carries the directly lit walls - the Cornell box color bleeding,
+    // probe approximation.
+    if (unidata->mIndirectStrength > 0.0f && trGetCubeTexture() != nullptr)
+    {
+        glm::vec3 wN = glm::normalize(fsdata->getVec3(SH_WORLD_NORMAL));
+        glm::vec3 wP = fsdata->getVec3(SH_WORLD_FRAG_POSITION);
+        bool parallax = glm::dot(unidata->mProbePosition, unidata->mProbePosition) > 0.0f;
+        // tangent frame around wN
+        glm::vec3 up = fabsf(wN.z) < 0.99f ? glm::vec3(0, 0, 1) : glm::vec3(1, 0, 0);
+        glm::vec3 tan = glm::normalize(glm::cross(up, wN));
+        glm::vec3 bit = glm::cross(wN, tan);
+        const int TAPS = 8;
+        glm::vec3 sum(0.0f);
+        for (int i = 0; i < TAPS; i++)
+        {
+            // cosine-weighted hemisphere, golden-angle spiral (deterministic):
+            // uniform disk radius -> cosine-weighted solid angle, r up to ~1
+            // reaches the grazing directions where side walls sit for floor
+            // fragments (a narrow cone misses them and the bleed vanishes)
+            float a = (float)i * 2.399963f;
+            float r = sqrtf(((float)i + 0.5f) / (float)TAPS);
+            glm::vec3 dir = glm::normalize(wN * sqrtf(glm::max(1.0f - r * r, 0.0f))
+                                           + (tan * cosf(a) + bit * sinf(a)) * r);
+            glm::vec3 cdir = dir;
+            if (parallax)
+            {
+                // exit t of ray wP + t*dir through the room box [-1,1]^3
+                float tExit = 1e30f;
+                for (int ax = 0; ax < 3; ax++)
+                {
+                    if (fabsf(dir[ax]) < 1e-6f)
+                        continue;
+                    float wall = dir[ax] > 0.0f ? 1.0f : -1.0f;
+                    float t = (wall - wP[ax]) / dir[ax];
+                    if (t > 1e-4f && t < tExit)
+                        tExit = t;
+                }
+                if (tExit < 1e29f)
+                    cdir = wP + tExit * dir - unidata->mProbePosition;
+            }
+            float *ind = textureCube(cdir);
+            if (ind != nullptr)
+                sum += glm::make_vec3(ind);
+        }
+        glm::vec3 gath = sum / (float)TAPS;
+        // Soft-knee headroom: surfaces already driven near saturation by the
+        // direct light (the white back wall sits at 85%) have no room for
+        // bounce light - adding it there just washes them out. Fade the
+        // indirect term out above 70% base brightness; dark and mid-tone
+        // regions (floor edges, shadowed box faces - exactly where color
+        // bleeding is meant to show) receive it in full.
+        float base = glm::max(result.x, glm::max(result.y, result.z));
+        float knee = 1.0f - glm::smoothstep(0.70f, 1.0f, base);
+        result += gath * diffuseColor
+                  * unidata->mIndirectStrength * ao * knee;
+    }
 
     if (trGetCubeTexture() != nullptr)
     {

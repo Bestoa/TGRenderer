@@ -46,8 +46,16 @@ namespace TGRenderer
             // Returns nullptr only when the selected face texture is missing.
             float *sample(const glm::vec3 &dir);
 
+            // When the faces were rendered with a FOV wider than 90 degrees
+            // (the reflection probe uses 94 to keep the contaminated border
+            // out), the nominal 90 degree direction maps to a central
+            // sub-region of each face. Set the scale so sampling lands there:
+            // scale = tan(45) / tan(fov/2). Default 1.0 (plain 90 degree cube).
+            void setSampleScale(float s) { mSampleScale = s; }
+
         private:
             TRTexture *mFaces[6] = { nullptr };
+            float mSampleScale = 1.0f;
     };
 
     class TRTextureBuffer : public TRBuffer
@@ -79,6 +87,17 @@ namespace TGRenderer
         // glmark2-style back face maps for the mesh refraction
         TEXTURE_BACK_NORMAL,
         TEXTURE_BACK_DEPTH,
+        // screen-space ambient occlusion map, window resolution, grayscale,
+        // sampled at the fragment's screen position
+        TEXTURE_AO,
+        // second shadow map for translucent occluders (the glass ball):
+        // same layout as TEXTURE_SHADOWMAP but applied with a weaker factor
+        // so the glass shadow lets light through
+        TEXTURE_SHADOWMAP_GLASS,
+        // caustic light pattern of the glass ball on the floor, in the same
+        // light space as the shadow maps: brightens the transmitted shadow
+        // area (focused light), sampled additively
+        TEXTURE_CAUSTIC,
         TEXTURE_TYPE_MAX,
     };
 
@@ -92,6 +111,9 @@ namespace TGRenderer
         TEXTURE5,
         TEXTURE6,
         TEXTURE7,
+        TEXTURE8,
+        TEXTURE9,
+        TEXTURE10,
         TEXTURE_INDEX_MAX,
     };
 }

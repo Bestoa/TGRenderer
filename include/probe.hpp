@@ -39,12 +39,24 @@ class TRReflectionProbe
         // Aggregated cube texture for trBindCubeTexture()
         TGRenderer::TRCubeTexture *getCubeTexture();
 
+        // Heavily blurred copy of the faces: a low-frequency "irradiance"
+        // environment for one-bounce indirect light. Point-sampling the sharp
+        // cube along the normal lets small bright spots (the ceiling around
+        // the light panel) flood large surfaces; the blur spreads that energy
+        // the way a hemisphere integral would. Call updateIrradiance() after
+        // re-rendering the faces.
+        TGRenderer::TRCubeTexture *getIrradianceTexture();
+        void updateIrradiance();
+
     private:
         glm::vec3 mPosition;
         TGRenderer::TRTextureBuffer *mFaceBuffer[6] = { nullptr };
         glm::mat4 mFaceViewMat[6];
         glm::mat4 mProjMat;
         TGRenderer::TRCubeTexture *mCubeTextureAgg = nullptr;
+        TGRenderer::TRTexture *mIrrFace[6] = { nullptr };
+        TGRenderer::TRCubeTexture *mIrrAgg = nullptr;
+        int mFaceSize = 0;
         bool mOK = false;
 };
 

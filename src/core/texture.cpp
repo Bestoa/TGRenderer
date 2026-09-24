@@ -148,6 +148,10 @@ free_image:
 
         if (face == nullptr || !face->OK())
             return nullptr;
+        // map the nominal 90 degree direction into the face's central
+        // sub-region when the faces were rendered wider than 90 degrees
+        u = 0.5f + (u - 0.5f) * mSampleScale;
+        v = 0.5f + (v - 0.5f) * mSampleScale;
         return face->getColor(u, v);
     }
 

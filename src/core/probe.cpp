@@ -1,4 +1,5 @@
 #include <glm/gtc/matrix_transform.hpp>
+#include <vector>
 
 #include "trapi.hpp"
 #include "probe.hpp"
@@ -55,6 +56,23 @@ TRReflectionProbe::TRReflectionProbe(const glm::vec3 &position, int faceSize)
     for (size_t i = 0; i < 6; i++)
         faces[i] = mFaceBuffer[i]->getTexture();
     mCubeTextureAgg = new TRCubeTexture(faces);
+    /* The faces were rendered at 94 degrees: the nominal 90 degree cube
+     * direction maps to the central tan(45)/tan(47) sub-region, keep the
+     * sampler out of the contaminated border the overlap was meant to avoid. */
+    mCubeTextureAgg->setSampleScale(glm::tan(glm::radians(45.0f)) / glm::tan(glm::radians(47.0f)));
+
+    /* Irradiance cube: same faces, heavily blurred. Aggregation references
+     * the textures, so it is done once here; content is (re)built by
+     * updateIrradiance() after each face re-render. */
+    mFaceSize = faceSize;
+    TRTexture *irrFaces[6];
+    for (size_t i = 0; i < 6; i++)
+    {
+        mIrrFace[i] = new TRTexture(faceSize, faceSize);
+        irrFaces[i] = mIrrFace[i];
+    }
+    mIrrAgg = new TRCubeTexture(irrFaces);
+    mIrrAgg->setSampleScale(glm::tan(glm::radians(45.0f)) / glm::tan(glm::radians(47.0f)));
     mOK = true;
 }
 
@@ -65,6 +83,11 @@ TRReflectionProbe::~TRReflectionProbe()
             delete mFaceBuffer[i];
     if (mCubeTextureAgg)
         delete mCubeTextureAgg;
+    for (size_t i = 0; i < 6; i++)
+        if (mIrrFace[i])
+            delete mIrrFace[i];
+    if (mIrrAgg)
+        delete mIrrAgg;
 }
 
 bool TRReflectionProbe::OK()
@@ -94,4 +117,71 @@ TGRenderer::TRCubeTexture *TRReflectionProbe::getCubeTexture()
     if (!mOK)
         return nullptr;
     return mCubeTextureAgg;
+}
+
+TGRenderer::TRCubeTexture *TRReflectionProbe::getIrradianceTexture()
+{
+    if (!mOK)
+        return nullptr;
+    return mIrrAgg;
+}
+
+void TRReflectionProbe::updateIrradiance()
+{
+    if (!mOK)
+        return;
+
+    /* Separable box blur, two iterations, radius faceSize/8: wide enough
+     * that face-local hotspots dissolve into their surroundings. Edge texels
+     * are clamped (no cross-face filtering) - invisible for a term that is
+     * only multiplied by albedo and a modest strength. */
+    const int n = mFaceSize;
+    const int radius = n / 8;
+    std::vector<float> tmp(n * n * TEXTURE_CHANNEL);
+
+    for (int f = 0; f < 6; f++)
+    {
+        float *src = mFaceBuffer[f]->getTexture()->getBuffer();
+        float *dst = mIrrFace[f]->getBuffer();
+        float *from = src;
+        for (int iter = 0; iter < 2; iter++)
+        {
+            // horizontal: from -> tmp
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                    for (int c = 0; c < TEXTURE_CHANNEL; c++)
+                    {
+                        float sum = 0.0f;
+                        for (int k = -radius; k <= radius; k++)
+                        {
+                            int xx = glm::clamp(x + k, 0, n - 1);
+                            sum += from[(y * n + xx) * TEXTURE_CHANNEL + c];
+                        }
+                        tmp[(y * n + x) * TEXTURE_CHANNEL + c] = sum / (2 * radius + 1);
+                    }
+            // vertical: tmp -> dst
+            for (int y = 0; y < n; y++)
+                for (int x = 0; x < n; x++)
+                    for (int c = 0; c < TEXTURE_CHANNEL; c++)
+                    {
+                        float sum = 0.0f;
+                        for (int k = -radius; k <= radius; k++)
+                        {
+                            int yy = glm::clamp(y + k, 0, n - 1);
+                            sum += tmp[(yy * n + x) * TEXTURE_CHANNEL + c];
+                        }
+                        dst[(y * n + x) * TEXTURE_CHANNEL + c] = sum / (2 * radius + 1);
+                    }
+            from = dst;
+        }
+
+        /* Cap the irradiance sources: the demo's point light sits 0.1 below
+         * the ceiling and blasts it to near saturation in the probe. A real
+         * panel light emits downward only (dark ceiling). Uncapped, upward
+         * taps of the hemisphere gather wash out the walls. 0.55 keeps the
+         * colored walls (<= ~0.7) nearly intact while taming the ceiling. */
+        const float cap = 0.55f;
+        for (int i = 0; i < n * n * TEXTURE_CHANNEL; i++)
+            dst[i] = glm::min(dst[i], cap);
+    }
 }

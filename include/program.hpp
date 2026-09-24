@@ -51,6 +51,9 @@ class PhongUniformData
         float mSpecularStrength = 0.2;
         int mShininess = 32;
         glm::vec3 mLightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+        // Distance attenuation of the point light: factor 1/(1+k*d*d).
+        // 0 disables (constant intensity regardless of distance).
+        float mLightAttenuation = 0.0f;
         glm::vec3 mLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
         glm::vec3 mViewLightPosition = glm::vec3(0.0f, 0.0f, 0.0f);
         // Environment reflection strength, 0 = no reflection, 1 = pure mirror
@@ -67,6 +70,17 @@ class PhongUniformData
         bool mReflectShadowMod = false;
         // Fragment opacity for blending, only meaningful with trEnableBlend()
         float mOpacity = 1.0f;
+        // Color bleeding (one-bounce indirect light): samples the bound cube
+        // environment along the fragment normal and adds it scaled by the
+        // surface color. 0 disables (default).
+        float mIndirectStrength = 0.0f;
+        // World position of the probe that captured the bound cube texture.
+        // Used to parallax-correct the indirect hemisphere gather: each tap
+        // direction is intersected with the room box from the fragment
+        // position, then re-expressed as a direction from the probe, so
+        // fragments near a colored wall pick up that wall's tint instead of
+        // a uniform room average. Zero disables the correction.
+        glm::vec3 mProbePosition = glm::vec3(0.0f);
         // Index of refraction. > 1.0 turns the fragment into glass shading:
         // fresnel weighted reflection + double refraction through
         // mRefractionSphere replaces the regular Phong body.
