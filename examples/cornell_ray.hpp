@@ -18,6 +18,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include "trapi.hpp"
 #include "program.hpp"
+#include "cornell_scene.hpp"
 
 namespace TGRenderer
 {
@@ -36,9 +37,9 @@ class CornellRayShader : public TGRenderer::Shader
 {
 public:
     // scene description
-    glm::vec4 mBallGlass = glm::vec4(-0.15f, -0.74f, 0.3f, 0.26f);   // xyz center, w radius
-    glm::vec4 mBallMirror = glm::vec4(0.35f, -0.78f, 0.05f, 0.22f);
-    glm::vec3 mLightPos = glm::vec3(0.0f, 0.9f, 0.0f);
+    glm::vec4 mBallGlass = cs::kGlassBall;     // single source: cornell_scene.hpp
+    glm::vec4 mBallMirror = cs::kMirrorBall;
+    glm::vec3 mLightPos = cs::kLightPos;
     glm::vec3 mLightColor = glm::vec3(1.45f);
     float mAmbient = 0.45f;
     float mAtten = 1.0f;
@@ -138,24 +139,48 @@ public:
     RayHit trace(const glm::vec3 &P, const glm::vec3 &D)
     {
         RayHit hit;
-        const glm::vec3 white(0.9f), red(0.63f, 0.06f, 0.05f), green(0.14f, 0.45f, 0.09f), gray(0.55f);
+        const glm::vec3 &white = cs::kWhite, &red = cs::kRed,
+                        &green = cs::kGreen, &gray = cs::kGray;
         // room: floor, ceiling, back, left, right (front open)
-        hitPlane(P, D, -1.0f, 1, 1.0f, white, hit);                    // floor
-        hitPlane(P, D, 1.0f, 1, -1.0f, gray, hit);                     // ceiling
-        hitPlane(P, D, 0.99f, 1, -1.0f, white, hit, 1.0f,              // panel light
-                 -0.4f, 0.4f, -0.25f, 0.25f);
-        hitPlane(P, D, -1.0f, 2, 1.0f, white, hit);                    // back wall
-        hitPlane(P, D, -1.0f, 0, 1.0f, red, hit);                      // left (red)
-        hitPlane(P, D, 1.0f, 0, -1.0f, green, hit);                    // right (green)
+        hitPlane(P, D, cs::kFloorY, 1, 1.0f, white, hit);              // floor
+        hitPlane(P, D, cs::kCeilY, 1, -1.0f, gray, hit);               // ceiling
+        hitPlane(P, D, cs::kPanelY, 1, -1.0f, white, hit, 1.0f,        // panel light
+                 -cs::kPanelHalf, cs::kPanelHalf, -cs::kPanelHalf, cs::kPanelHalf);
+        hitPlane(P, D, -cs::kRoomHalf, 2, 1.0f, white, hit);           // back wall
+        hitPlane(P, D, -cs::kRoomHalf, 0, 1.0f, red, hit);             // left (red)
+        hitPlane(P, D, cs::kRoomHalf, 0, -1.0f, green, hit);           // right (green)
         // boxes (OBB, white): tall left, short right
-        hitOBB(P, D, glm::vec3(-0.45f, -0.55f, -0.35f), glm::vec3(0.2f, 0.45f, 0.2f), 20.0f, white, hit);
-        hitOBB(P, D, glm::vec3(0.17f, -0.6f, -0.35f), glm::vec3(0.2f, 0.2f, 0.2f), -20.0f, white, hit);
+        hitOBB(P, D, cs::kTallCenter, cs::kTallHalf, cs::kTallRot, white, hit);
+        hitOBB(P, D, cs::kShortCenter, cs::kShortHalf, cs::kShortRot, white, hit);
         // the other ball
         if (mSelfIndex != 1)
             hitSphere(P, D, mBallGlass, 1, hit);
         if (mSelfIndex != 2)
             hitSphere(P, D, mBallMirror, 2, hit);
         return hit;
+    }
+
+    // transmittance of the glass ball for the segment P -> light: the ball is
+    // excluded from the raster shadow map (it is not an opaque occluder), but
+    // physically it still shades and focuses the light it blocks — a soft dim
+    // penumbra with a bright transmitted core (caustic) on the floor, like the
+    // path tracer's transmission shadow. Used by directLight (all traced views).
+    float glassTransmittance(const glm::vec3 &P, float &causticCore) const
+    {
+        causticCore = 0.0f;
+        if (mSelfIndex == 1) return 1.0f;   // shading the glass ball itself
+        glm::vec3 L = mLightPos - P;
+        float dL = glm::length(L);
+        L /= dL;
+        glm::vec3 oc = glm::vec3(mBallGlass) - P;
+        float s = glm::clamp(glm::dot(oc, L), 0.0f, dL);
+        if (s <= 0.0f || s >= dL) return 1.0f;   // ball not between P and light
+        float h = glm::length(oc - s * L);
+        float r = mBallGlass.w;
+        float penumbra = 1.0f - glm::smoothstep(r * 0.85f, r * 1.35f, h); // 1 blocked
+        if (penumbra <= 0.0f) return 1.0f;
+        causticCore = glm::smoothstep(r * 0.55f, r * 0.05f, h) * penumbra; // focus
+        return 1.0f - 0.45f * penumbra;    // translucent: never fully black
     }
 
     // direct light at a scene point (simplified Phong, matches the demo light)
@@ -166,6 +191,11 @@ public:
         L /= d;
         float diff = glm::max(glm::dot(N, L), 0.0f);
         diff /= 1.0f + mAtten * d * d;
+        // glass ball transmission shadow + bright caustic core
+        float core;
+        float trans = glassTransmittance(P, core);
+        diff *= trans;
+        diff += core * 1.1f * glm::max(glm::dot(N, L), 0.0f);
         // shadow: darkens the direct diffuse only (ambient untouched - the
         // ambient-times-shadow variant made the boxes look unevenly lit).
         // Metal ball only: through the glass ball the shadowed floor under
@@ -189,6 +219,53 @@ public:
     // level (depth 0 -> 1): the glass ball transmits, the metal ball
     // reflects, so they appear as glass/metal in each other's reflections
     // instead of plain Phong spheres.
+    // analytic double refraction through a sphere (rt-pathtracer semantics):
+    // refract in at P, follow the chord, refract out at the far side.
+    // Exit TIR: bounce once inside and leave through the opposite side (the
+    // rim is reflection dominated anyway). Returns false only if even the
+    // bounce fails to exit (grazing); caller falls back to plain reflection.
+    // The analytic entry normal (P - center) is used for the optics so the
+    // in/out geometry is exactly self-consistent (no mesh-normal noise).
+    bool refractThroughBall(const glm::vec3 &P, const glm::vec3 &Vdir, const glm::vec4 &sph,
+                            glm::vec3 &exitP, glm::vec3 &exitD, float &cosEntry) const
+    {
+        glm::vec3 c3(sph);
+        glm::vec3 N = glm::normalize(P - c3);
+        cosEntry = glm::clamp(-glm::dot(Vdir, N), 0.0f, 1.0f);
+        glm::vec3 inner = glm::refract(Vdir, N, 1.0f / mIOR);
+        if (glm::dot(inner, inner) < 1e-8f) return false;
+        glm::vec3 oc = P - c3;
+        float b = glm::dot(oc, inner);
+        float c2 = glm::dot(oc, oc) - sph.w * sph.w;
+        float disc = b * b - c2;
+        if (disc <= 0.0f) return false;
+        float chord = -b + glm::sqrt(disc);
+        glm::vec3 exitPos = P + chord * inner;
+        glm::vec3 exitN = glm::normalize(c3 - exitPos);   // inward
+        glm::vec3 out = glm::refract(inner, exitN, mIOR);
+        if (glm::dot(out, out) < 1e-8f) {
+            glm::vec3 bounced = glm::reflect(inner, exitN);
+            glm::vec3 oc2 = exitPos - c3;
+            float b2 = glm::dot(oc2, bounced);
+            float cb = glm::dot(oc2, oc2) - sph.w * sph.w;
+            float d2 = b2 * b2 - cb;
+            if (d2 > 0.0f) {
+                glm::vec3 exit2 = exitPos + (-b2 + glm::sqrt(d2)) * bounced;
+                glm::vec3 n2 = glm::normalize(c3 - exit2);
+                glm::vec3 out2 = glm::refract(bounced, n2, mIOR);
+                if (glm::dot(out2, out2) > 1e-8f) {
+                    exitP = exit2;
+                    exitD = out2;
+                    return true;
+                }
+            }
+            return false;
+        }
+        exitP = exitPos;
+        exitD = out;
+        return true;
+    }
+
     glm::vec3 traceShade(const glm::vec3 &P, const glm::vec3 &D, int depth)
     {
         RayHit hit = trace(P, D);
@@ -196,18 +273,29 @@ public:
             return glm::vec3(0.02f);
         glm::vec3 hp = P + hit.t * D;
         if (hit.emissive > 0.0f)
-            return glm::vec3(1.0f);
+            // HDR-ish panel emission: the direct view clamps to white either
+            // way, but fresnel-scaled reflections of it (4% on glass) stay
+            // visible — the path tracer keeps this sparkle because its light
+            // is HDR + tonemapped; a flat 1.0 makes glass read as transparent
+            return glm::vec3(6.0f);
         // ball hits recurse once to look like glass / metal
         if (depth == 0 && hit.ballIndex == 1)
         {
-            // glass ball: transmit THROUGH it (skip its own far side by
-            // continuing past the diameter), plus a fresnel reflection
-            glm::vec3 through = traceShade(hp + D * (mBallGlass.w * 2.0f + 1e-3f), D, 1);
+            // glass ball seen in a reflection: REAL double refraction through
+            // the analytic sphere (same optics as the primary shading), plus a
+            // fresnel reflection. (The old fixed-length 2r straight-through
+            // jump made the ball a near-invisible ghost and its continuation
+            // ray could start below the floor plane -> visible seam.)
+            glm::vec3 exitP, exitD, through(0.02f);
+            float cosE;
+            if (refractThroughBall(hp, D, mBallGlass, exitP, exitD, cosE))
+                through = traceShade(exitP + exitD * 1e-3f, exitD, 1);
+            else
+                through = traceShade(hp + hit.normal * 1e-3f, glm::reflect(D, hit.normal), 1);
             glm::vec3 R = glm::reflect(D, hit.normal);
             glm::vec3 refl = traceShade(hp + hit.normal * 1e-3f, R, 1);
-            float cosT = glm::clamp(glm::dot(-D, hit.normal), 0.0f, 1.0f);
             float f0 = glm::pow((mIOR - 1.0f) / (mIOR + 1.0f), 2.0f);
-            float fr = f0 + (1.0f - f0) * glm::pow(1.0f - cosT, 5.0f);
+            float fr = f0 + (1.0f - f0) * glm::pow(1.0f - cosE, 5.0f);
             return glm::mix(through, refl, glm::clamp(fr, 0.0f, 1.0f));
         }
         if (depth == 0 && hit.ballIndex == 2)
@@ -260,27 +348,18 @@ public:
         glm::vec3 result = reflColor;
         if (mIOR > 1.0f)
         {
-            // glass: refraction through the sphere (in + out), fresnel mix
-            glm::vec3 refrDir = glm::refract(V, N, 1.0f / mIOR);
+            // glass: double refraction through the analytic sphere (shared
+            // helper — identical optics in primary and reflected views),
+            // fresnel mix. TIR at the exit bounces once inside the ball.
+            glm::vec4 sph = mSelfIndex == 1 ? mBallGlass : mBallMirror;
             glm::vec3 refrColor(0.02f);
-            if (glm::length(refrDir) > 0.0f)
-            {
-                // travel to the back surface, then refract out
-                glm::vec4 sph = mSelfIndex == 1 ? mBallGlass : mBallMirror;
-                glm::vec3 oc = P - glm::vec3(sph);
-                float b = glm::dot(oc, refrDir);
-                float c = glm::dot(oc, oc) - sph.w * sph.w;
-                float t = -b + sqrtf(glm::max(b * b - c, 0.0f));
-                glm::vec3 backP = P + t * refrDir;
-                glm::vec3 backN = glm::normalize(glm::vec3(sph) - backP);   // inward
-                glm::vec3 exitDir = glm::refract(refrDir, backN, mIOR);
-                if (glm::length(exitDir) > 0.0f)
-                    refrColor = traceShade(backP + exitDir * 1e-3f, exitDir, 0);
-            }
-            // fresnel (Schlick)
-            float cosT = glm::clamp(glm::dot(-V, N), 0.0f, 1.0f);
+            glm::vec3 exitP, exitD;
+            float cosE;
+            if (refractThroughBall(P, V, sph, exitP, exitD, cosE))
+                refrColor = traceShade(exitP + exitD * 1e-3f, exitD, 0);
+            // fresnel (Schlick, air-side entry angle from the analytic normal)
             float f0 = glm::pow((mIOR - 1.0f) / (mIOR + 1.0f), 2.0f);
-            fresnel = f0 + (1.0f - f0) * glm::pow(1.0f - cosT, 5.0f);
+            fresnel = f0 + (1.0f - f0) * glm::pow(1.0f - cosE, 5.0f);
             fresnel = glm::clamp(fresnel, 0.0f, 1.0f);
             result = glm::mix(refrColor, reflColor, fresnel);
         }

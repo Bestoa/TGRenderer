@@ -124,6 +124,7 @@ class ColorPhongShader : public TGRenderer::Shader
 
 class TextureMapPhongShader : public TGRenderer::Shader
 {
+public:   // was default-private: hid the virtual interface from subclasses
     void vertex(TGRenderer::TRMeshData &, TGRenderer::VSOutData *, size_t);
     bool fragment(TGRenderer::FSInData *, float color[]);
     void getVaryingNum(size_t &, size_t &, size_t &);

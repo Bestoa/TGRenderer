@@ -20,11 +20,12 @@
 #include "objs.hpp"
 #include "buffer.hpp"
 #include "ssao.hpp"
+#include "cornell_scene.hpp"
 #include "cornell_ray.hpp"
 #include "utils.hpp"
 
-#define WIDTH (900)
-#define HEIGHT (700)
+#define WIDTH (960)
+#define HEIGHT (540)
 
 using namespace TGRenderer;
 
@@ -40,8 +41,8 @@ static TRObj *loadConf(const char *path)
     return o;
 }
 
-static float gEyeZ = 2.6f;
-static float gEyeY = 0.0f;
+static float gEyeZ = 3.076923f;
+static float gEyeY = 0.023077f;
 static float gIndirect = 0.4f;
 static bool gNeedProbe = true;
 static bool gNeedAO = true;          // screen-space AO follows the camera
@@ -120,17 +121,17 @@ int main()
 
     TextureMapPhongShader shader;
     PhongUniformData unidata;
-    unidata.mLightPosition = glm::vec3(0.0f, 0.9f, 0.0f);   // at the panel
+    unidata.mLightPosition = cs::kLightPos;   // single source: cornell_scene.hpp
     unidata.mAmbientStrength = 0.22f;
     unidata.mLightColor = glm::vec3(1.45f);
     unidata.mLightAttenuation = 1.0f;
     unidata.mIndirectStrength = 0.0f;                        // base value; the loop reapplies gIndirect
     unidata.mReflectivity = 0.0f;
-    unidata.mProbePosition = glm::vec3(0.0f, -0.76f, 0.32f); // matches the probe below
+            unidata.mProbePosition = glm::vec3(cs::kGlassBall); // tracks the glass ball
     trSetUniformData(&unidata);
 
     glm::vec3 eye(0.0f, gEyeY, gEyeZ);
-    glm::mat4 projMat = glm::perspective(glm::radians(55.0f),
+    glm::mat4 projMat = glm::perspective(glm::radians(45.0f),
             (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
 
     // ---- shadow map: depth from the light, looking down (fov 90 covers the
@@ -138,7 +139,7 @@ int main()
     TRBuffer *windowBuffer0 = trGetRenderTarget();
     TRTextureBuffer *shadowBuffer = new TRTextureBuffer(1024, 1024);
     glm::mat4 lightViewMat = glm::lookAt(unidata.mLightPosition,
-            glm::vec3(0.0f, -1.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+            glm::vec3(0.0f, cs::kFloorY, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
     glm::mat4 lightProjMat = glm::perspective(glm::radians(90.0f), 1.0f, 0.05f, 4.5f);
     {
         trSetRenderTarget(shadowBuffer);
@@ -174,13 +175,15 @@ int main()
     // in front of the focal point, so the caustic is spot + ring). ----
     TRTexture *causticTex = new TRTexture(1024, 1024);
     {
-        // caustic center: the floor point right under the ball, in light uv
-        glm::vec4 cc = lightProjMat * lightViewMat * glm::vec4(-0.15f, -1.0f, 0.3f, 1.0f);
+        // caustic center: the floor point where the light focused through
+        // the ball lands — DERIVED from cs::kLightPos/kGlassBall/kFloorY,
+        // it tracks any move of the light or the ball automatically.
+        glm::vec4 cc = lightProjMat * lightViewMat * glm::vec4(cs::causticFoot(), 1.0f);
         float cu = cc.x / cc.w / 2.0f + 0.5f;
         float cv = cc.y / cc.w / 2.0f + 0.5f;
-        // light-space scale: how many uv units per world unit at the floor
-        // (perspective at distance ~1.9, fov 90: half-extent = 1.9 world)
-        float uvPerWorld = 1.0f / (2.0f * 1.9f);
+        // light-space scale: uv units per world unit at the floor — derived
+        // from the light height (was hardcoded 1.9 = 0.9 - (-1.0))
+        float uvPerWorld = 1.0f / (2.0f * (cs::kLightPos.y - cs::kFloorY));
         float spotSigma = 0.055f * uvPerWorld * 1024.0f;   // in texels
         float ringR = 0.16f * uvPerWorld * 1024.0f;
         float ringW = 0.045f * uvPerWorld * 1024.0f;
@@ -225,7 +228,7 @@ int main()
     while (!w.shouldStop() && frame++ < 100000)
     {
         glm::vec3 eye(0.0f, gEyeY, gEyeZ);
-        glm::mat4 viewMat = glm::lookAt(eye, glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0, 1, 0));
+        glm::mat4 viewMat = glm::lookAt(eye, glm::vec3(0.0f, -0.038462f, 0.0f), glm::vec3(0, 1, 0));
         unidata.mViewLightPosition = viewMat * glm::vec4(unidata.mLightPosition, 1.0f);
         unidata.mEyeWorldPosition = eye;
         unidata.mIndirectStrength = gIndirect;
@@ -236,7 +239,7 @@ int main()
 
         // ---- probe pass: walls + light + boxes (indirect sources), balls excluded ----
         if (!probe)
-            probe = new TRReflectionProbe(glm::vec3(0.0f, -0.76f, 0.32f), 256);
+            probe = new TRReflectionProbe(glm::vec3(cs::kGlassBall), 256);
         if (gNeedProbe && probe->OK())
         {
             gNeedProbe = false;
@@ -313,7 +316,7 @@ int main()
 
             ssaoCompute(msaaBuffer, normalBuf->getTexture(), projMat, ao,
                         WIDTH, HEIGHT,
-                        0.18f /*radius*/, 0.015f /*bias*/, 0.3f /*intensity*/, 0.72f /*floor*/);
+                        0.22f /*radius: +pixel-scale comp (fov45/dist 3.08 vs fov55/2.6)*/, 0.015f /*bias*/, 0.33f /*intensity*/, 0.72f /*floor*/);
             // upload, flipping rows: texture v=1 is the screen top while the
             // ao vector is indexed by image rows (top-down)
             float *b = aoTex->getBuffer();
